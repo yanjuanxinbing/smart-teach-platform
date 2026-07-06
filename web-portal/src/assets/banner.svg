@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#667eea"/>
+      <stop offset="100%" stop-color="#764ba2"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="360" fill="url(#g)"/>
+  <text x="600" y="190" font-size="48" font-weight="bold" fill="#fff" text-anchor="middle" font-family="Microsoft YaHei">智能化在线教学支持服务平台</text>
+  <text x="600" y="240" font-size="20" fill="#fff" text-anchor="middle" font-family="Microsoft YaHei" opacity="0.9">Smart Online Teaching Support Service Platform</text>
+</svg>

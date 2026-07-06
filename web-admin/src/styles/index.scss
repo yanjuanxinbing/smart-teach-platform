@@ -1,0 +1,8 @@
+/* 全局样式 */
+body { background-color: #f0f2f5; }
+
+.app-container { padding: 16px; }
+.toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.toolbar-left { display: flex; gap: 8px; align-items: center; }
+
+.pagination-container { display: flex; justify-content: flex-end; margin-top: 16px; }
