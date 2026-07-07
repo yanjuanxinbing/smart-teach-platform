@@ -46,9 +46,8 @@ public class CoursePlanController {
     @ApiOperation("新增计划（同时保存周次明细）")
     @PostMapping
     @PreAuthorize("hasAuthority('course:plan:add')")
-    public Result<Void> add(@Valid @RequestBody CoursePlanSaveDTO dto) {
-        planService.save(dto);
-        return Result.success();
+    public Result<Long> add(@Valid @RequestBody CoursePlanSaveDTO dto) {
+        return Result.success(planService.save(dto).getId());
     }
 
     @ApiOperation("编辑计划")

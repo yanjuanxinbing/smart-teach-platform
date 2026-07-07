@@ -85,7 +85,15 @@ const load = async () => {
 }
 
 const openForm = () => { formDialog.value = true; Object.assign(form, { planId: null, studentName: '', studentId: null, className: '', phone: '' }) }
-const submit = async () => { await formRef.value.validate(); await regAdd(form); ElMessage.success('报名成功'); formDialog.value = false; load() }
+const submit = async () => {
+  await formRef.value.validate()
+  const plan = planList.value.find(p => p.id === form.planId)
+  const data = { ...form, planTitle: plan ? plan.planTitle : '' }
+  await regAdd(data)
+  ElMessage.success('报名成功')
+  formDialog.value = false
+  load()
+}
 const review = async (row, status) => { await regReview(row.id, { status, comment: '' }); ElMessage.success('已审核'); load() }
 const signIn = async (row) => { await regSignIn(row.id); ElMessage.success('签到成功'); load() }
 const signOut = async (row) => { await regSignOut(row.id); ElMessage.success('签退成功'); load() }

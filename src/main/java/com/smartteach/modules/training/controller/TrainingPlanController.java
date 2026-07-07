@@ -7,6 +7,7 @@ import com.smartteach.modules.training.dto.TrainingPlanQueryDTO;
 import com.smartteach.modules.training.dto.TrainingPlanSaveDTO;
 import com.smartteach.modules.training.entity.TrainingPlan;
 import com.smartteach.modules.training.service.TrainingPlanService;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -45,14 +46,15 @@ public class TrainingPlanController {
     @ApiOperation("新增实训计划")
     @PostMapping
     @PreAuthorize("hasAuthority('training:plan:add')")
-    public Result<Void> add(@Valid @RequestBody TrainingPlanSaveDTO dto) {
-        planService.save(dto);
-        return Result.success();
+    @OperationLog(module = "实训计划", action = "新增实训计划")
+    public Result<Long> add(@Valid @RequestBody TrainingPlanSaveDTO dto) {
+        return Result.success(planService.save(dto).getId());
     }
 
     @ApiOperation("编辑实训计划")
     @PutMapping
     @PreAuthorize("hasAuthority('training:plan:edit')")
+    @OperationLog(module = "实训计划", action = "编辑实训计划")
     public Result<Void> edit(@Valid @RequestBody TrainingPlanSaveDTO dto) {
         planService.update(dto);
         return Result.success();
@@ -61,6 +63,7 @@ public class TrainingPlanController {
     @ApiOperation("批量删除实训计划")
     @DeleteMapping
     @PreAuthorize("hasAuthority('training:plan:remove')")
+    @OperationLog(module = "实训计划", action = "删除实训计划")
     public Result<Void> remove(@RequestBody List<Long> ids) {
         planService.remove(ids);
         return Result.success();
@@ -69,6 +72,7 @@ public class TrainingPlanController {
     @ApiOperation("发布")
     @PutMapping("/{id}/publish")
     @PreAuthorize("hasAuthority('training:plan:edit')")
+    @OperationLog(module = "实训计划", action = "发布实训计划")
     public Result<Void> publish(@PathVariable Long id) {
         planService.publish(id);
         return Result.success();
@@ -77,6 +81,7 @@ public class TrainingPlanController {
     @ApiOperation("完结")
     @PutMapping("/{id}/finish")
     @PreAuthorize("hasAuthority('training:plan:edit')")
+    @OperationLog(module = "实训计划", action = "完结实训计划")
     public Result<Void> finish(@PathVariable Long id) {
         planService.finish(id);
         return Result.success();
@@ -85,6 +90,7 @@ public class TrainingPlanController {
     @ApiOperation("审核通过")
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasAuthority('training:plan:approve')")
+    @OperationLog(module = "实训计划", action = "审核通过")
     public Result<Void> approve(@PathVariable Long id, @RequestBody Map<String, String> body) {
         planService.approve(id, UserContext.getUserId(), UserContext.getUsername(), body.get("remark"));
         return Result.success();
@@ -93,6 +99,7 @@ public class TrainingPlanController {
     @ApiOperation("审核驳回")
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasAuthority('training:plan:approve')")
+    @OperationLog(module = "实训计划", action = "审核驳回")
     public Result<Void> reject(@PathVariable Long id, @RequestBody Map<String, String> body) {
         planService.reject(id, UserContext.getUserId(), UserContext.getUsername(), body.get("remark"));
         return Result.success();

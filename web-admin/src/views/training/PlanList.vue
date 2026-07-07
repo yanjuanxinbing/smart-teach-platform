@@ -35,7 +35,8 @@
             <el-button size="small" link @click="openForm(row)">编辑</el-button>
             <el-button size="small" link v-if="row.status === 0" @click="publish(row)">发布</el-button>
             <el-button size="small" link v-if="row.status === 2" @click="finish(row)">完结</el-button>
-            <el-button size="small" link v-if="row.status === 0" @click="approve(row)">审核</el-button>
+            <el-button size="small" link v-if="row.status === 1" @click="approve(row)">审核</el-button>
+            <el-button size="small" link type="danger" v-if="row.status === 1" @click="reject(row)">驳回</el-button>
             <el-button size="small" link type="danger" @click="remove(row)">删除</el-button>
           </template>
         </el-table-column>

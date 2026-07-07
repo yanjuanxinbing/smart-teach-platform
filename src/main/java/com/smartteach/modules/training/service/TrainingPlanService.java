@@ -14,7 +14,7 @@ public interface TrainingPlanService extends IService<TrainingPlan> {
 
     TrainingPlan detail(Long id);
 
-    void save(TrainingPlanSaveDTO dto);
+    TrainingPlan save(TrainingPlanSaveDTO dto);
 
     void update(TrainingPlanSaveDTO dto);
 
