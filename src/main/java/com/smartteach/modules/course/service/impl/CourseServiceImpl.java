@@ -146,4 +146,12 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
                 .orderByDesc(Course::getCreateTime)
                 .list();
     }
+
+    @Override
+    public List<Course> listAllEnabled() {
+        return this.lambdaQuery()
+                .in(Course::getStatus, 0, 1)
+                .orderByDesc(Course::getCreateTime)
+                .list();
+    }
 }

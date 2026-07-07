@@ -24,4 +24,6 @@ public interface CourseService extends IService<Course> {
     void changeStatus(Long id, Integer status);
 
     List<Course> listByTeacher(Long teacherId);
+
+    List<Course> listAllEnabled();
 }

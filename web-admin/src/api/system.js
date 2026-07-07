@@ -7,6 +7,7 @@ export const userAdd = (data) => request.post('/system/user', data)
 export const userEdit = (data) => request.put('/system/user', data)
 export const userRemove = (ids) => request.delete('/system/user', { data: ids })
 export const userResetPassword = (id, password) => request.put(`/system/user/${id}/reset-password`, { password })
+export const userChangeStatus = (id, status) => request.put(`/system/user/${id}/status`, null, { params: { status } })
 export const changeOwnPassword = (data) => request.put('/system/user/change-password', data)
 
 // 角色

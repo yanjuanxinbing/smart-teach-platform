@@ -1,23 +1,32 @@
 <template>
   <div class="pagination-container">
     <el-pagination
-      v-model:current-page="page"
-      v-model:page-size="size"
+      :current-page="page"
+      :page-size="size"
       :page-sizes="[10, 20, 50, 100]"
       :total="total"
       background
       layout="total, sizes, prev, pager, next, jumper"
-      @current-change="$emit('change')"
-      @size-change="$emit('change')"
+      @current-change="onCurrentChange"
+      @size-change="onSizeChange"
     />
   </div>
 </template>
 
 <script setup>
-defineProps({
+const props = defineProps({
   page: { type: Number, default: 1 },
   size: { type: Number, default: 10 },
   total: { type: Number, default: 0 }
 })
-defineEmits(['update:page', 'update:size', 'change'])
+const emit = defineEmits(['update:page', 'update:size', 'change'])
+
+const onCurrentChange = (val) => {
+  emit('update:page', val)
+  emit('change')
+}
+const onSizeChange = (val) => {
+  emit('update:size', val)
+  emit('change')
+}
 </script>

@@ -79,4 +79,11 @@ public class CourseController {
     public Result<List<Course>> myCourses() {
         return Result.success(courseService.listByTeacher(UserContext.getUserId()));
     }
+
+    @ApiOperation("查询全部启用课程（下拉选择使用）")
+    @GetMapping("/list-all")
+    @PreAuthorize("hasAuthority('course:list')")
+    public Result<List<Course>> listAll() {
+        return Result.success(courseService.listAllEnabled());
+    }
 }

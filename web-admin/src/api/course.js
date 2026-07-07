@@ -8,6 +8,7 @@ export const courseEdit = (data) => request.put('/course/manage', data)
 export const courseRemove = (ids) => request.delete('/course/manage', { data: ids })
 export const courseChangeStatus = (id, status) => request.put(`/course/manage/${id}/status`, null, { params: { status } })
 export const myCourses = () => request.get('/course/manage/my')
+export const listAllCourses = () => request.get('/course/manage/list-all')
 
 // 章节
 export const chapterList = (courseId) => request.get('/course/chapter/list', { params: { courseId } })
