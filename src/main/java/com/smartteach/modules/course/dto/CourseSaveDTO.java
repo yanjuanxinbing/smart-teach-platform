@@ -21,7 +21,6 @@ public class CourseSaveDTO {
 
     private String categoryName;
     private String description;
-    private String coverImage;
 
     @NotNull(message = "任课教师不能为空")
     private Long teacherId;

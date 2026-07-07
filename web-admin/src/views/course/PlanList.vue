@@ -3,9 +3,9 @@
     <el-card>
       <div class="toolbar">
         <div class="toolbar-left">
-          <el-input v-model="query.keyword" placeholder="计划标题" clearable style="width: 220px" @keyup.enter="load" />
+          <el-input v-model="query.planTitle" placeholder="按计划标题搜索" clearable style="width: 220px" @keyup.enter="load" />
           <el-select v-model="query.semester" placeholder="学期" clearable style="width: 160px">
-            <el-option v-for="d in dict.semester" :key="d.value" :label="d.label" :value="d.value" />
+            <el-option v-for="d in (dict.semester && dict.semester.value ? dict.semester.value : dict.semester) || []" :key="d.value" :label="d.label" :value="d.value" />
           </el-select>
           <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px">
             <el-option label="草稿" :value="0" />
@@ -58,14 +58,18 @@
           </el-col>
         </el-row>
         <el-row :gutter="16">
-          <el-col :span="8"><el-form-item label="学期" prop="semester"><el-input v-model="form.semester" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="学期" prop="semester">
+            <el-select v-model="form.semester" placeholder="请选择学期" style="width:100%" clearable>
+              <el-option v-for="d in (dict.semester && dict.semester.value ? dict.semester.value : dict.semester) || []" :key="d.value" :label="d.label" :value="d.value" />
+            </el-select>
+          </el-form-item></el-col>
           <el-col :span="8"><el-form-item label="班级"><el-input v-model="form.className" /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="教师"><el-input v-model="form.teacherName" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="教师"><el-input v-model="form.teacherName" disabled /></el-form-item></el-col>
         </el-row>
         <el-row :gutter="16">
           <el-col :span="8"><el-form-item label="开始日期"><el-date-picker v-model="form.startDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="结束日期"><el-date-picker v-model="form.endDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="总周次"><el-input-number v-model="form.totalWeeks" :min="0" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="总周次"><el-input-number v-model="form.totalWeeks" :min="0" disabled /></el-form-item></el-col>
         </el-row>
         <el-form-item label="计划说明"><el-input v-model="form.description" type="textarea" :rows="2" /></el-form-item>
 
@@ -112,7 +116,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
@@ -123,28 +127,55 @@ const dict = useDict('semester')
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
-const query = reactive({ pageNum: 1, pageSize: 10, keyword: '', semester: '', status: null })
+const query = reactive({ pageNum: 1, pageSize: 10, planTitle: '', semester: '', status: null })
 const courseList = ref([])
 
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const formRef = ref()
-const form = reactive({ id: null, planTitle: '', courseId: null, courseName: '', semester: '', className: '', teacherName: '', startDate: '', endDate: '', totalWeeks: 16, description: '', items: [] })
-const rules = { planTitle: [{ required: true, message: '请输入计划标题' }], courseId: [{ required: true, message: '请选择课程' }], semester: [{ required: true, message: '请输入学期' }] }
+const form = reactive({ id: null, planTitle: '', courseId: null, courseName: '', semester: '', className: '', teacherName: '', startDate: '', endDate: '', totalWeeks: 0, description: '', items: [] })
+const rules = { planTitle: [{ required: true, message: '请输入计划标题' }], courseId: [{ required: true, message: '请选择课程' }], semester: [{ required: true, message: '请选择学期' }] }
 
 const detailDrawer = ref(false)
 const detail = ref({ plan: null, items: [] })
 
 const load = async () => {
   loading.value = true
-  try { const res = await planPage(query); list.value = res.list; total.value = res.total }
-  finally { loading.value = false }
+  try {
+    // 用普通对象传给 axios，避免 Vue reactive proxy 在某些序列化路径下被剥离字段
+    const res = await planPage({
+      pageNum: query.pageNum,
+      pageSize: query.pageSize,
+      planTitle: (query.planTitle || '').trim(),
+      semester: query.semester,
+      status: query.status
+    })
+    list.value = res.list || []
+    total.value = res.total || 0
+  } finally { loading.value = false }
 }
 
 const onCourseChange = (val) => {
   const c = courseList.value.find(x => x.id === val)
-  if (c) form.courseName = c.courseName
+  if (c) {
+    form.courseName = c.courseName
+    // 教师从关联课程直接带出，不必手动输入
+    form.teacherName = c.teacherName || ''
+  }
 }
+
+// 根据开始/结束日期自动计算总周次 = ceil((结束 - 开始) / 7)
+const recomputeWeeks = () => {
+  if (!form.startDate || !form.endDate) {
+    form.totalWeeks = 0
+    return
+  }
+  const start = new Date(form.startDate).getTime()
+  const end = new Date(form.endDate).getTime()
+  const diffDays = Math.floor((end - start) / (1000 * 60 * 60 * 24))
+  form.totalWeeks = diffDays <= 0 ? 0 : Math.ceil(diffDays / 7)
+}
+watch(() => [form.startDate, form.endDate], recomputeWeeks)
 
 const openForm = async (row) => {
   if (!courseList.value.length) courseList.value = await myCourses()
@@ -153,7 +184,7 @@ const openForm = async (row) => {
     const d = await planDetail(row.id)
     Object.assign(form, { ...d.plan, items: d.items || [] })
   } else {
-    Object.assign(form, { id: null, planTitle: '', courseId: null, courseName: '', semester: '', className: '', teacherName: '', startDate: '', endDate: '', totalWeeks: 16, description: '', items: [] })
+    Object.assign(form, { id: null, planTitle: '', courseId: null, courseName: '', semester: '', className: '', teacherName: '', startDate: '', endDate: '', totalWeeks: 0, description: '', items: [] })
   }
 }
 
