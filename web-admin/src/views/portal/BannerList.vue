@@ -5,11 +5,11 @@
         <div class="toolbar-left">
           <el-input v-model="query.keyword" placeholder="标题" clearable style="width: 220px" @keyup.enter="load" />
         </div>
-        <el-button type="primary" :icon="Plus" @click="openForm()">新增轮播图</el-button>
+        <el-button type="primary" :icon="Plus" @click="openForm()">新增{{ pageTitle }}</el-button>
       </div>
 
       <el-table :data="list" v-loading="loading" border>
-        <el-table-column label="封面" width="160">
+        <el-table-column v-if="type === 1" label="封面" width="160">
           <template #default="{ row }">
             <el-image v-if="row.coverImage" :src="row.coverImage" style="width: 120px; height: 60px" fit="cover" />
           </template>
@@ -38,10 +38,10 @@
       <Pagination v-model:page="query.pageNum" v-model:size="query.pageSize" :total="total" @change="load" />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑轮播图' : '新增轮播图'" width="640px">
+    <el-dialog v-model="dialogVisible" :title="form.id ? `编辑${pageTitle}` : `新增${pageTitle}`" width="640px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="标题" prop="title"><el-input v-model="form.title" /></el-form-item>
-        <el-form-item label="封面图" prop="coverImage">
+        <el-form-item v-if="type === 1" label="封面图" prop="coverImage">
           <el-upload
             :http-request="uploadCover"
             :show-file-list="false"
@@ -61,7 +61,7 @@
                 <el-icon class="banner-uploader__icon" v-if="!coverUploading"><Plus /></el-icon>
                 <el-icon class="banner-uploader__icon is-loading" v-else><Loading /></el-icon>
                 <span class="banner-uploader__text">{{ coverUploading ? '上传中...' : '点击上传封面图' }}</span>
-                <span class="banner-uploader__hint">支持 jpg/png/webp/gif，≤2MB</span>
+                <span class="banner-uploader__hint">支持 jpg/png/webp/gif，≤2MB（直接读入浏览器，不再上传服务器）</span>
               </div>
               <div v-if="form.coverImage && !coverUploading" class="banner-uploader__mask">
                 <el-icon><Refresh /></el-icon>
@@ -70,13 +70,13 @@
             </div>
           </el-upload>
         </el-form-item>
-        <el-form-item label="跳转链接"><el-input v-model="form.linkUrl" placeholder="留空则跳转详情页" /></el-form-item>
+        <el-form-item v-if="type === 1" label="跳转链接"><el-input v-model="form.linkUrl" placeholder="留空则跳转详情页" /></el-form-item>
         <el-form-item label="排序"><el-input-number v-model="form.sort" :min="0" /></el-form-item>
         <el-form-item label="置顶">
           <el-radio-group v-model="form.top"><el-radio :value="1">是</el-radio><el-radio :value="0">否</el-radio></el-radio-group>
         </el-form-item>
         <el-form-item label="内容">
-          <el-input v-model="form.content" type="textarea" :rows="4" />
+          <el-input v-model="form.content" type="textarea" :rows="6" />
         </el-form-item>
       </el-form>
       <template #footer>
@@ -88,21 +88,34 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, Loading } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
 import { portalPage, portalAdd, portalEdit, portalRemove, portalPublish, portalOffline } from '@/api/portal'
 
-const TYPE = 1
+// 通用门户内容管理页：1轮播图 2通知公告 3新闻资讯
+// 通过 type prop 切换栏目，UI 行为统一，仅在封面图 / 跳转链接 / 文案上有差异。
+const props = defineProps({
+  type: { type: Number, default: 1 }
+})
+
+const TYPE_LABELS = { 1: '轮播图', 2: '通知公告', 3: '新闻资讯' }
+const pageTitle = computed(() => TYPE_LABELS[props.type] || '内容')
+
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
-const query = reactive({ pageNum: 1, pageSize: 10, type: TYPE, keyword: '' })
+const query = reactive({ pageNum: 1, pageSize: 10, type: props.type, keyword: '' })
 const dialogVisible = ref(false)
 const formRef = ref()
-const form = reactive({ id: null, type: TYPE, title: '', coverImage: '', linkUrl: '', content: '', sort: 0, top: 0, status: 0 })
-const rules = { title: [{ required: true, message: '请输入标题' }], coverImage: [{ required: true, message: '请上传封面图' }] }
+const form = reactive({ id: null, type: props.type, title: '', coverImage: '', linkUrl: '', content: '', sort: 0, top: 0, status: 0 })
+// 校验规则：仅当 type=1（轮播图）才要求封面图；通知 / 新闻不强求封面图
+const rules = computed(() => {
+  const base = { title: [{ required: true, message: '请输入标题' }] }
+  if (props.type === 1) base.coverImage = [{ required: true, message: '请上传封面图' }]
+  return base
+})
 const coverUploading = ref(false)
 
 const beforeUploadCover = (file) => {
@@ -145,7 +158,7 @@ const load = async () => {
 const openForm = (row) => {
   dialogVisible.value = true
   if (row) Object.assign(form, row)
-  else Object.assign(form, { id: null, type: TYPE, title: '', coverImage: '', linkUrl: '', content: '', sort: 0, top: 0, status: 0 })
+  else Object.assign(form, { id: null, type: props.type, title: '', coverImage: '', linkUrl: '', content: '', sort: 0, top: 0, status: 0 })
 }
 
 const submit = async () => {
@@ -162,7 +175,17 @@ const submit = async () => {
 }
 const publish = async (row) => { await portalPublish(row.id); ElMessage.success('已发布'); load() }
 const offline = async (row) => { await portalOffline(row.id); ElMessage.success('已下线'); load() }
-const remove = async (row) => { await ElMessageBox.confirm(`确定删除"${row.title}"？`, '提示', { type: 'warning' }); await portalRemove([row.id]); ElMessage.success('删除成功'); load() }
+const remove = async (row) => {
+  try {
+    await ElMessageBox.confirm(`确定删除"${row.title}"？`, '提示', { type: 'warning' })
+    await portalRemove([row.id])
+    ElMessage.success('删除成功')
+    load()
+  } catch (e) {
+    // 用户点取消时 ElMessageBox.confirm 会 reject，这里吞掉，避免 Vue 警告
+    if (e !== 'cancel' && e?.message !== 'cancel') console.debug('删除失败：', e?.message || e)
+  }
+}
 
 onMounted(load)
 </script>
