@@ -37,7 +37,6 @@
             </span>
             <template #dropdown>
               <el-dropdown-menu>
-                <el-dropdown-item command="profile">个人信息</el-dropdown-item>
                 <el-dropdown-item command="password">修改密码</el-dropdown-item>
                 <el-dropdown-item divided command="logout">退出登录</el-dropdown-item>
               </el-dropdown-menu>
@@ -95,8 +94,6 @@ const handleCommand = async (cmd) => {
     router.push('/login')
   } else if (cmd === 'password') {
     showChangePwd.value = true
-  } else if (cmd === 'profile') {
-    ElMessage.info('个人信息功能待实现')
   }
 }
 </script>
