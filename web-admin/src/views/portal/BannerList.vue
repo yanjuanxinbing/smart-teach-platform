@@ -61,7 +61,7 @@
                 <el-icon class="banner-uploader__icon" v-if="!coverUploading"><Plus /></el-icon>
                 <el-icon class="banner-uploader__icon is-loading" v-else><Loading /></el-icon>
                 <span class="banner-uploader__text">{{ coverUploading ? '上传中...' : '点击上传封面图' }}</span>
-                <span class="banner-uploader__hint">支持 jpg/png/webp/gif，≤2MB（直接读入浏览器，不再上传服务器）</span>
+                <span class="banner-uploader__hint">支持 jpg/png/webp/gif</span>
               </div>
               <div v-if="form.coverImage && !coverUploading" class="banner-uploader__mask">
                 <el-icon><Refresh /></el-icon>
