@@ -3,7 +3,7 @@
     <el-card>
       <div class="toolbar">
         <div class="toolbar-left">
-          <el-input v-model="query.keyword" placeholder="资源名称" clearable style="width: 220px" @keyup.enter="load" />
+          <el-input v-model="query.resourceName" placeholder="资源名称" clearable style="width: 220px" @keyup.enter="load" />
           <el-select v-model="query.categoryId" placeholder="分类" clearable style="width: 160px">
             <el-option v-for="c in categoryOptions" :key="c.id" :label="c.categoryName" :value="c.id" />
           </el-select>
@@ -88,7 +88,7 @@ const dict = useDict('resource_type')
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
-const query = reactive({ pageNum: 1, pageSize: 10, keyword: '', categoryId: null, resourceType: null })
+const query = reactive({ pageNum: 1, pageSize: 10, resourceName: '', categoryId: null, resourceType: null })
 const categoryOptions = ref([])
 const formDialog = ref(false)
 const submitting = ref(false)
