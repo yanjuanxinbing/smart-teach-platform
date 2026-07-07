@@ -4,6 +4,12 @@
 -- 字符集: utf8mb4
 -- =====================================================================
 
+-- 门户轮播图封面使用 dataURL(base64) 存储，单条记录可能超过 MySQL 默认 max_allowed_packet=4MB
+-- 这里调整到 16MB（需要 SUPER 权限）。生产环境也可以写到 my.cnf 的 [mysqld] 段：
+--   [mysqld]
+--   max_allowed_packet = 16M
+SET GLOBAL max_allowed_packet = 16777216;
+
 CREATE DATABASE IF NOT EXISTS `smart_teach_platform`
     DEFAULT CHARACTER SET utf8mb4
     DEFAULT COLLATE utf8mb4_unicode_ci;
@@ -458,7 +464,7 @@ CREATE TABLE `portal_article` (
     `id`            BIGINT NOT NULL,
     `type`          TINYINT NOT NULL COMMENT '1轮播图 2通知公告 3新闻资讯',
     `title`         VARCHAR(200) NOT NULL,
-    `cover_image`   VARCHAR(500) DEFAULT NULL,
+    `cover_image`   MEDIUMTEXT COMMENT '封面图，存 dataURL(base64) 或可访问URL',
     `link_url`      VARCHAR(500) DEFAULT NULL,
     `content`       MEDIUMTEXT,
     `sort`          INT DEFAULT 0,
@@ -710,6 +716,123 @@ INSERT INTO `course`(`id`, `course_code`, `course_name`, `category_id`, `categor
 (6, 'SE301', 'Web应用开发',           2, '课程资源', '前后端分离架构、Vue + Spring Boot 全栈开发实战。',     1, '超级管理员', 3.0, 48, 2, 1),
 (7, 'AI301', '人工智能导论',           4, '课程资源', '搜索、知识表示、机器学习与深度学习基础。',             1, '超级管理员', 3.0, 48, 1, 1),
 (8, 'CYB201','网络安全基础',          3, '课程资源', '密码学、网络协议安全、常见攻防技术。',                 1, '超级管理员', 3.0, 48, 2, 1);
+
+USE `smart_teach_platform`;
+
+-- =====================================================================
+-- 补充测试数据脚本 - 智能化在线教学支持服务平台
+-- =====================================================================
+
+-- ---------------------------------------------------------------------
+-- 1. 用户扩展数据 (教师与学生账户)
+-- 密码均为 123456 (对应的 BCrypt 哈希值如下)
+-- ---------------------------------------------------------------------
+INSERT INTO `sys_user`(`id`, `username`, `password`, `real_name`, `phone`, `email`, `gender`, `dept_id`, `status`, `remark`) VALUES 
+(1001, 'teacher1', '$2a$10$v09gH/v9G7XN.zY6w2q6mO3R1m3SGeW0O8E3B6A6pE6wA6N6G6C6S', '张教授', '13800138001', 'zhang@smartteach.edu.cn', 1, 2, 1, '计算机科学系专业课教师'),
+(1002, 'teacher2', '$2a$10$v09gH/v9G7XN.zY6w2q6mO3R1m3SGeW0O8E3B6A6pE6wA6N6G6C6S', '李副教授', '13800138002', 'li@smartteach.edu.cn', 2, 3, 1, '软件工程系骨干教师'),
+(2001, 'student1', '$2a$10$v09gH/v9G7XN.zY6w2q6mO3R1m3SGeW0O8E3B6A6pE6wA6N6G6C6S', '王小明', '18611112222', 'wangxm@std.edu.cn', 1, 2, 1, '计科2201班学生'),
+(2002, 'student2', '$2a$10$v09gH/v9G7XN.zY6w2q6mO3R1m3SGeW0O8E3B6A6pE6wA6N6G6C6S', '赵美美', '18611113333', 'zhaomm@std.edu.cn', 2, 3, 1, '软工2202班学生');
+
+-- 分配角色
+INSERT INTO `sys_user_role`(`id`, `user_id`, `role_id`) VALUES 
+(101, 1001, 3), -- 张教授 -> 教师
+(102, 1002, 3), -- 李副教授 -> 教师
+(201, 2001, 4), -- 王小明 -> 学生
+(202, 2002, 4); -- 赵美美 -> 学生
+
+
+-- ---------------------------------------------------------------------
+-- 2. 课程章节与内容 (以数据结构、Web应用开发课程为例)
+-- ---------------------------------------------------------------------
+-- 课程章节 (course_chapter)
+INSERT INTO `course_chapter`(`id`, `course_id`, `parent_id`, `chapter_title`, `sort`, `hours`) VALUES 
+(1100, 2, 0, '第一章 绪论', 1, 4),
+(1101, 2, 1100, '1.1 数据结构的基本概念', 1, 2),
+(1102, 2, 1100, '1.2 算法与算法分析', 2, 2),
+(1200, 2, 0, '第二章 线性表', 2, 8),
+(1201, 2, 1200, '2.1 线性表的顺序表示', 1, 4),
+(1202, 2, 1200, '2.2 线性表的链式表示', 2, 4),
+(1300, 6, 0, '第一章 Vue.js 基础进阶', 1, 6);
+
+-- 课程内容 (course_content)
+INSERT INTO `course_content`(`id`, `course_id`, `chapter_id`, `content_title`, `content_type`, `resource_id`, `resource_url`, `sort`, `hours`, `status`) VALUES 
+(5001, 2, 1101, '绪论核心概念课件', 1, 4001, '/files/ppt/ds_chap1.ppt', 1, 1, 1),
+(5002, 2, 1102, '算法复杂度分析教学视频', 2, 4002, '/files/video/algorithm_complexity.mp4', 1, 1, 1),
+(5003, 2, 1201, '单链表经典面试题集锦', 4, NULL, 'https://leetcode.cn/tag/linked-list/', 1, 0, 1),
+(5004, 2, 1202, '双向链表的实现原理', 5, NULL, NULL, 1, 2, 1);
+
+-- 补充富文本内容
+UPDATE `course_content` SET `rich_text` = '<h3>双向链表核心逻辑</h3><p>双向链表的每个节点有两个指针域，一个指向直接前驱，一个指向直接后继。</p>' WHERE `id` = 5004;
+
+
+-- ---------------------------------------------------------------------
+-- 3. 课程教学计划
+-- ---------------------------------------------------------------------
+-- 教学计划主表 (course_plan)
+INSERT INTO `course_plan`(`id`, `plan_title`, `course_id`, `course_name`, `semester`, `class_name`, `start_date`, `end_date`, `total_weeks`, `description`, `status`, `approver_id`, `approver_name`) VALUES 
+(10001, '2025秋学期《数据结构》授课计划', 2, '数据结构', '2025-2026-1', '计科2201班', '2025-09-01', '2026-01-10', 18, '针对计算机科学与技术专业大二学生的教学计划。', 1, 1, '超级管理员'),
+(10002, '2025秋学期《Web应用开发》教学大纲计划', 6, 'Web应用开发', '2025-2026-1', '软工2202班', '2025-09-01', '2026-01-10', 16, '前后端分离架构实战课程。', 0, NULL, NULL); -- 草稿状态
+
+-- 教学计划明细 (course_plan_item)
+INSERT INTO `course_plan_item`(`id`, `plan_id`, `week_no`, `chapter_id`, `chapter_title`, `content`, `objective`, `method`, `hours`) VALUES 
+(10011, 10001, 1, 1100, '第一章 绪论', '讲解数据结构概念、时间复杂度度量基础。', '掌握抽象数据类型定义，学会推导大O渐进复杂度。', '多媒体讲授 + 课堂互动白板', 4),
+(10012, 10001, 2, 1201, '2.1 线性表的顺序表示', '顺序表（数组）的插入、删除及内存连续性特点。', '熟练掌握动态数组扩容机制及边界指针条件。', '板书推演 + 上机现场编码', 4);
+
+
+-- ---------------------------------------------------------------------
+-- 4. 课程实验计划
+-- ---------------------------------------------------------------------
+-- 实验计划主表 (experiment_plan)
+INSERT INTO `experiment_plan`(`id`, `plan_title`, `course_id`, `course_name`, `semester`, `class_name`, `teacher_id`, `teacher_name`, `lab_room`, `start_date`, `end_date`, `total_experiments`, `total_hours`, `status`) VALUES 
+(20001, '《数据结构》配套实验上机计划', 2, '数据结构', '2025-2026-1', '计科2201班', 1001, '张教授', '科教楼402机房', '2025-09-10', '2025-12-25', 4, 16, 1);
+
+-- 实验计划明细 (experiment_plan_item)
+INSERT INTO `experiment_plan_item`(`id`, `plan_id`, `exp_no`, `exp_name`, `exp_type`, `purpose`, `content`, `requirement`, `class_date`, `class_period`, `hours`, `teacher_name`) VALUES 
+(20011, 20001, 1, '约瑟夫环问题的链表实现', 2, '掌握循环链表的创建、遍历和节点删除。', '用循环单链表模拟约瑟夫出列问题，输出出列顺序。', '独立编写C/C++代码，处理好头尾节点衔接与内存释放。', '2025-09-20', '周四 3-4节', 4, '张教授'),
+(20012, 20001, 2, '二叉树的建立与遍历算法', 3, '深入理解二叉树的递归与非递归周游。', '实现二叉树的前序、中序、后序遍历及层次遍历。', '需支持从前序+中序序列逆向重构二叉树。', '2025-10-15', '周四 3-4节', 4, '张教授');
+
+
+-- ---------------------------------------------------------------------
+-- 5. 实训计划与实训报名
+-- ---------------------------------------------------------------------
+-- 实训计划 (training_plan)
+INSERT INTO `training_plan`(`id`, `plan_title`, `project_name`, `course_id`, `course_name`, `semester`, `class_name`, `teacher_id`, `teacher_name`, `location`, `start_date`, `end_date`, `duration_days`, `total_hours`, `capacity`, `objective`, `status`) VALUES 
+(30001, '企业级企业中台级全栈开发企业实训', '基于Spring Cloud的在线协同办公中台系统开发', 6, 'Web应用开发', '2025-2026-1', '软工大三混合班', 1002, '李副教授', '实训楼A栋301软件工程创新实验室', '2026-01-12', '2026-01-26', 14, 80, 50, '培养学生大型分布式微服务项目的协同开发与DevOps工程实践能力。', 1);
+
+-- 实训报名明细 (training_registration)
+INSERT INTO `training_registration`(`id`, `plan_id`, `plan_title`, `student_id`, `student_name`, `class_name`, `phone`, `status`, `score`, `comment`) VALUES 
+(3011, 30001, '企业级企业中台级全栈开发企业实训', 2001, '王小明', '计科2201班', '18611112222', 1, 92.50, '项目架构设计清晰，答辩表现优异'), -- 已通过且已给成绩
+(3012, 30001, '企业级企业中台级全栈开发企业实训', 2002, '赵美美', '软工2202班', '18611113333', 0, NULL, NULL); -- 待审核状态
+
+
+-- ---------------------------------------------------------------------
+-- 6. 教学资源管理
+-- ---------------------------------------------------------------------
+INSERT INTO `biz_resource`(`id`, `resource_name`, `resource_type`, `category_id`, `category_name`, `course_id`, `course_name`, `original_name`, `file_path`, `file_url`, `file_suffix`, `file_size`, `content_type`, `tags`, `download_count`, `view_count`, `status`, `upload_by`, `upload_name`) VALUES 
+(4001, '数据结构第一章课件PPT', 1, 11, '教学课件', 2, '数据结构', 'Chapter_1_Intro.pptx', '/uploads/2025/01/ds1.pptx', 'http://cdn.smartteach.edu.cn/uploads/2025/01/ds1.pptx', 'pptx', 4194304, 'application/vnd.ms-powerpoint', '数据结构,绪论,课件', 124, 450, 1, 1001, '张教授'),
+(4002, '算法时间复杂度速查图解', 2, 4, '教学素材', 2, '数据结构', 'complexity_chart.png', '/uploads/2025/01/chart.png', 'http://cdn.smartteach.edu.cn/uploads/2025/01/chart.png', 'png', 1048576, 'image/png', '算法,基础理论', 85, 912, 1, 1001, '张教授'),
+(4003, 'Linux进程调度实验虚拟机镜像', 5, 2, '实验资源', 3, '操作系统', 'ubuntu_os_lab.zip', '/uploads/2025/01/vm.zip', 'http://cdn.smartteach.edu.cn/uploads/2025/01/vm.zip', 'zip', 524288000, 'application/zip', '操作系统,环境镜像', 32, 89, 1, 1, '超级管理员');
+
+
+-- ---------------------------------------------------------------------
+-- 7. 系统日志 (模拟真实系统的访问活动)
+-- ---------------------------------------------------------------------
+-- 登录日志 (sys_login_log)
+INSERT INTO `sys_login_log`(`id`, `username`, `ip`, `location`, `browser`, `os`, `status`, `message`, `login_time`) VALUES 
+(9001, 'admin', '192.168.1.10', '局域网/校内网', 'Chrome 120.0', 'Windows 11', 1, '登录成功', DATE_SUB(NOW(), INTERVAL 2 HOUR)),
+(9002, 'teacher1', '10.22.45.18', '办公楼无线网', 'Edge 120.0', 'macOS Sonoma', 1, '登录成功', DATE_SUB(NOW(), INTERVAL 1 HOUR)),
+(9003, 'student1', '172.16.102.5', '学生宿舍网络', 'Chrome Mobile', 'Android 14', 0, '验证码错误', NOW());
+
+-- 操作日志 (sys_operation_log)
+INSERT INTO `sys_operation_log`(`id`, `module`, `action`, `method`, `request_uri`, `http_method`, `params`, `result`, `ip`, `user_id`, `username`, `status`, `cost_time`, `operation_time`) VALUES 
+(9501, '课程管理', '修改课程发布状态', 'com.smartteach.controller.CourseController.updateStatus()', '/api/course/status', 'PUT', '{"id":2, "status":1}', '{"code":200, "msg":"success"}', '10.22.45.18', 1001, 'teacher1', 1, 45, DATE_SUB(NOW(), INTERVAL 50 MINUTE)),
+(9502, '教学计划', '新增计划明细', 'com.smartteach.controller.CoursePlanController.addItem()', '/api/course/plan/item', 'POST', '{"planId":10001, "weekNo":1, "chapterTitle":"绪论"}', '{"code":200, "msg":"success"}', '10.22.45.18', 1001, 'teacher1', 1, 112, DATE_SUB(NOW(), INTERVAL 45 MINUTE));
+
+-- ---------------------------------------------------------------------
+-- 脚本结束
+-- ---------------------------------------------------------------------
+SELECT '测试数据补充完成，覆盖全功能模块场景' AS message;
+
 
 -- =====================================================================
 -- 结束

@@ -55,6 +55,8 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(Exception.class)
     public Result<Void> handleException(Exception e) {
         log.error("系统异常", e);
-        return Result.fail(ResultCode.FAIL.getCode(), "系统繁忙，请稍后重试");
+        // 调试期临时把根因返回给前端，便于定位；定位完成后改回 "系统繁忙，请稍后重试"
+        String msg = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
+        return Result.fail(ResultCode.FAIL.getCode(), "系统繁忙：" + msg);
     }
 }
