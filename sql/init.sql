@@ -16,6 +16,9 @@ CREATE DATABASE IF NOT EXISTS `smart_teach_platform`
 
 USE `smart_teach_platform`;
 
+-- 强制连接字符集，避免 Windows 下 mysql 客户端默认按 GBK 读文件导致中文 INSERT 失败
+SET NAMES utf8mb4;
+
 -- ---------------------------------------------------------------------
 -- 通用：逻辑删除标记、创建/更新时间、雪花ID
 -- ---------------------------------------------------------------------
@@ -195,7 +198,7 @@ CREATE TABLE `course` (
     `teacher_name` VARCHAR(50)           DEFAULT NULL,
     `credit`       DECIMAL(4, 1)         DEFAULT NULL,
     `total_hours`  INT                  DEFAULT NULL,
-    `course_type`  TINYINT               DEFAULT 1 COMMENT '1必修 2选修 3通识',
+    `course_type`  TINYINT               DEFAULT 1 COMMENT '1必修 2选修',
     `status`       TINYINT      NOT NULL DEFAULT 0 COMMENT '0未发布 1已发布 2已结课',
     `create_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `update_time`  DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -568,6 +571,7 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (121, 103, '编辑计划', 3, NULL, NULL, NULL, 'course:plan:edit', 2, 1, 1),
 (122, 103, '删除计划', 3, NULL, NULL, NULL, 'course:plan:remove', 3, 1, 1),
 (123, 103, '审核计划', 3, NULL, NULL, NULL, 'course:plan:approve', 4, 1, 1),
+(124, 103, '查看详情', 3, NULL, NULL, NULL, 'course:plan:query', 5, 1, 1),
 
 -- 课程实验计划管理
 (201, 200, '实验计划', 2, '/experiment/plan', 'experiment/PlanList', NULL, 'experiment:plan:list', 1, 1, 1),
@@ -641,10 +645,9 @@ INSERT INTO `sys_dict_type`(`id`, `dict_name`, `dict_type`, `description`, `stat
 (6, '学期', 'semester', '当前学期列表', 1);
 
 INSERT INTO `sys_dict_data`(`id`, `dict_type`, `dict_label`, `dict_value`, `list_class`, `sort`, `status`, `is_default`) VALUES
--- 课程性质
+-- 课程性质（仅保留必修、选修）
 (1, 'course_type', '必修', '1', 'primary', 1, 1, 1),
 (2, 'course_type', '选修', '2', 'success', 2, 1, 0),
-(3, 'course_type', '通识', '3', 'info',    3, 1, 0),
 -- 实验类型
 (10, 'exp_type', '验证性', '1', 'primary', 1, 1, 0),
 (11, 'exp_type', '综合性', '2', 'success', 2, 1, 0),
@@ -670,7 +673,16 @@ INSERT INTO `sys_dict_data`(`id`, `dict_type`, `dict_label`, `dict_value`, `list
 -- 学期
 (50, 'semester', '2024-2025-1', '2024-2025-1', 'primary', 1, 1, 0),
 (51, 'semester', '2024-2025-2', '2024-2025-2', 'primary', 2, 1, 0),
-(52, 'semester', '2025-2026-1', '2025-2026-1', 'primary', 3, 1, 1);
+(52, 'semester', '2025-2026-1', '2025-2026-1', 'primary', 3, 1, 1),
+(53, 'semester', '2025-2026-2', '2025-2026-2', 'primary', 4, 1, 0),
+(54, 'semester', '2026-2027-1', '2026-2027-1', 'primary', 5, 1, 0),
+(55, 'semester', '2026-2027-2', '2026-2027-2', 'primary', 6, 1, 0),
+(56, 'semester', '2027-2028-1', '2027-2028-1', 'primary', 7, 1, 0),
+(57, 'semester', '2027-2028-2', '2027-2028-2', 'primary', 8, 1, 0),
+(58, 'semester', '2028-2029-1', '2028-2029-1', 'primary', 9, 1, 0),
+(59, 'semester', '2028-2029-2', '2028-2029-2', 'primary', 10, 1, 0),
+(60, 'semester', '2029-2030-1', '2029-2030-1', 'primary', 11, 1, 0),
+(61, 'semester', '2029-2030-2', '2029-2030-2', 'primary', 12, 1, 0);
 
 -- 系统参数
 INSERT INTO `sys_config`(`id`, `config_name`, `config_key`, `config_value`, `config_type`, `remark`) VALUES

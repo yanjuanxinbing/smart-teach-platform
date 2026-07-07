@@ -5,7 +5,7 @@
         <div class="toolbar-left">
           <el-input v-model="query.keyword" placeholder="课程编号/名称" clearable style="width: 220px" @keyup.enter="load" />
           <el-select v-model="query.courseType" placeholder="课程性质" clearable style="width: 140px">
-            <el-option v-for="d in dict.course_type" :key="d.value" :label="d.label" :value="+d.value" />
+            <el-option v-for="d in courseTypeOptions" :key="d.value" :label="d.label" :value="d.value" />
           </el-select>
           <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px">
             <el-option label="未发布" :value="0" />
@@ -29,8 +29,8 @@
         <el-table-column prop="totalHours" label="学时" width="80" />
         <el-table-column label="课程性质" width="100">
           <template #default="{ row }">
-            <el-tag :type="row.courseType === 1 ? 'primary' : row.courseType === 2 ? 'success' : 'info'">
-              {{ ['必修','选修','通识'][row.courseType - 1] || '-' }}
+            <el-tag :type="getCourseTypeTagType(row.courseType)">
+              {{ getCourseTypeLabel(row.courseType) }}
             </el-tag>
           </template>
         </el-table-column>
@@ -74,22 +74,19 @@
         </el-row>
         <el-row :gutter="16">
           <el-col :span="8">
-            <el-form-item label="学分" prop="credit"><el-input-number v-model="form.credit" :precision="1" :min="0" /></el-form-item>
+            <el-form-item label="学分" prop="credit"><el-input-number v-model="form.credit" :precision="1" :min="0" controls-position="right" style="width: 100%" /></el-form-item>
           </el-col>
           <el-col :span="8">
-            <el-form-item label="总学时" prop="totalHours"><el-input-number v-model="form.totalHours" :min="0" /></el-form-item>
+            <el-form-item label="总学时" prop="totalHours"><el-input-number v-model="form.totalHours" :min="0" controls-position="right" style="width: 100%" /></el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="课程性质" prop="courseType">
-              <el-select v-model="form.courseType" style="width:100%">
-                <el-option v-for="d in dict.course_type" :key="d.value" :label="d.label" :value="+d.value" />
+              <el-select v-model="form.courseType" style="width:100%" placeholder="请选择课程性质">
+                <el-option v-for="d in courseTypeOptions" :key="d.value" :label="d.label" :value="d.value" />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="封面图">
-          <el-input v-model="form.coverImage" placeholder="封面图URL" />
-        </el-form-item>
         <el-form-item label="课程简介">
           <el-input v-model="form.description" type="textarea" :rows="3" />
         </el-form-item>
@@ -115,10 +112,45 @@ const list = ref([])
 const total = ref(0)
 const loading = ref(false)
 const query = reactive({ pageNum: 1, pageSize: 10, keyword: '', courseType: null, status: null })
+
+// 课程性质的内置兜底映射（必修 / 选修），与字典同步，字典未加载完成时也能正常显示
+const COURSE_TYPE_FALLBACK = [
+  { value: 1, label: '必修' },
+  { value: 2, label: '选修' }
+]
+const COURSE_TYPE_TAG_TYPE = { 1: 'primary', 2: 'success' }
+
+// 课程性质下拉数据：优先用字典，没有就用兜底（避免表单与筛选出现 NaN）
+const courseTypeOptions = computed(() => {
+  const fromDict = (dict.course_type && dict.course_type.value) || []
+  if (fromDict.length) {
+    return fromDict.map(d => ({
+      value: Number(d.value) || 0,
+      label: d.label
+    })).filter(o => o.value)
+  }
+  return COURSE_TYPE_FALLBACK
+})
+
+const getCourseTypeLabel = (type) => {
+  if (type === null || type === undefined || Number.isNaN(Number(type))) return '-'
+  const t = Number(type)
+  // 优先匹配字典（字典加载后会有更准确的中文标签）
+  const fromDict = (dict.course_type && dict.course_type.value || []).find(d => Number(d.value) === t)
+  if (fromDict) return fromDict.label
+  const fallback = COURSE_TYPE_FALLBACK.find(o => o.value === t)
+  return (fallback && fallback.label) || '-'
+}
+const getCourseTypeTagType = (type) => {
+  const t = Number(type)
+  if (COURSE_TYPE_TAG_TYPE[t]) return COURSE_TYPE_TAG_TYPE[t]
+  const fromDict = (dict.course_type && dict.course_type.value || []).find(d => Number(d.value) === t)
+  return fromDict && fromDict.raw && fromDict.raw.listClass ? fromDict.raw.listClass : 'info'
+}
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const formRef = ref()
-const form = reactive({ id: null, courseCode: '', courseName: '', teacherId: 1, teacherName: '', categoryId: 1, categoryName: '', credit: 0, totalHours: 0, courseType: 1, status: 0, coverImage: '', description: '' })
+const form = reactive({ id: null, courseCode: '', courseName: '', teacherId: 1, teacherName: '', categoryId: 1, categoryName: '', credit: 0, totalHours: 0, courseType: 1, status: 0, description: '' })
 const rules = {
   courseCode: [{ required: true, message: '请输入课程编号' }],
   courseName: [{ required: true, message: '请输入课程名称' }],
@@ -143,7 +175,7 @@ const openForm = (row) => {
   if (row) {
     Object.assign(form, row)
   } else {
-    Object.assign(form, { id: null, courseCode: '', courseName: '', teacherId: 1, teacherName: '', categoryId: 1, categoryName: '', credit: 0, totalHours: 0, courseType: 1, status: 0, coverImage: '', description: '' })
+    Object.assign(form, { id: null, courseCode: '', courseName: '', teacherId: 1, teacherName: '', categoryId: 1, categoryName: '', credit: 0, totalHours: 0, courseType: 1, status: 0, description: '' })
   }
 }
 

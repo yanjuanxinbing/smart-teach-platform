@@ -6,3 +6,14 @@ body { background-color: #f0f2f5; }
 .toolbar-left { display: flex; gap: 8px; align-items: center; }
 
 .pagination-container { display: flex; justify-content: flex-end; margin-top: 16px; }
+
+/* Element Plus 弹窗按钮顺序：OK 在左，Cancel 在右 */
+.el-message-box__btns,
+.el-dialog__footer .dialog-footer {
+  flex-direction: row-reverse !important;
+}
+.el-message-box__btns .el-button--primary,
+.el-dialog__footer .dialog-footer .el-button--primary {
+  margin-left: 0 !important;
+  margin-right: 8px !important;
+}
