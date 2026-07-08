@@ -23,9 +23,16 @@ public class WebMvcConfig implements WebMvcConfigurer {
 
     @Override
     public void addResourceHandlers(ResourceHandlerRegistry registry) {
-        // toUri() 会输出 file:///C:/xxx/ 这种标准 URI，避免 Windows 反斜杠 + 末尾斜杠拼接导致 Spring 解析失败
+        // Resolve the configured upload-path to an absolute, normalized path.
         Path absPath = Paths.get(uploadPath).toAbsolutePath().normalize();
-        String location = absPath.toUri().toString();
+        // Build a resource location Spring can open. On Windows, absPath looks
+        // like D:\data\...  We need 'file:///' (three slashes) so Spring treats
+        // it as an absolute file URL. 'file://D:/...' (two slashes) is broken on
+        // Windows because the leading '/' before the drive letter is invalid.
+        String abs = absPath.toString().replace('\\', '/');
+        // On Windows, file://D:/... has URL.path = /D:/... which File resolves as D:\\D:\\... (bad).
+        // Use file:D:/... (no leading slash) so URL.path = D:/...  File(D:/...) is correct.
+        String location = abs.matches("^[A-Za-z]:.*") ? ("file:" + abs) : ("file://" + abs);
         registry.addResourceHandler(accessPrefix + "**")
                 .addResourceLocations(location);
     }

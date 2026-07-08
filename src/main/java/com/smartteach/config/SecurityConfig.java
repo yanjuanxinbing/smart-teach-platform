@@ -34,7 +34,7 @@ public class SecurityConfig {
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
                         .antMatchers("/auth/**", "/init/**", "/doc.html", "/webjars/**", "/swagger-resources/**",
-                                "/v2/api-docs", "/v3/api-docs/**", "/files/**", "/portal/site/**").permitAll()
+                                "/v2/api-docs", "/v3/api-docs/**", "/files/**", "/api/files/**", "/portal/site/**").permitAll()
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

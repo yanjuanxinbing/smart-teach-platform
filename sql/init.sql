@@ -547,6 +547,9 @@ INSERT INTO `sys_role`(`id`, `role_name`, `role_code`, `sort`, `status`) VALUES
 (4, '学生',        'ROLE_STUDENT', 4, 1);
 
 -- 管理员关联超级管理员角色
+-- 式制 UTF-8 连接 (服务端 GBK 会导致UTF-8)
+SET NAMES utf8mb4;
+
 INSERT INTO `sys_user_role`(`id`, `user_id`, `role_id`) VALUES (1, 1, 1);
 
 -- 菜单（基于系统所有功能模块）
@@ -746,6 +749,9 @@ INSERT INTO `sys_user`(`id`, `username`, `password`, `real_name`, `phone`, `emai
 (2002, 'student2', '$2a$10$v09gH/v9G7XN.zY6w2q6mO3R1m3SGeW0O8E3B6A6pE6wA6N6G6C6S', '赵美美', '18611113333', 'zhaomm@std.edu.cn', 2, 3, 1, '软工2202班学生');
 
 -- 分配角色
+-- 式制 UTF-8 连接 (服务端 GBK 会导致UTF-8)
+SET NAMES utf8mb4;
+
 INSERT INTO `sys_user_role`(`id`, `user_id`, `role_id`) VALUES 
 (101, 1001, 3), -- 张教授 -> 教师
 (102, 1002, 3), -- 李副教授 -> 教师
