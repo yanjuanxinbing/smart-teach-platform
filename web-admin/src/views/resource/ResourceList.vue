@@ -4,11 +4,18 @@
       <div class="toolbar">
         <div class="toolbar-left">
           <el-input v-model="query.keyword" placeholder="资源名称" clearable style="width: 220px" @keyup.enter="load" />
-          <el-select v-model="query.categoryId" placeholder="分类" clearable style="width: 160px">
-            <el-option v-for="c in categoryOptions" :key="c.id" :label="c.categoryName" :value="c.id" />
-          </el-select>
+          <!-- 筛选区：把普通 el-select 换成 el-tree-select，才能展示子分类 -->
+          <el-tree-select
+            v-model="query.categoryId"
+            :data="categoryOptions"
+            :props="{ value: 'id', label: 'categoryName' }"
+            check-strictly
+            clearable
+            placeholder="分类"
+            style="width: 160px"
+          />
           <el-select v-model="query.resourceType" placeholder="类型" clearable style="width: 120px">
-            <el-option v-for="d in dict.resource_type" :key="d.value" :label="d.label" :value="+d.value" />
+            <el-option v-for="d in dict.resource_type.value" :key="d.value" :label="d.label" :value="+d.value" />
           </el-select>
           <el-button type="primary" @click="load">搜索</el-button>
         </div>
@@ -51,10 +58,9 @@
     <el-dialog v-model="formDialog" title="上传资源" width="600px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="资源名称" prop="resourceName"><el-input v-model="form.resourceName" /></el-form-item>
-        <el-form-item label="资源类型" prop="resourceType">
-          <el-select v-model="form.resourceType" style="width:100%">
-            <el-option v-for="d in dict.resource_type" :key="d.value" :label="d.label" :value="+d.value" />
-          </el-select>
+        <el-form-item label="资源类型" v-if="form.fileSuffix">
+          <el-tag>{{ ['文档','图片','视频','音频','压缩包','其他'][form.resourceType - 1] }}</el-tag>
+          <span style="margin-left:8px;color:#999;font-size:12px">已根据文件后缀自动识别，无需手动选择</span>
         </el-form-item>
         <el-form-item label="资源分类" prop="categoryId">
           <el-tree-select v-model="form.categoryId" :data="categoryOptions" :props="{ value: 'id', label: 'categoryName' }" check-strictly style="width:100%" />
@@ -94,7 +100,17 @@ const formDialog = ref(false)
 const submitting = ref(false)
 const formRef = ref()
 const form = reactive({ resourceName: '', resourceType: 1, categoryId: null, originalName: '', filePath: '', fileUrl: '', fileSize: 0, fileSuffix: '', contentType: '', tags: '', description: '' })
-const rules = { resourceName: [{ required: true, message: '请输入资源名称' }], resourceType: [{ required: true, message: '请选择资源类型' }] }
+const rules = { resourceName: [{ required: true, message: '请输入资源名称' }] }
+
+// 根据文件后缀自动判断资源类型，与 sys_dict_data.resource_type 保持一致
+const EXT_TYPE_MAP = {
+  doc: 1, docx: 1, pdf: 1, txt: 1, xls: 1, xlsx: 1, ppt: 1, pptx: 1, md: 1, csv: 1,
+  jpg: 2, jpeg: 2, png: 2, gif: 2, bmp: 2, webp: 2, svg: 2,
+  mp4: 3, avi: 3, mov: 3, wmv: 3, flv: 3, mkv: 3,
+  mp3: 4, wav: 4, flac: 4, aac: 4, m4a: 4,
+  zip: 5, rar: 5, '7z': 5, tar: 5, gz: 5
+}
+const guessResourceType = (suffix) => EXT_TYPE_MAP[(suffix || '').toLowerCase()] || 6
 
 const load = async () => {
   loading.value = true
@@ -102,9 +118,13 @@ const load = async () => {
   finally { loading.value = false }
 }
 
+const loadCategories = async () => {
+  categoryOptions.value = await resCategoryTree()
+}
+
 const openForm = async () => {
   formDialog.value = true
-  categoryOptions.value = await resCategoryTree()
+  if (!categoryOptions.value.length) await loadCategories()
   Object.assign(form, { resourceName: '', resourceType: 1, categoryId: null, originalName: '', filePath: '', fileUrl: '', fileSize: 0, fileSuffix: '', contentType: '', tags: '', description: '' })
 }
 
@@ -118,6 +138,7 @@ const upload = async (option) => {
   form.originalName = res.originalName
   form.fileSize = res.fileSize
   form.fileSuffix = res.fileSuffix
+  form.resourceType = guessResourceType(res.fileSuffix)   // 新增：自动识别类型
   if (!form.resourceName) form.resourceName = res.originalName
   ElMessage.success('上传成功')
 }
@@ -145,5 +166,8 @@ const formatSize = (bytes) => {
   return (bytes / 1024 / 1024 / 1024).toFixed(2) + 'GB'
 }
 
-onMounted(load)
+onMounted(() => {
+  load()
+  loadCategories()   // 页面一进来就加载分类树，供筛选区使用
+})
 </script>
