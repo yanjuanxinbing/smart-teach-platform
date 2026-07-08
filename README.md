@@ -110,7 +110,7 @@ smart-teach-platform/
 ## 🚀 快速开始
 
 ### 1. 环境要求
-- JDK 1.8+
+- JDK 21+
 - Maven 3.6+
 - Node.js 16+ & npm 8+
 - MySQL 8.0+
