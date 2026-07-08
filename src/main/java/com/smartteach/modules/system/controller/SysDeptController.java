@@ -4,6 +4,7 @@ import com.smartteach.common.result.Result;
 import com.smartteach.modules.system.dto.SysDeptSaveDTO;
 import com.smartteach.modules.system.service.SysDeptService;
 import com.smartteach.modules.system.vo.SysDeptTreeVO;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -34,6 +35,7 @@ public class SysDeptController {
     @ApiOperation("新增部门")
     @PostMapping
     @PreAuthorize("hasAuthority('system:dept:add')")
+    @OperationLog(module = "部门管理", action = "新增部门", saveParams = false)
     public Result<Void> add(@Valid @RequestBody SysDeptSaveDTO dto) {
         deptService.save(dto);
         return Result.success();
@@ -42,6 +44,7 @@ public class SysDeptController {
     @ApiOperation("编辑部门")
     @PutMapping
     @PreAuthorize("hasAuthority('system:dept:edit')")
+    @OperationLog(module = "部门管理", action = "编辑部门", saveParams = false)
     public Result<Void> edit(@Valid @RequestBody SysDeptSaveDTO dto) {
         deptService.update(dto);
         return Result.success();
@@ -50,6 +53,7 @@ public class SysDeptController {
     @ApiOperation("删除部门")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('system:dept:remove')")
+    @OperationLog(module = "部门管理", action = "删除部门", saveParams = false)
     public Result<Void> remove(@PathVariable Long id) {
         deptService.remove(id);
         return Result.success();

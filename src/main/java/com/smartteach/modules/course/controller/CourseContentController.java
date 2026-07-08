@@ -4,6 +4,7 @@ import com.smartteach.common.result.Result;
 import com.smartteach.modules.course.dto.CourseContentSaveDTO;
 import com.smartteach.modules.course.entity.CourseContent;
 import com.smartteach.modules.course.service.CourseContentService;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -39,6 +40,7 @@ public class CourseContentController {
     @ApiOperation("新增内容")
     @PostMapping
     @PreAuthorize("hasAuthority('course:edit')")
+    @OperationLog(module = "课程内容", action = "新增章节内容", saveParams = false)
     public Result<Void> add(@Valid @RequestBody CourseContentSaveDTO dto) {
         contentService.save(dto);
         return Result.success();
@@ -47,6 +49,7 @@ public class CourseContentController {
     @ApiOperation("编辑内容")
     @PutMapping
     @PreAuthorize("hasAuthority('course:edit')")
+    @OperationLog(module = "课程内容", action = "编辑章节内容", saveParams = false)
     public Result<Void> edit(@Valid @RequestBody CourseContentSaveDTO dto) {
         contentService.update(dto);
         return Result.success();
@@ -55,6 +58,7 @@ public class CourseContentController {
     @ApiOperation("批量删除内容")
     @DeleteMapping
     @PreAuthorize("hasAuthority('course:edit')")
+    @OperationLog(module = "课程内容", action = "批量删除章节内容", saveParams = false)
     public Result<Void> remove(@RequestBody List<Long> ids) {
         contentService.remove(ids);
         return Result.success();
