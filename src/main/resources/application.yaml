@@ -1,0 +1,69 @@
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+  tomcat:
+    # 兜底放大 application/json 请求体的可消费字节数，避免前端把大字段（如 dataURL）整体 POST 时被 Tomcat 直接断连
+    max-swallow-size: 20MB
+    max-http-form-post-size: 20MB
+
+spring:
+  application:
+    name: smart-teach-platform
+  profiles:
+    active: dev
+  servlet:
+    multipart:
+      max-file-size: 100MB
+      max-request-size: 200MB
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://127.0.0.1:3306/smart_teach_platform?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
+    username: root
+    password: 123456
+
+mybatis-plus:
+  mapper-locations: classpath:mapper/**/*.xml
+  type-aliases-package: com.smartteach.modules.**.entity
+  configuration:
+    map-underscore-to-camel-case: true
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+      id-type: assign_id
+
+# 自定义配置：JWT
+jwt:
+  secret: SmartTeachPlatformSecretKey20240101ShouldBeChangedInProd
+  # token 有效期（毫秒），默认 12 小时
+  expire: 43200000
+  header: Authorization
+  token-prefix: "Bearer "
+
+# 文件上传路径（资源管理模块使用）
+# 默认保存到当前用户目录下，跨 Windows/Linux 平台。如需自定义请改为绝对路径并确保进程有读写权限。
+file:
+  upload-path: ${user.home}/smart-teach-uploads/
+  access-prefix: /api/files/
+
+# 密码初始化接口：用于重置忘记的管理员密码。生产环境务必关闭！
+init:
+  password-reset:
+    enabled: true
+    token: smartteach-init-2024
+
+# knife4j 接口文档
+knife4j:
+  enable: true
+  openapi:
+    title: 智能化在线教学支持服务平台管理中心系统接口文档
+    version: 1.0.0
+    group:
+      default:
+        group-name: default
+        api-rule: package
+        api-rule-resources:
+          - com.smartteach.modules
