@@ -559,7 +559,6 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (400,  0, '资源管理',     1, '/resource',   NULL,                    'folder',   '', 5, 1, 1),
 (500,  0, '系统管理',     1, '/system',     NULL,                    'setting',  '', 9, 1, 1),
 (600,  0, '系统监控',     1, '/monitor',    NULL,                    'monitor',  '', 10, 1, 1),
-
 -- 课程计划管理
 (101, 100, '课程管理',     2, '/course/manage',     'course/CourseList',    NULL, 'course:list', 1, 1, 1),
 (102, 100, '章节与内容',   2, '/course/chapter',    'course/ChapterList',   NULL, 'course:query', 2, 1, 1),
@@ -572,14 +571,12 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (122, 103, '删除计划', 3, NULL, NULL, NULL, 'course:plan:remove', 3, 1, 1),
 (123, 103, '审核计划', 3, NULL, NULL, NULL, 'course:plan:approve', 4, 1, 1),
 (124, 103, '查看详情', 3, NULL, NULL, NULL, 'course:plan:query', 5, 1, 1),
-
 -- 课程实验计划管理
 (201, 200, '实验计划', 2, '/experiment/plan', 'experiment/PlanList', NULL, 'experiment:plan:list', 1, 1, 1),
 (210, 201, '新增', 3, NULL, NULL, NULL, 'experiment:plan:add', 1, 1, 1),
 (211, 201, '编辑', 3, NULL, NULL, NULL, 'experiment:plan:edit', 2, 1, 1),
 (212, 201, '删除', 3, NULL, NULL, NULL, 'experiment:plan:remove', 3, 1, 1),
 (213, 201, '审核', 3, NULL, NULL, NULL, 'experiment:plan:approve', 4, 1, 1),
-
 -- 实训计划管理
 (301, 300, '实训计划', 2, '/training/plan', 'training/PlanList', NULL, 'training:plan:list', 1, 1, 1),
 (302, 300, '报名管理', 2, '/training/registration', 'training/RegistrationList', NULL, 'training:registration:list', 2, 1, 1),
@@ -589,7 +586,6 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (313, 301, '审核', 3, NULL, NULL, NULL, 'training:plan:approve', 4, 1, 1),
 (320, 302, '审核报名', 3, NULL, NULL, NULL, 'training:registration:review', 1, 1, 1),
 (321, 302, '登记成绩', 3, NULL, NULL, NULL, 'training:registration:grade', 2, 1, 1),
-
 -- 资源管理
 (401, 400, '资源分类', 2, '/resource/category', 'resource/CategoryList', NULL, 'resource:category:list', 1, 1, 1),
 (402, 400, '资源列表', 2, '/resource/list',     'resource/ResourceList', NULL, 'resource:list', 2, 1, 1),
@@ -599,7 +595,6 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (420, 402, '新增', 3, NULL, NULL, NULL, 'resource:add', 1, 1, 1),
 (421, 402, '编辑', 3, NULL, NULL, NULL, 'resource:edit', 2, 1, 1),
 (422, 402, '删除', 3, NULL, NULL, NULL, 'resource:remove', 3, 1, 1),
-
 -- 网站门户
 (10,   1, '轮播图', 2, '/portal/banner',    'portal/BannerList',    NULL, 'portal:article:list', 1, 1, 1),
 (11,   1, '通知公告', 2, '/portal/notice',   'portal/NoticeList',    NULL, 'portal:article:list', 2, 1, 1),
@@ -607,7 +602,6 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (20,  10, '新增', 3, NULL, NULL, NULL, 'portal:article:add', 1, 1, 1),
 (21,  10, '编辑', 3, NULL, NULL, NULL, 'portal:article:edit', 2, 1, 1),
 (22,  10, '删除', 3, NULL, NULL, NULL, 'portal:article:remove', 3, 1, 1),
-
 -- 系统管理
 (501, 500, '用户管理', 2, '/system/user',    'system/UserList',    NULL, 'system:user:list', 1, 1, 1),
 (502, 500, '部门管理', 2, '/system/dept',    'system/DeptList',    NULL, 'system:dept:list', 2, 1, 1),
@@ -625,7 +619,6 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (530, 504, '新增', 3, NULL, NULL, NULL, 'system:menu:add', 1, 1, 1),
 (531, 504, '编辑', 3, NULL, NULL, NULL, 'system:menu:edit', 2, 1, 1),
 (532, 504, '删除', 3, NULL, NULL, NULL, 'system:menu:remove', 3, 1, 1),
-
 -- 系统监控
 (601, 600, '服务器监控', 2, '/monitor/server',         'monitor/Server',  NULL, 'monitor:server:list', 1, 1, 1),
 (602, 600, '登录日志',   2, '/monitor/login-log',      'monitor/LoginLog', NULL, 'monitor:loginLog:list', 2, 1, 1),
