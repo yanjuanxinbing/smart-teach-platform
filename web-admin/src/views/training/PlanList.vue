@@ -7,9 +7,10 @@
           <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px">
             <el-option label="草稿" :value="0" />
             <el-option label="已发布" :value="1" />
-            <el-option label="进行中" :value="2" />
-            <el-option label="已结束" :value="3" />
-            <el-option label="驳回" :value="4" />
+            <el-option label="审核中" :value="2" />
+            <el-option label="进行中" :value="3" />
+            <el-option label="已结束" :value="4" />
+            <el-option label="已驳回" :value="5" />
           </el-select>
           <el-button type="primary" @click="load">搜索</el-button>
         </div>
@@ -27,17 +28,18 @@
         <el-table-column prop="totalHours" label="学时" width="80" />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="['info','primary','success','warning','danger'][row.status]">{{ ['草稿','已发布','进行中','已结束','驳回'][row.status] }}</el-tag>
+            <el-tag :type="['info','primary','warning','success','success','danger'][row.status]">{{ ['草稿','已发布','审核中','进行中','已结束','已驳回'][row.status] }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button size="small" link @click="openForm(row)">编辑</el-button>
-            <el-button size="small" link v-if="row.status === 0" @click="publish(row)">发布</el-button>
-            <el-button size="small" link v-if="row.status === 2" @click="finish(row)">完结</el-button>
-            <el-button size="small" link v-if="row.status === 1" @click="approve(row)">审核</el-button>
-            <el-button size="small" link type="danger" v-if="row.status === 1" @click="reject(row)">驳回</el-button>
-            <el-button size="small" link type="danger" @click="remove(row)">删除</el-button>
+            <el-button size="small" link v-if="row.status === 0" @click="handlePublish(row)">发布</el-button>
+            <el-button size="small" link v-if="row.status === 1" @click="handleSubmitReview(row)">提交审核</el-button>
+            <el-button size="small" link v-if="row.status === 2" @click="handleApprove(row)">审核通过</el-button>
+            <el-button size="small" link type="danger" v-if="row.status === 2" @click="handleReject(row)">审核驳回</el-button>
+            <el-button size="small" link v-if="row.status === 3" @click="handleFinish(row)">结束</el-button>
+            <el-button size="small" link type="danger" @click="handleRemove(row)">删除</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -83,7 +85,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
-import { trainingPage, trainingAdd, trainingEdit, trainingRemove, trainingPublish, trainingFinish, trainingApprove, trainingReject, trainingDetail } from '@/api/training'
+import { trainingPage, trainingAdd, trainingEdit, trainingRemove, trainingPublish, trainingSubmitReview, trainingApprove, trainingReject, trainingFinish, trainingDetail } from '@/api/training'
 
 const list = ref([])
 const total = ref(0)
@@ -114,11 +116,12 @@ const submit = async () => {
   finally { submitting.value = false }
 }
 
-const publish = async (row) => { await trainingPublish(row.id); ElMessage.success('已发布'); load() }
-const finish = async (row) => { await trainingFinish(row.id); ElMessage.success('已完结'); load() }
-const approve = async (row) => { const { value } = await ElMessageBox.prompt('审核意见', '审核通过', { inputValue: '同意' }); await trainingApprove(row.id, value); load() }
-const reject = async (row) => { const { value } = await ElMessageBox.prompt('驳回意见', '审核驳回', { inputValue: '请完善' }); await trainingReject(row.id, value); load() }
-const remove = async (row) => { await ElMessageBox.confirm(`确定删除"${row.planTitle}"？`, '提示', { type: 'warning' }); await trainingRemove([row.id]); ElMessage.success('删除成功'); load() }
+const handlePublish = async (row) => { await trainingPublish(row.id); ElMessage.success('已发布'); load() }
+const handleSubmitReview = async (row) => { await trainingSubmitReview(row.id); ElMessage.success('已提交审核'); load() }
+const handleApprove = async (row) => { const { value } = await ElMessageBox.prompt('审核意见', '审核通过', { inputValue: '同意' }); await trainingApprove(row.id, value); ElMessage.success('审核通过'); load() }
+const handleReject = async (row) => { const { value } = await ElMessageBox.prompt('驳回意见', '审核驳回', { inputValue: '请完善' }); await trainingReject(row.id, value); ElMessage.success('已驳回'); load() }
+const handleFinish = async (row) => { await trainingFinish(row.id); ElMessage.success('已结束'); load() }
+const handleRemove = async (row) => { await ElMessageBox.confirm(`确定删除"${row.planTitle}"？`, '提示', { type: 'warning' }); await trainingRemove([row.id]); ElMessage.success('删除成功'); load() }
 
 onMounted(load)
 </script>

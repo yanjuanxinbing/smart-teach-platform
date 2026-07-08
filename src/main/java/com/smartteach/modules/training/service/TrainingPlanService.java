@@ -22,9 +22,13 @@ public interface TrainingPlanService extends IService<TrainingPlan> {
 
     void publish(Long id);
 
-    void finish(Long id);
+    void submitForReview(Long id);
 
     void approve(Long id, Long approverId, String approverName, String remark);
 
     void reject(Long id, Long approverId, String approverName, String remark);
+
+    void finish(Long id);
+
+    void revertToDraft(Long id);
 }
