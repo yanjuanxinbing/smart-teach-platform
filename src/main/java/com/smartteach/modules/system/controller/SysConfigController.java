@@ -6,6 +6,7 @@ import com.smartteach.common.result.Result;
 import com.smartteach.modules.system.dto.SysConfigSaveDTO;
 import com.smartteach.modules.system.entity.SysConfig;
 import com.smartteach.modules.system.service.SysConfigService;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -42,6 +43,7 @@ public class SysConfigController {
     @ApiOperation("新增参数")
     @PostMapping
     @PreAuthorize("hasAuthority('system:config:add')")
+    @OperationLog(module = "参数配置", action = "新增参数", saveParams = false)
     public Result<Void> add(@Valid @RequestBody SysConfigSaveDTO dto) {
         configService.save(dto);
         return Result.success();
@@ -50,6 +52,7 @@ public class SysConfigController {
     @ApiOperation("编辑参数")
     @PutMapping
     @PreAuthorize("hasAuthority('system:config:edit')")
+    @OperationLog(module = "参数配置", action = "编辑参数", saveParams = false)
     public Result<Void> edit(@Valid @RequestBody SysConfigSaveDTO dto) {
         configService.update(dto);
         return Result.success();
@@ -58,6 +61,7 @@ public class SysConfigController {
     @ApiOperation("删除参数")
     @DeleteMapping
     @PreAuthorize("hasAuthority('system:config:remove')")
+    @OperationLog(module = "参数配置", action = "删除参数", saveParams = false)
     public Result<Void> remove(@RequestBody List<Long> ids) {
         configService.remove(ids);
         return Result.success();

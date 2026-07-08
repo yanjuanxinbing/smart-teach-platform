@@ -5,6 +5,7 @@ import com.smartteach.common.utils.UserContext;
 import com.smartteach.modules.permission.entity.SysMenu;
 import com.smartteach.modules.permission.service.SysMenuService;
 import com.smartteach.modules.permission.vo.MenuTreeVO;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -41,6 +42,7 @@ public class SysMenuController {
     @ApiOperation("新增菜单/按钮")
     @PostMapping
     @PreAuthorize("hasAuthority('system:menu:add')")
+    @OperationLog(module = "菜单管理", action = "新增菜单/按钮", saveParams = false)
     public Result<Void> add(@Valid @RequestBody SysMenu menu) {
         menuService.save(menu);
         return Result.success();
@@ -49,6 +51,7 @@ public class SysMenuController {
     @ApiOperation("编辑菜单/按钮")
     @PutMapping
     @PreAuthorize("hasAuthority('system:menu:edit')")
+    @OperationLog(module = "菜单管理", action = "编辑菜单/按钮", saveParams = false)
     public Result<Void> edit(@Valid @RequestBody SysMenu menu) {
         menuService.updateById(menu);
         return Result.success();
@@ -57,6 +60,7 @@ public class SysMenuController {
     @ApiOperation("删除菜单/按钮")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('system:menu:remove')")
+    @OperationLog(module = "菜单管理", action = "删除菜单/按钮", saveParams = false)
     public Result<Void> remove(@PathVariable Long id) {
         menuService.removeMenu(id);
         return Result.success();

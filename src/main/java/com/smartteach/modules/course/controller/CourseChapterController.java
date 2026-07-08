@@ -4,6 +4,7 @@ import com.smartteach.common.result.Result;
 import com.smartteach.modules.course.dto.CourseChapterSaveDTO;
 import com.smartteach.modules.course.entity.CourseChapter;
 import com.smartteach.modules.course.service.CourseChapterService;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -33,6 +34,7 @@ public class CourseChapterController {
     @ApiOperation("新增章节")
     @PostMapping
     @PreAuthorize("hasAuthority('course:edit')")
+    @OperationLog(module = "课程章节", action = "新增章节", saveParams = false)
     public Result<Void> add(@Valid @RequestBody CourseChapterSaveDTO dto) {
         chapterService.save(dto);
         return Result.success();
@@ -41,6 +43,7 @@ public class CourseChapterController {
     @ApiOperation("编辑章节")
     @PutMapping
     @PreAuthorize("hasAuthority('course:edit')")
+    @OperationLog(module = "课程章节", action = "编辑章节", saveParams = false)
     public Result<Void> edit(@Valid @RequestBody CourseChapterSaveDTO dto) {
         chapterService.update(dto);
         return Result.success();
@@ -49,6 +52,7 @@ public class CourseChapterController {
     @ApiOperation("删除章节")
     @DeleteMapping("/{id}")
     @PreAuthorize("hasAuthority('course:edit')")
+    @OperationLog(module = "课程章节", action = "删除章节", saveParams = false)
     public Result<Void> remove(@PathVariable Long id) {
         chapterService.remove(id);
         return Result.success();

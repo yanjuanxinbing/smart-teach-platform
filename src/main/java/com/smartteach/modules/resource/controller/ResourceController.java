@@ -6,6 +6,7 @@ import com.smartteach.modules.resource.dto.ResourceQueryDTO;
 import com.smartteach.modules.resource.dto.ResourceSaveDTO;
 import com.smartteach.modules.resource.entity.Resource;
 import com.smartteach.modules.resource.service.ResourceService;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -46,6 +47,7 @@ public class ResourceController {
     @ApiOperation("新增资源")
     @PostMapping
     @PreAuthorize("hasAuthority('resource:add')")
+    @OperationLog(module = "资源管理", action = "新增资源", saveParams = false)
     public Result<Void> add(@Valid @RequestBody ResourceSaveDTO dto) {
         resourceService.save(dto);
         return Result.success();
@@ -54,6 +56,7 @@ public class ResourceController {
     @ApiOperation("编辑资源")
     @PutMapping
     @PreAuthorize("hasAuthority('resource:edit')")
+    @OperationLog(module = "资源管理", action = "编辑资源", saveParams = false)
     public Result<Void> edit(@Valid @RequestBody ResourceSaveDTO dto) {
         resourceService.update(dto);
         return Result.success();
@@ -62,6 +65,7 @@ public class ResourceController {
     @ApiOperation("批量删除资源")
     @DeleteMapping
     @PreAuthorize("hasAuthority('resource:remove')")
+    @OperationLog(module = "资源管理", action = "批量删除资源", saveParams = false)
     public Result<Void> remove(@RequestBody List<Long> ids) {
         resourceService.remove(ids);
         return Result.success();
@@ -70,6 +74,7 @@ public class ResourceController {
     @ApiOperation("上架/下架资源")
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('resource:edit')")
+    @OperationLog(module = "资源管理", action = "修改资源上下架", saveParams = false)
     public Result<Void> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
         resourceService.changeStatus(id, status);
         return Result.success();
