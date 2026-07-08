@@ -35,7 +35,7 @@
         <el-form-item label="部门编码"><el-input v-model="form.deptCode" /></el-form-item>
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="负责人"><el-input v-model="form.leader" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="电话"><el-input v-model="form.phone" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="电话" prop="phone"><el-input v-model="form.phone" maxlength="11" placeholder="请输入11位手机号" @input="form.phone = (form.phone || '').replace(/\D/g, '').slice(0, 11)" /></el-form-item></el-col>
         </el-row>
         <el-form-item label="邮箱"><el-input v-model="form.email" /></el-form-item>
         <el-form-item label="排序"><el-input-number v-model="form.sort" :min="0" /></el-form-item>
@@ -60,7 +60,10 @@ const loading = ref(false)
 const dialogVisible = ref(false)
 const formRef = ref()
 const form = reactive({ id: null, parentId: 0, deptName: '', deptCode: '', leader: '', phone: '', email: '', sort: 0, status: 1 })
-const rules = { deptName: [{ required: true, message: '请输入部门名称' }] }
+const rules = {
+  deptName: [{ required: true, message: '请输入部门名称' }],
+  phone: [{ pattern: /^\d{11}$/, message: '电话必须是11位数字', trigger: 'blur' }]
+}
 const parentOptions = computed(() => [{ id: 0, deptName: '顶级' }, ...tree.value])
 
 const load = async () => { loading.value = true; try { tree.value = await deptTree() } finally { loading.value = false } }

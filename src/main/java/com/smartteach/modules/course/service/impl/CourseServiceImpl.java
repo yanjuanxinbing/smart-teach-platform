@@ -43,9 +43,16 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
     @Override
     public PageResult<Course> page(CourseQueryDTO query) {
         LambdaQueryWrapper<Course> wrapper = new LambdaQueryWrapper<>();
-        wrapper.like(StringUtils.isNotBlank(query.getCourseCode()), Course::getCourseCode, query.getCourseCode())
-                .like(StringUtils.isNotBlank(query.getCourseName()), Course::getCourseName, query.getCourseName())
-                .eq(query.getCategoryId() != null, Course::getCategoryId, query.getCategoryId())
+        // 综合搜索关键字：同时模糊匹配 课程编号 / 课程名称
+        if (StringUtils.isNotBlank(query.getKeyword())) {
+            String kw = query.getKeyword().trim();
+            wrapper.and(w -> w.like(Course::getCourseCode, kw)
+                    .or().like(Course::getCourseName, kw));
+        } else {
+            wrapper.like(StringUtils.isNotBlank(query.getCourseCode()), Course::getCourseCode, query.getCourseCode())
+                    .like(StringUtils.isNotBlank(query.getCourseName()), Course::getCourseName, query.getCourseName());
+        }
+        wrapper.eq(query.getCategoryId() != null, Course::getCategoryId, query.getCategoryId())
                 .eq(query.getTeacherId() != null, Course::getTeacherId, query.getTeacherId())
                 .eq(query.getCourseType() != null, Course::getCourseType, query.getCourseType())
                 .eq(query.getStatus() != null, Course::getStatus, query.getStatus())
@@ -133,10 +140,11 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
 
     @Override
     public void changeStatus(Long id, Integer status) {
-        Course course = new Course();
-        course.setId(id);
-        course.setStatus(status);
-        this.updateById(course);
+        // 显式只更新 status 列，避免依赖 updateById 在 BaseEntity 扩展字段上的隐式行为
+        this.lambdaUpdate()
+                .eq(Course::getId, id)
+                .set(Course::getStatus, status)
+                .update();
     }
 
     @Override

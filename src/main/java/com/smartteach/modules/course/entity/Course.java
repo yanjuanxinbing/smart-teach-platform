@@ -30,9 +30,6 @@ public class Course extends BaseEntity {
     /** 课程简介 */
     private String description;
 
-    /** 封面图 */
-    private String coverImage;
-
     /** 任课教师ID */
     private Long teacherId;
 

@@ -47,15 +47,16 @@ public class ExperimentPlanController {
     @ApiOperation("新增实验计划")
     @PostMapping
     @PreAuthorize("hasAuthority('experiment:plan:add')")
-    @OperationLog(module = "实验计划", action = "新增实验计划")
-    public Result<Long> add(@Valid @RequestBody ExperimentPlanSaveDTO dto) {
-        return Result.success(planService.save(dto).getId());
+    @OperationLog(module = "实验计划", action = "新增实验计划", saveParams = false)
+    public Result<Void> add(@Valid @RequestBody ExperimentPlanSaveDTO dto) {
+        planService.save(dto);
+        return Result.success();
     }
 
     @ApiOperation("编辑实验计划")
     @PutMapping
     @PreAuthorize("hasAuthority('experiment:plan:edit')")
-    @OperationLog(module = "实验计划", action = "编辑实验计划")
+    @OperationLog(module = "实验计划", action = "编辑实验计划", saveParams = false)
     public Result<Void> edit(@Valid @RequestBody ExperimentPlanSaveDTO dto) {
         planService.update(dto);
         return Result.success();
@@ -64,7 +65,7 @@ public class ExperimentPlanController {
     @ApiOperation("批量删除实验计划")
     @DeleteMapping
     @PreAuthorize("hasAuthority('experiment:plan:remove')")
-    @OperationLog(module = "实验计划", action = "删除实验计划")
+    @OperationLog(module = "实验计划", action = "删除实验计划", saveParams = false)
     public Result<Void> remove(@RequestBody List<Long> ids) {
         planService.remove(ids);
         return Result.success();
@@ -73,7 +74,7 @@ public class ExperimentPlanController {
     @ApiOperation("提交审核")
     @PutMapping("/{id}/submit")
     @PreAuthorize("hasAuthority('experiment:plan:edit')")
-    @OperationLog(module = "实验计划", action = "提交审核")
+    @OperationLog(module = "实验计划", action = "提交审核", saveParams = false)
     public Result<Void> submit(@PathVariable Long id) {
         planService.submit(id);
         return Result.success();
@@ -82,7 +83,7 @@ public class ExperimentPlanController {
     @ApiOperation("审核通过")
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasAuthority('experiment:plan:approve')")
-    @OperationLog(module = "实验计划", action = "审核通过")
+    @OperationLog(module = "实验计划", action = "审核通过", saveParams = false)
     public Result<Void> approve(@PathVariable Long id, @RequestBody Map<String, String> body) {
         planService.approve(id, UserContext.getUserId(), UserContext.getUsername(), body.get("remark"));
         return Result.success();
@@ -91,7 +92,7 @@ public class ExperimentPlanController {
     @ApiOperation("审核驳回")
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasAuthority('experiment:plan:approve')")
-    @OperationLog(module = "实验计划", action = "审核驳回")
+    @OperationLog(module = "实验计划", action = "审核驳回", saveParams = false)
     public Result<Void> reject(@PathVariable Long id, @RequestBody Map<String, String> body) {
         planService.reject(id, UserContext.getUserId(), UserContext.getUsername(), body.get("remark"));
         return Result.success();

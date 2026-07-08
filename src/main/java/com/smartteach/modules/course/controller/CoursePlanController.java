@@ -8,6 +8,7 @@ import com.smartteach.modules.course.dto.CoursePlanSaveDTO;
 import com.smartteach.modules.course.entity.CoursePlan;
 import com.smartteach.modules.course.service.CoursePlanService;
 import com.smartteach.modules.course.vo.CoursePlanDetailVO;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -46,13 +47,16 @@ public class CoursePlanController {
     @ApiOperation("新增计划（同时保存周次明细）")
     @PostMapping
     @PreAuthorize("hasAuthority('course:plan:add')")
-    public Result<Long> add(@Valid @RequestBody CoursePlanSaveDTO dto) {
-        return Result.success(planService.save(dto).getId());
+    @OperationLog(module = "教学计划", action = "新增计划", saveParams = false)
+    public Result<Void> add(@Valid @RequestBody CoursePlanSaveDTO dto) {
+        planService.save(dto);
+        return Result.success();
     }
 
     @ApiOperation("编辑计划")
     @PutMapping
     @PreAuthorize("hasAuthority('course:plan:edit')")
+    @OperationLog(module = "教学计划", action = "编辑计划", saveParams = false)
     public Result<Void> edit(@Valid @RequestBody CoursePlanSaveDTO dto) {
         planService.update(dto);
         return Result.success();
@@ -61,6 +65,7 @@ public class CoursePlanController {
     @ApiOperation("批量删除计划")
     @DeleteMapping
     @PreAuthorize("hasAuthority('course:plan:remove')")
+    @OperationLog(module = "教学计划", action = "批量删除计划", saveParams = false)
     public Result<Void> remove(@RequestBody List<Long> ids) {
         planService.remove(ids);
         return Result.success();
@@ -69,6 +74,7 @@ public class CoursePlanController {
     @ApiOperation("提交审核")
     @PutMapping("/{id}/submit")
     @PreAuthorize("hasAuthority('course:plan:edit')")
+    @OperationLog(module = "教学计划", action = "提交计划审核", saveParams = false)
     public Result<Void> submit(@PathVariable Long id) {
         planService.submit(id);
         return Result.success();
@@ -77,6 +83,7 @@ public class CoursePlanController {
     @ApiOperation("审核通过")
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasAuthority('course:plan:approve')")
+    @OperationLog(module = "教学计划", action = "审核通过计划", saveParams = false)
     public Result<Void> approve(@PathVariable Long id, @RequestBody Map<String, String> body) {
         planService.approve(id, UserContext.getUserId(),
                 UserContext.getUsername(), body.get("remark"));
@@ -86,6 +93,7 @@ public class CoursePlanController {
     @ApiOperation("审核驳回")
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasAuthority('course:plan:approve')")
+    @OperationLog(module = "教学计划", action = "审核驳回计划", saveParams = false)
     public Result<Void> reject(@PathVariable Long id, @RequestBody Map<String, String> body) {
         planService.reject(id, UserContext.getUserId(),
                 UserContext.getUsername(), body.get("remark"));
