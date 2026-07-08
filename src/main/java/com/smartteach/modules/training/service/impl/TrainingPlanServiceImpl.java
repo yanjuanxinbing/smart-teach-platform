@@ -73,11 +73,12 @@ public class TrainingPlanServiceImpl extends ServiceImpl<TrainingPlanMapper, Tra
         if (plan == null) {
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
-        if (plan.getStatus() != 0 && plan.getStatus() != 4) {
-            throw new BusinessException("只有草稿或驳回状态才能编辑");
-        }
         TrainingPlan entity = new TrainingPlan();
         BeanUtils.copyProperties(dto, entity);
+        // 如果当前状态是已驳回(5)，编辑后改为草稿(0)
+        if (plan.getStatus() == 5) {
+            entity.setStatus(0);
+        }
         this.updateById(entity);
     }
 
@@ -98,23 +99,27 @@ public class TrainingPlanServiceImpl extends ServiceImpl<TrainingPlanMapper, Tra
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
         if (plan.getStatus() != 0) {
-            throw new BusinessException("只有草稿才能发布");
+            throw new BusinessException("当前状态不允许此操作");
         }
-        plan.setStatus(1);
-        this.updateById(plan);
+        TrainingPlan update = new TrainingPlan();
+        update.setId(id);
+        update.setStatus(1);
+        this.updateById(update);
     }
 
     @Override
-    public void finish(Long id) {
+    public void submitForReview(Long id) {
         TrainingPlan plan = this.getById(id);
         if (plan == null) {
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
-        if (plan.getStatus() != 2) {
-            throw new BusinessException("只有进行中才能完结");
+        if (plan.getStatus() != 1) {
+            throw new BusinessException("当前状态不允许此操作");
         }
-        plan.setStatus(3);
-        this.updateById(plan);
+        TrainingPlan update = new TrainingPlan();
+        update.setId(id);
+        update.setStatus(2);
+        this.updateById(update);
     }
 
     @Override
@@ -123,14 +128,16 @@ public class TrainingPlanServiceImpl extends ServiceImpl<TrainingPlanMapper, Tra
         if (plan == null) {
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
-        if (plan.getStatus() != 1) {
-            throw new BusinessException("只有已发布才能审核通过");
+        if (plan.getStatus() != 2) {
+            throw new BusinessException("当前状态不允许此操作");
         }
-        plan.setStatus(2);
-        plan.setApproverId(approverId);
-        plan.setApproverName(approverName);
-        plan.setApproveRemark(remark);
-        this.updateById(plan);
+        TrainingPlan update = new TrainingPlan();
+        update.setId(id);
+        update.setStatus(3);
+        update.setApproverId(approverId);
+        update.setApproverName(approverName);
+        update.setApproveRemark(remark);
+        this.updateById(update);
     }
 
     @Override
@@ -139,13 +146,48 @@ public class TrainingPlanServiceImpl extends ServiceImpl<TrainingPlanMapper, Tra
         if (plan == null) {
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
-        if (plan.getStatus() != 1) {
-            throw new BusinessException("只有已发布才能驳回");
+        if (plan.getStatus() != 2) {
+            throw new BusinessException("当前状态不允许此操作");
         }
-        plan.setStatus(4);
-        plan.setApproverId(approverId);
-        plan.setApproverName(approverName);
-        plan.setApproveRemark(remark);
-        this.updateById(plan);
+        TrainingPlan update = new TrainingPlan();
+        update.setId(id);
+        update.setStatus(5);
+        update.setApproverId(approverId);
+        update.setApproverName(approverName);
+        update.setApproveRemark(remark);
+        this.updateById(update);
+    }
+
+    @Override
+    public void finish(Long id) {
+        TrainingPlan plan = this.getById(id);
+        if (plan == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        }
+        if (plan.getStatus() != 3) {
+            throw new BusinessException("当前状态不允许此操作");
+        }
+        TrainingPlan update = new TrainingPlan();
+        update.setId(id);
+        update.setStatus(4);
+        this.updateById(update);
+    }
+
+    @Override
+    public void revertToDraft(Long id) {
+        TrainingPlan plan = this.getById(id);
+        if (plan == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        }
+        if (plan.getStatus() != 5) {
+            throw new BusinessException("当前状态不允许此操作");
+        }
+        TrainingPlan update = new TrainingPlan();
+        update.setId(id);
+        update.setStatus(0);
+        update.setApproverId(null);
+        update.setApproverName(null);
+        update.setApproveRemark(null);
+        this.updateById(update);
     }
 }

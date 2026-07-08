@@ -78,6 +78,24 @@ public class TrainingPlanController {
         return Result.success();
     }
 
+    @ApiOperation("提交审核")
+    @PutMapping("/{id}/submit-review")
+    @PreAuthorize("hasAuthority('training:plan:edit')")
+    @OperationLog(module = "实训计划", action = "提交审核")
+    public Result<Void> submitReview(@PathVariable Long id) {
+        planService.submitForReview(id);
+        return Result.success();
+    }
+
+    @ApiOperation("退回草稿")
+    @PutMapping("/{id}/revert-draft")
+    @PreAuthorize("hasAuthority('training:plan:edit')")
+    @OperationLog(module = "实训计划", action = "退回草稿")
+    public Result<Void> revertDraft(@PathVariable Long id) {
+        planService.revertToDraft(id);
+        return Result.success();
+    }
+
     @ApiOperation("完结")
     @PutMapping("/{id}/finish")
     @PreAuthorize("hasAuthority('training:plan:edit')")

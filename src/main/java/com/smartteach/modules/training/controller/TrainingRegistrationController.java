@@ -58,6 +58,7 @@ public class TrainingRegistrationController {
 
     @ApiOperation("签到")
     @PutMapping("/{id}/sign-in")
+    @PreAuthorize("hasAuthority('training:registration:sign')")
     @OperationLog(module = "实训报名", action = "签到")
     public Result<Void> signIn(@PathVariable Long id) {
         registrationService.signIn(id);
@@ -66,6 +67,7 @@ public class TrainingRegistrationController {
 
     @ApiOperation("签退")
     @PutMapping("/{id}/sign-out")
+    @PreAuthorize("hasAuthority('training:registration:sign')")
     @OperationLog(module = "实训报名", action = "签退")
     public Result<Void> signOut(@PathVariable Long id) {
         registrationService.signOut(id);

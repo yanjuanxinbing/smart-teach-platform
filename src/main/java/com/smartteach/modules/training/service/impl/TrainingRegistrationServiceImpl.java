@@ -17,6 +17,7 @@ import com.smartteach.modules.training.service.TrainingRegistrationService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -42,15 +43,27 @@ public class TrainingRegistrationServiceImpl extends ServiceImpl<TrainingRegistr
 
     @Override
     public void register(TrainingRegistrationSaveDTO dto) {
-        // 查询计划
+        // a) 查出关联的 TrainingPlan
         TrainingPlan plan = planService.getById(dto.getPlanId());
         if (plan == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+            throw new BusinessException("实训计划不存在");
         }
-        // 查询已报名人数
+        // b) 计划状态检查：status 必须在 [1,2,3]
+        Integer planStatus = plan.getStatus();
+        if (planStatus == null || (planStatus != 1 && planStatus != 2 && planStatus != 3)) {
+            throw new BusinessException("该计划当前不允许报名");
+        }
+        // c) 重复报名检查
+        long dupCount = this.count(new LambdaQueryWrapper<TrainingRegistration>()
+                .eq(TrainingRegistration::getPlanId, dto.getPlanId())
+                .eq(TrainingRegistration::getStudentId, dto.getStudentId()));
+        if (dupCount > 0) {
+            throw new BusinessException("该学生已报名此实训计划");
+        }
+        // d) 人数上限检查
         long count = this.count(new LambdaQueryWrapper<TrainingRegistration>()
                 .eq(TrainingRegistration::getPlanId, dto.getPlanId())
-                .in(TrainingRegistration::getStatus, 0, 1)); // 待审核 + 已通过
+                .in(TrainingRegistration::getStatus, 0, 1));
         if (plan.getCapacity() != null && count >= plan.getCapacity()) {
             throw new BusinessException("该实训计划报名人数已满");
         }
@@ -63,11 +76,21 @@ public class TrainingRegistrationServiceImpl extends ServiceImpl<TrainingRegistr
 
     @Override
     public void review(Long id, Integer status, String comment) {
-        TrainingRegistration reg = new TrainingRegistration();
-        reg.setId(id);
-        reg.setStatus(status);
-        reg.setComment(comment);
-        this.updateById(reg);
+        TrainingRegistration reg = this.getById(id);
+        if (reg == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        }
+        if (reg.getStatus() != 0) {
+            throw new BusinessException("当前状态不允许审核");
+        }
+        if (status == null || (status != 1 && status != 2)) {
+            throw new BusinessException("无效的审核状态");
+        }
+        TrainingRegistration update = new TrainingRegistration();
+        update.setId(id);
+        update.setStatus(status);
+        update.setComment(comment);
+        this.updateById(update);
     }
 
     @Override
@@ -87,13 +110,25 @@ public class TrainingRegistrationServiceImpl extends ServiceImpl<TrainingRegistr
     }
 
     @Override
-    public void grade(Long id, java.math.BigDecimal score, String comment) {
-        TrainingRegistration reg = new TrainingRegistration();
-        reg.setId(id);
-        reg.setScore(score);
-        reg.setComment(comment);
-        reg.setStatus(3);
-        this.updateById(reg);
+    public void grade(Long id, BigDecimal score, String comment) {
+        TrainingRegistration reg = this.getById(id);
+        if (reg == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        }
+        // a) score 范围校验
+        if (score != null && (score.compareTo(BigDecimal.ZERO) < 0 || score.compareTo(new BigDecimal("100")) > 0)) {
+            throw new BusinessException("成绩必须在0-100之间");
+        }
+        // b) 前置状态校验
+        if (reg.getStatus() == null || reg.getStatus() != 1) {
+            throw new BusinessException("只有已通过的报名才能登记成绩");
+        }
+        TrainingRegistration update = new TrainingRegistration();
+        update.setId(id);
+        update.setScore(score);
+        update.setComment(comment);
+        update.setStatus(3);
+        this.updateById(update);
     }
 
     @Override
