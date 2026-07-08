@@ -85,16 +85,51 @@ const load = async () => {
 }
 
 const openForm = () => { formDialog.value = true; Object.assign(form, { planId: null, studentName: '', studentId: null, className: '', phone: '' }) }
-const submit = async () => { await formRef.value.validate(); await regAdd(form); ElMessage.success('报名成功'); formDialog.value = false; load() }
-const review = async (row, status) => { await regReview(row.id, { status, comment: '' }); ElMessage.success('已审核'); load() }
-const signIn = async (row) => { await regSignIn(row.id); ElMessage.success('签到成功'); load() }
-const signOut = async (row) => { await regSignOut(row.id); ElMessage.success('签退成功'); load() }
-const grade = async (row) => {
-  const { value } = await ElMessageBox.prompt('请输入成绩（0-100）', '登记成绩', { inputPattern: /^(\d{1,3}(\.\d{1,2})?)$/, inputErrorMessage: '请输入有效分数' })
-  await regGrade(row.id, { score: value, comment: '' })
-  ElMessage.success('成绩已记录'); load()
+
+const submit = async () => {
+  await formRef.value.validate()
+  const plan = planList.value.find(p => p.id === form.planId)
+  const data = { ...form, planTitle: plan ? plan.planTitle : '' }
+  await regAdd(data)
+  ElMessage.success('报名成功')
+  formDialog.value = false
+  load()
 }
-const remove = async (row) => { await ElMessageBox.confirm('确定删除该报名？', '提示', { type: 'warning' }); await regRemove([row.id]); ElMessage.success('删除成功'); load() }
+
+const review = async (row, status) => {
+  const action = status === 1 ? '通过' : '驳回'
+  await ElMessageBox.confirm(`确定${action}该报名？`, '确认', { type: 'warning' })
+  await regReview(row.id, { status, comment: '' })
+  ElMessage.success(`已${action}`)
+  load()
+}
+
+const signIn = async (row) => {
+  loading.value = true
+  try { await regSignIn(row.id); ElMessage.success('签到成功'); load() }
+  finally { loading.value = false }
+}
+
+const signOut = async (row) => {
+  loading.value = true
+  try { await regSignOut(row.id); ElMessage.success('签退成功'); load() }
+  finally { loading.value = false }
+}
+
+const grade = async (row) => {
+  loading.value = true
+  try {
+    const { value } = await ElMessageBox.prompt('请输入成绩（0-100）', '登记成绩', { inputPattern: /^(100|[1-9]?\d(\.\d{1,2})?)$/, inputErrorMessage: '请输入0-100之间的分数' })
+    await regGrade(row.id, { score: value, comment: '' })
+    ElMessage.success('成绩已记录'); load()
+  } finally { loading.value = false }
+}
+
+const remove = async (row) => {
+  loading.value = true
+  try { await ElMessageBox.confirm('确定删除该报名？', '提示', { type: 'warning' }); await regRemove([row.id]); ElMessage.success('删除成功'); load() }
+  finally { loading.value = false }
+}
 
 onMounted(async () => {
   const res = await trainingPage({ pageNum: 1, pageSize: 1000 })

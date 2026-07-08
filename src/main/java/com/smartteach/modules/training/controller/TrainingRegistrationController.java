@@ -86,7 +86,7 @@ public class TrainingRegistrationController {
     @ApiOperation("批量删除报名记录")
     @DeleteMapping
     @PreAuthorize("hasAuthority('training:registration:remove')")
-    @OperationLog(module = "实训报名", action = "批量删除报名", saveParams = false)
+    @OperationLog(module = "实训报名", action = "删除报名记录", saveParams = false)
     public Result<Void> remove(@RequestBody List<Long> ids) {
         registrationService.remove(ids);
         return Result.success();

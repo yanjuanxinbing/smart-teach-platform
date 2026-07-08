@@ -64,7 +64,7 @@ public class TrainingPlanController {
     @ApiOperation("批量删除实训计划")
     @DeleteMapping
     @PreAuthorize("hasAuthority('training:plan:remove')")
-    @OperationLog(module = "实训计划", action = "批量删除实训计划", saveParams = false)
+    @OperationLog(module = "实训计划", action = "删除实训计划", saveParams = false)
     public Result<Void> remove(@RequestBody List<Long> ids) {
         planService.remove(ids);
         return Result.success();
@@ -76,6 +76,24 @@ public class TrainingPlanController {
     @OperationLog(module = "实训计划", action = "发布实训计划", saveParams = false)
     public Result<Void> publish(@PathVariable Long id) {
         planService.publish(id);
+        return Result.success();
+    }
+
+    @ApiOperation("提交审核")
+    @PutMapping("/{id}/submit-review")
+    @PreAuthorize("hasAuthority('training:plan:edit')")
+    @OperationLog(module = "实训计划", action = "提交审核")
+    public Result<Void> submitReview(@PathVariable Long id) {
+        planService.submitForReview(id);
+        return Result.success();
+    }
+
+    @ApiOperation("退回草稿")
+    @PutMapping("/{id}/revert-draft")
+    @PreAuthorize("hasAuthority('training:plan:edit')")
+    @OperationLog(module = "实训计划", action = "退回草稿")
+    public Result<Void> revertDraft(@PathVariable Long id) {
+        planService.revertToDraft(id);
         return Result.success();
     }
 
@@ -91,7 +109,7 @@ public class TrainingPlanController {
     @ApiOperation("审核通过")
     @PutMapping("/{id}/approve")
     @PreAuthorize("hasAuthority('training:plan:approve')")
-    @OperationLog(module = "实训计划", action = "审核通过实训计划", saveParams = false)
+    @OperationLog(module = "实训计划", action = "审核通过", saveParams = false)
     public Result<Void> approve(@PathVariable Long id, @RequestBody Map<String, String> body) {
         planService.approve(id, UserContext.getUserId(), UserContext.getUsername(), body.get("remark"));
         return Result.success();
@@ -100,7 +118,7 @@ public class TrainingPlanController {
     @ApiOperation("审核驳回")
     @PutMapping("/{id}/reject")
     @PreAuthorize("hasAuthority('training:plan:approve')")
-    @OperationLog(module = "实训计划", action = "审核驳回实训计划", saveParams = false)
+    @OperationLog(module = "实训计划", action = "审核驳回", saveParams = false)
     public Result<Void> reject(@PathVariable Long id, @RequestBody Map<String, String> body) {
         planService.reject(id, UserContext.getUserId(), UserContext.getUsername(), body.get("remark"));
         return Result.success();

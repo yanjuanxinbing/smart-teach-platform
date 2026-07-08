@@ -585,8 +585,10 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (311, 301, '编辑', 3, NULL, NULL, NULL, 'training:plan:edit', 2, 1, 1),
 (312, 301, '删除', 3, NULL, NULL, NULL, 'training:plan:remove', 3, 1, 1),
 (313, 301, '审核', 3, NULL, NULL, NULL, 'training:plan:approve', 4, 1, 1),
-(320, 302, '审核报名', 3, NULL, NULL, NULL, 'training:registration:review', 1, 1, 1),
-(321, 302, '登记成绩', 3, NULL, NULL, NULL, 'training:registration:grade', 2, 1, 1),
+(320, 302, '新增报名', 3, NULL, NULL, NULL, 'training:registration:add', 1, 1, 1),
+(321, 302, '审核报名', 3, NULL, NULL, NULL, 'training:registration:review', 2, 1, 1),
+(322, 302, '登记成绩', 3, NULL, NULL, NULL, 'training:registration:grade', 3, 1, 1),
+(323, 302, '删除报名', 3, NULL, NULL, NULL, 'training:registration:remove', 4, 1, 1),
 -- 资源管理
 (401, 400, '资源分类', 2, '/resource/category', 'resource/CategoryList', NULL, 'resource:category:list', 1, 1, 1),
 (402, 400, '资源列表', 2, '/resource/list',     'resource/ResourceList', NULL, 'resource:list', 2, 1, 1),
