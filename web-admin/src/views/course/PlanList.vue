@@ -63,7 +63,7 @@
               <el-option v-for="d in (dict.semester && dict.semester.value ? dict.semester.value : dict.semester) || []" :key="d.value" :label="d.label" :value="d.value" />
             </el-select>
           </el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="班级"><el-input v-model="form.className" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="班级" prop="className"><el-input v-model="form.className" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="教师"><el-input v-model="form.teacherName" disabled /></el-form-item></el-col>
         </el-row>
         <el-row :gutter="16">
@@ -134,7 +134,7 @@ const dialogVisible = ref(false)
 const submitting = ref(false)
 const formRef = ref()
 const form = reactive({ id: null, planTitle: '', courseId: null, courseName: '', semester: '', className: '', teacherName: '', startDate: '', endDate: '', totalWeeks: 0, description: '', items: [] })
-const rules = { planTitle: [{ required: true, message: '请输入计划标题' }], courseId: [{ required: true, message: '请选择课程' }], semester: [{ required: true, message: '请选择学期' }] }
+const rules = { planTitle: [{ required: true, message: '请输入计划标题' }], courseId: [{ required: true, message: '请选择课程' }], semester: [{ required: true, message: '请选择学期' }], className: [{ required: true, message: '请输入班级', trigger: 'blur' }] }
 
 const detailDrawer = ref(false)
 const detail = ref({ plan: null, items: [] })
