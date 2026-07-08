@@ -1,0 +1,8 @@
+<component name="ProjectRunConfigurationManager">
+  <configuration default="false" name="start" type="CompoundRunConfigurationType">
+    <toRun name="run admin" type="js.build_tools.npm" />
+    <toRun name="run protal" type="js.build_tools.npm" />
+    <toRun name="SmartTeachPlatformApplication" type="SpringBootApplicationConfigurationType" />
+    <method v="2" />
+  </configuration>
+</component>
