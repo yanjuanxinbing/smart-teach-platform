@@ -8,7 +8,9 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.smartteach.common.base.PageResult;
 import com.smartteach.common.exception.BusinessException;
 import com.smartteach.common.result.ResultCode;
+import com.smartteach.modules.permission.entity.SysRole;
 import com.smartteach.modules.permission.entity.SysUserRole;
+import com.smartteach.modules.permission.mapper.SysRoleMapper;
 import com.smartteach.modules.permission.mapper.SysUserRoleMapper;
 import com.smartteach.modules.user.dto.UserQueryDTO;
 import com.smartteach.modules.user.dto.UserSaveDTO;
@@ -22,17 +24,24 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> implements SysUserService {
 
     private final SysUserRoleMapper userRoleMapper;
+    private final SysRoleMapper roleMapper;
     private final PasswordEncoder passwordEncoder;
 
-    public SysUserServiceImpl(SysUserRoleMapper userRoleMapper, PasswordEncoder passwordEncoder) {
+    public SysUserServiceImpl(SysUserRoleMapper userRoleMapper, SysRoleMapper roleMapper, PasswordEncoder passwordEncoder) {
         this.userRoleMapper = userRoleMapper;
+        this.roleMapper = roleMapper;
         this.passwordEncoder = passwordEncoder;
     }
 
@@ -45,7 +54,16 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
                 .eq(query.getDeptId() != null, SysUser::getDeptId, query.getDeptId())
                 .orderByDesc(SysUser::getCreateTime);
         IPage<SysUser> page = this.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
-        IPage<UserVO> voPage = page.convert(this::toVO);
+        // 批量收集 userId，联查角色，避免在 convert 中 N+1
+        List<Long> userIds = page.getRecords().stream().map(SysUser::getId).collect(Collectors.toList());
+        Map<Long, List<Long>> userRoleIds = userIds.isEmpty() ? Collections.emptyMap() : loadUserRoleIds(userIds);
+        Map<Long, List<String>> userRoleNames = userIds.isEmpty() ? Collections.emptyMap() : loadUserRoleNames(userIds);
+        IPage<UserVO> voPage = page.convert(user -> {
+            UserVO vo = toVO(user);
+            vo.setRoleIds(userRoleIds.getOrDefault(user.getId(), Collections.emptyList()));
+            vo.setRoleNames(userRoleNames.getOrDefault(user.getId(), Collections.emptyList()));
+            return vo;
+        });
         return PageResult.of(voPage);
     }
 
@@ -56,10 +74,10 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
             throw new BusinessException(ResultCode.USER_NOT_EXIST);
         }
         UserVO vo = toVO(user);
-        List<Long> roleIds = userRoleMapper.selectList(new LambdaQueryWrapper<SysUserRole>()
-                        .eq(SysUserRole::getUserId, id))
-                .stream().map(SysUserRole::getRoleId).collect(Collectors.toList());
+        List<Long> roleIds = loadUserRoleIds(Collections.singletonList(id)).getOrDefault(id, Collections.emptyList());
+        List<String> roleNames = loadUserRoleNames(Collections.singletonList(id)).getOrDefault(id, Collections.emptyList());
         vo.setRoleIds(roleIds);
+        vo.setRoleNames(roleNames);
         return vo;
     }
 
@@ -153,5 +171,40 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         UserVO vo = new UserVO();
         BeanUtils.copyProperties(user, vo);
         return vo;
+    }
+
+    /**
+     * 批量获取用户-角色映射，返回 userId → [roleId, ...]
+     */
+    private Map<Long, List<Long>> loadUserRoleIds(List<Long> userIds) {
+        List<SysUserRole> mappings = userRoleMapper.selectList(
+                new LambdaQueryWrapper<SysUserRole>().in(SysUserRole::getUserId, userIds));
+        Map<Long, List<Long>> result = new HashMap<>();
+        for (SysUserRole ur : mappings) {
+            result.computeIfAbsent(ur.getUserId(), k -> new ArrayList<>()).add(ur.getRoleId());
+        }
+        return result;
+    }
+
+    /**
+     * 批量获取用户对应的角色名列表，返回 userId → [roleName, ...]
+     */
+    private Map<Long, List<String>> loadUserRoleNames(List<Long> userIds) {
+        List<SysUserRole> mappings = userRoleMapper.selectList(
+                new LambdaQueryWrapper<SysUserRole>().in(SysUserRole::getUserId, userIds));
+        if (mappings.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        Set<Long> roleIds = mappings.stream().map(SysUserRole::getRoleId).collect(Collectors.toSet());
+        Map<Long, String> idToName = roleMapper.selectBatchIds(roleIds).stream()
+                .collect(Collectors.toMap(SysRole::getId, SysRole::getRoleName, (a, b) -> a));
+        Map<Long, List<String>> result = new HashMap<>();
+        for (SysUserRole ur : mappings) {
+            String name = idToName.get(ur.getRoleId());
+            if (name != null) {
+                result.computeIfAbsent(ur.getUserId(), k -> new ArrayList<>()).add(name);
+            }
+        }
+        return result;
     }
 }

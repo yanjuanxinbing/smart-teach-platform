@@ -7,9 +7,11 @@ export const trainingAdd = (data) => request.post('/training/plan', data)
 export const trainingEdit = (data) => request.put('/training/plan', data)
 export const trainingRemove = (ids) => request.delete('/training/plan', { data: ids })
 export const trainingPublish = (id) => request.put(`/training/plan/${id}/publish`)
-export const trainingFinish = (id) => request.put(`/training/plan/${id}/finish`)
+export const trainingSubmitReview = (id) => request.put(`/training/plan/${id}/submit-review`)
 export const trainingApprove = (id, remark) => request.put(`/training/plan/${id}/approve`, { remark })
 export const trainingReject = (id, remark) => request.put(`/training/plan/${id}/reject`, { remark })
+export const trainingFinish = (id) => request.put(`/training/plan/${id}/finish`)
+export const trainingRevertDraft = (id) => request.put(`/training/plan/${id}/revert-draft`)
 
 // 实训报名
 export const regPage = (planId, params) => request.get('/training/registration/page', { params: { planId, ...params } })

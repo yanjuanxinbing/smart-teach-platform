@@ -65,12 +65,13 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
 
     @Override
     @Transactional(rollbackFor = Exception.class)
-    public void save(ExperimentPlanSaveDTO dto) {
+    public ExperimentPlan save(ExperimentPlanSaveDTO dto) {
         ExperimentPlan plan = new ExperimentPlan();
         BeanUtils.copyProperties(dto, plan);
         if (plan.getStatus() == null) plan.setStatus(0);
         this.save(plan);
         saveItems(plan.getId(), dto.getItems());
+        return plan;
     }
 
     @Override
@@ -79,6 +80,9 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
         ExperimentPlan plan = this.getById(dto.getId());
         if (plan == null) {
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        }
+        if (plan.getStatus() != 0 && plan.getStatus() != 3) {
+            throw new BusinessException("只有草稿或驳回状态才能编辑");
         }
         ExperimentPlan entity = new ExperimentPlan();
         BeanUtils.copyProperties(dto, entity);
@@ -108,16 +112,26 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
 
     @Override
     public void submit(Long id) {
-        ExperimentPlan plan = new ExperimentPlan();
-        plan.setId(id);
+        ExperimentPlan plan = this.getById(id);
+        if (plan == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        }
+        if (plan.getStatus() != 0) {
+            throw new BusinessException("只有草稿状态才能提交");
+        }
         plan.setStatus(1);
         this.updateById(plan);
     }
 
     @Override
     public void approve(Long id, Long approverId, String approverName, String remark) {
-        ExperimentPlan plan = new ExperimentPlan();
-        plan.setId(id);
+        ExperimentPlan plan = this.getById(id);
+        if (plan == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        }
+        if (plan.getStatus() != 1) {
+            throw new BusinessException("只有已发布状态才能审核");
+        }
         plan.setStatus(2);
         plan.setApproverId(approverId);
         plan.setApproverName(approverName);
@@ -127,8 +141,13 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
 
     @Override
     public void reject(Long id, Long approverId, String approverName, String remark) {
-        ExperimentPlan plan = new ExperimentPlan();
-        plan.setId(id);
+        ExperimentPlan plan = this.getById(id);
+        if (plan == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        }
+        if (plan.getStatus() != 1) {
+            throw new BusinessException("只有已发布状态才能驳回");
+        }
         plan.setStatus(3);
         plan.setApproverId(approverId);
         plan.setApproverName(approverName);

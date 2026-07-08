@@ -15,18 +15,21 @@ public interface CoursePlanService extends IService<CoursePlan> {
 
     CoursePlanDetailVO detail(Long id);
 
-    void save(CoursePlanSaveDTO dto);
+    CoursePlan save(CoursePlanSaveDTO dto);
 
     void update(CoursePlanSaveDTO dto);
 
     void remove(List<Long> ids);
 
-    /** 提交审核 */
+    /** 提交审核：草稿/驳回 → 待审核 */
     void submit(Long id);
 
-    /** 审核通过 */
+    /** 审核通过：待审核 → 已发布 */
     void approve(Long id, Long approverId, String approverName, String remark);
 
-    /** 驳回 */
+    /** 审核驳回：待审核 → 驳回 */
     void reject(Long id, Long approverId, String approverName, String remark);
+
+    /** 查询某教师创建的所有计划（用于"我的计划"） */
+    List<CoursePlan> listByTeacher(Long teacherId);
 }

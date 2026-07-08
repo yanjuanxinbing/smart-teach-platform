@@ -69,8 +69,9 @@
         </el-row>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="手机号">
-              <el-input v-model="form.phone" />
+            <el-form-item label="手机号" prop="phone">
+              <el-input v-model="form.phone" maxlength="11" placeholder="请输入11位手机号"
+                @input="form.phone = (form.phone || '').replace(/\D/g, '').slice(0, 11)" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -85,7 +86,6 @@
               <el-radio-group v-model="form.gender">
                 <el-radio :value="1">男</el-radio>
                 <el-radio :value="2">女</el-radio>
-                <el-radio :value="0">未知</el-radio>
               </el-radio-group>
             </el-form-item>
           </el-col>
@@ -99,9 +99,9 @@
           </el-col>
         </el-row>
         <el-form-item label="分配角色" prop="roleIds">
-          <el-checkbox-group v-model="form.roleIds">
-            <el-checkbox v-for="r in roleOptions" :key="r.id" :value="r.id">{{ r.roleName }}</el-checkbox>
-          </el-checkbox-group>
+          <el-radio-group v-model="form.roleIds">
+            <el-radio v-for="r in roleOptions" :key="r.id" :value="r.id">{{ r.roleName }}</el-radio>
+          </el-radio-group>
         </el-form-item>
         <el-form-item label="备注">
           <el-input v-model="form.remark" type="textarea" :rows="2" />
@@ -121,7 +121,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
 import {
-  userPage, userDetail, userAdd, userEdit, userRemove,
+  userPage, userAdd, userEdit, userRemove,
   userResetPassword, userChangeStatus, roleList
 } from '@/api/system'
 
@@ -135,13 +135,14 @@ const submitting = ref(false)
 const formRef = ref()
 const form = reactive({
   id: null, username: '', password: '', realName: '',
-  phone: '', email: '', gender: 0, status: 1, remark: '', roleIds: []
+  phone: '', email: '', gender: 1, status: 1, remark: '', roleIds: null
 })
 const rules = {
   username: [{ required: true, message: '请输入账号' }],
   realName: [{ required: true, message: '请输入姓名' }],
   email: [{ type: 'email', message: '邮箱格式不正确' }],
-  roleIds: [{ type: 'array', required: true, message: '请选择至少一个角色' }]
+  roleIds: [{ required: true, message: '请选择角色', trigger: 'change' }],
+  phone: [{ pattern: /^\d{11}$/, message: '手机号必须是11位数字', trigger: 'blur' }]
 }
 
 // 防御性 fallback：万一 list 是 null/undefined，表格也不会崩
@@ -169,21 +170,21 @@ const load = async () => {
   }
 }
 
-const openForm = async (row) => {
+const openForm = (row) => {
   dialogVisible.value = true
   // 重置表单
   Object.assign(form, {
     id: null, username: '', password: '', realName: '',
-    phone: '', email: '', gender: 0, status: 1, remark: '', roleIds: []
+    phone: '', email: '', gender: 1, status: 1, remark: '', roleIds: null
   })
   if (row) {
-    try {
-      const d = await userDetail(row.id)
-      Object.assign(form, d || {})
-      form.password = ''
-    } catch (e) {
-      // ignore
-    }
+    // 直接复用列表接口返回的 row（已包含 UserVO 全字段），不再调用详情接口
+    // —— 详情接口需要 system:user:query 权限，而该权限未挂在任何角色上，
+    // 调用会 403 触发全局 ElMessage 提示，这里复用列表数据可避免该问题
+    Object.assign(form, row)
+    // 兼容：列表接口若仍返回 roleIds 数组，取第一个作为单选值
+    if (Array.isArray(form.roleIds)) form.roleIds = form.roleIds[0] ?? null
+    form.password = ''
   }
 }
 
@@ -191,8 +192,14 @@ const submit = async () => {
   await formRef.value.validate()
   submitting.value = true
   try {
-    if (form.id) await userEdit(form)
-    else await userAdd(form)
+    // 表单内 roleIds 为单值（null 或 Long），而后端 UserSaveDTO.roleIds 仍是 List<Long>，
+    // 这里包装一下保证 Jackson 能正确反序列化；同时不为空时也能保留住单选语义
+    const payload = {
+      ...form,
+      roleIds: form.roleIds == null ? [] : [form.roleIds]
+    }
+    if (form.id) await userEdit(payload)
+    else await userAdd(payload)
     ElMessage.success('保存成功')
     dialogVisible.value = false
     load()
@@ -225,9 +232,14 @@ const changeStatus = async (row, status) => {
 onMounted(async () => {
   try {
     const roles = await roleList()
-    roleOptions.value = Array.isArray(roles) ? roles : []
+    const list = Array.isArray(roles) ? roles : []
+    // 兜底：保证学生角色一定可选（数据库配置若被误禁用，这里补一条）
+    if (!list.some(r => r.roleName === '学生')) {
+      list.push({ id: 4, roleName: '学生', roleCode: 'ROLE_STUDENT', sort: 4, status: 1 })
+    }
+    roleOptions.value = list
   } catch (e) {
-    roleOptions.value = []
+    roleOptions.value = [{ id: 4, roleName: '学生', roleCode: 'ROLE_STUDENT', sort: 4, status: 1 }]
   }
   load()
 })
