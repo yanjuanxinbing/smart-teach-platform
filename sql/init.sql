@@ -579,6 +579,7 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (211, 201, '编辑', 3, NULL, NULL, NULL, 'experiment:plan:edit', 2, 1, 1),
 (212, 201, '删除', 3, NULL, NULL, NULL, 'experiment:plan:remove', 3, 1, 1),
 (213, 201, '审核', 3, NULL, NULL, NULL, 'experiment:plan:approve', 4, 1, 1),
+(214, 201, '查看详情', 3, NULL, NULL, NULL, 'experiment:plan:query', 5, 1, 1),
 
 -- 实训计划管理
 (301, 300, '实训计划', 2, '/training/plan', 'training/PlanList', NULL, 'training:plan:list', 1, 1, 1),

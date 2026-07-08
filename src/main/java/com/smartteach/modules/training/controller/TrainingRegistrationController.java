@@ -3,6 +3,7 @@ package com.smartteach.modules.training.controller;
 import com.smartteach.common.base.PageQuery;
 import com.smartteach.common.base.PageResult;
 import com.smartteach.common.result.Result;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import com.smartteach.modules.training.dto.TrainingRegistrationSaveDTO;
 import com.smartteach.modules.training.entity.TrainingRegistration;
 import com.smartteach.modules.training.service.TrainingRegistrationService;
@@ -38,6 +39,7 @@ public class TrainingRegistrationController {
     @ApiOperation("新增报名")
     @PostMapping
     @PreAuthorize("hasAuthority('training:registration:add')")
+    @OperationLog(module = "实训报名", action = "新增报名", saveParams = false)
     public Result<Void> add(@Valid @RequestBody TrainingRegistrationSaveDTO dto) {
         registrationService.register(dto);
         return Result.success();
@@ -46,6 +48,7 @@ public class TrainingRegistrationController {
     @ApiOperation("审核报名")
     @PutMapping("/{id}/review")
     @PreAuthorize("hasAuthority('training:registration:review')")
+    @OperationLog(module = "实训报名", action = "审核报名", saveParams = false)
     public Result<Void> review(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         Integer status = (Integer) body.get("status");
         String comment = (String) body.get("comment");
@@ -55,6 +58,7 @@ public class TrainingRegistrationController {
 
     @ApiOperation("签到")
     @PutMapping("/{id}/sign-in")
+    @OperationLog(module = "实训报名", action = "签到", saveParams = false)
     public Result<Void> signIn(@PathVariable Long id) {
         registrationService.signIn(id);
         return Result.success();
@@ -62,6 +66,7 @@ public class TrainingRegistrationController {
 
     @ApiOperation("签退")
     @PutMapping("/{id}/sign-out")
+    @OperationLog(module = "实训报名", action = "签退", saveParams = false)
     public Result<Void> signOut(@PathVariable Long id) {
         registrationService.signOut(id);
         return Result.success();
@@ -70,6 +75,7 @@ public class TrainingRegistrationController {
     @ApiOperation("登记成绩")
     @PutMapping("/{id}/grade")
     @PreAuthorize("hasAuthority('training:registration:grade')")
+    @OperationLog(module = "实训报名", action = "登记成绩", saveParams = false)
     public Result<Void> grade(@PathVariable Long id, @RequestBody Map<String, Object> body) {
         BigDecimal score = new BigDecimal(body.get("score").toString());
         String comment = (String) body.get("comment");
@@ -80,6 +86,7 @@ public class TrainingRegistrationController {
     @ApiOperation("批量删除报名记录")
     @DeleteMapping
     @PreAuthorize("hasAuthority('training:registration:remove')")
+    @OperationLog(module = "实训报名", action = "批量删除报名", saveParams = false)
     public Result<Void> remove(@RequestBody List<Long> ids) {
         registrationService.remove(ids);
         return Result.success();

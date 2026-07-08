@@ -4,7 +4,7 @@ import com.alibaba.fastjson2.JSON;
 import com.smartteach.common.utils.UserContext;
 import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import com.smartteach.modules.systemmonitor.entity.SysOperationLog;
-import com.smartteach.modules.systemmonitor.mapper.SysOperationLogMapper;
+import com.smartteach.modules.systemmonitor.service.OperationLogWriter;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.aspectj.lang.ProceedingJoinPoint;
@@ -12,7 +12,6 @@ import org.aspectj.lang.annotation.Around;
 import org.aspectj.lang.annotation.Aspect;
 import org.aspectj.lang.annotation.Pointcut;
 import org.aspectj.lang.reflect.MethodSignature;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -22,7 +21,10 @@ import java.lang.reflect.Method;
 import java.time.LocalDateTime;
 
 /**
- * 操作日志切面：拦截 @OperationLog 注解，将调用信息写入数据库
+ * 操作日志切面：拦截 @OperationLog 注解，将调用信息写入数据库。
+ *
+ * <p>写入动作委托给独立的 {@link OperationLogWriter} Bean，确保 {@code @Async} 能真正生效
+ * （同类内部 this 调用会绕过代理，注解会失效）。
  */
 @Slf4j
 @Aspect
@@ -30,7 +32,7 @@ import java.time.LocalDateTime;
 @RequiredArgsConstructor
 public class OperationLogAspect {
 
-    private final SysOperationLogMapper operationLogMapper;
+    private final OperationLogWriter writer;
 
     @Pointcut("@annotation(com.smartteach.modules.systemmonitor.annotation.OperationLog)")
     public void pointcut() {
@@ -50,19 +52,20 @@ public class OperationLogAspect {
         } finally {
             long cost = System.currentTimeMillis() - start;
             try {
-                saveLog(pjp, result, error, cost);
+                SysOperationLog log = buildLog(pjp, result, error, cost);
+                if (log != null) writer.write(log);
             } catch (Exception e) {
-                log.warn("操作日志写入失败: {}", e.getMessage());
+                // 构建 / 派发日志失败绝不能影响业务接口
+                OperationLogAspect.log.warn("操作日志构造失败: {}", e.getMessage());
             }
         }
     }
 
-    @Async
-    public void saveLog(ProceedingJoinPoint pjp, Object result, Throwable error, long cost) {
+    private SysOperationLog buildLog(ProceedingJoinPoint pjp, Object result, Throwable error, long cost) {
         MethodSignature signature = (MethodSignature) pjp.getSignature();
         Method method = signature.getMethod();
         OperationLog annotation = method.getAnnotation(OperationLog.class);
-        if (annotation == null) return;
+        if (annotation == null) return null;
 
         SysOperationLog log = new SysOperationLog();
         log.setModule(annotation.module());
@@ -90,7 +93,7 @@ public class OperationLogAspect {
             log.setStatus(1);
         }
         log.setOperationTime(LocalDateTime.now());
-        operationLogMapper.insert(log);
+        return log;
     }
 
     private String safeJson(Object obj) {

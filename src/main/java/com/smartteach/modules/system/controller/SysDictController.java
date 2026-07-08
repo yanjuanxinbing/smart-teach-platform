@@ -9,6 +9,7 @@ import com.smartteach.modules.system.entity.SysDictData;
 import com.smartteach.modules.system.entity.SysDictType;
 import com.smartteach.modules.system.service.SysDictDataService;
 import com.smartteach.modules.system.service.SysDictTypeService;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -48,6 +49,7 @@ public class SysDictController {
     @ApiOperation("新增字典类型")
     @PostMapping("/type")
     @PreAuthorize("hasAuthority('system:dict:type:add')")
+    @OperationLog(module = "字典管理", action = "新增字典类型", saveParams = false)
     public Result<Void> addType(@Valid @RequestBody SysDictTypeSaveDTO dto) {
         dictTypeService.save(dto);
         return Result.success();
@@ -56,6 +58,7 @@ public class SysDictController {
     @ApiOperation("编辑字典类型")
     @PutMapping("/type")
     @PreAuthorize("hasAuthority('system:dict:type:edit')")
+    @OperationLog(module = "字典管理", action = "编辑字典类型", saveParams = false)
     public Result<Void> editType(@Valid @RequestBody SysDictTypeSaveDTO dto) {
         dictTypeService.update(dto);
         return Result.success();
@@ -64,6 +67,7 @@ public class SysDictController {
     @ApiOperation("删除字典类型")
     @DeleteMapping("/type")
     @PreAuthorize("hasAuthority('system:dict:type:remove')")
+    @OperationLog(module = "字典管理", action = "删除字典类型", saveParams = false)
     public Result<Void> removeType(@RequestBody List<Long> ids) {
         dictTypeService.remove(ids);
         return Result.success();
@@ -87,6 +91,7 @@ public class SysDictController {
     @ApiOperation("新增字典数据")
     @PostMapping("/data")
     @PreAuthorize("hasAuthority('system:dict:data:add')")
+    @OperationLog(module = "字典管理", action = "新增字典数据", saveParams = false)
     public Result<Void> addData(@Valid @RequestBody SysDictDataSaveDTO dto) {
         dictDataService.save(dto);
         return Result.success();
@@ -95,6 +100,7 @@ public class SysDictController {
     @ApiOperation("编辑字典数据")
     @PutMapping("/data")
     @PreAuthorize("hasAuthority('system:dict:data:edit')")
+    @OperationLog(module = "字典管理", action = "编辑字典数据", saveParams = false)
     public Result<Void> editData(@Valid @RequestBody SysDictDataSaveDTO dto) {
         dictDataService.update(dto);
         return Result.success();
@@ -103,6 +109,7 @@ public class SysDictController {
     @ApiOperation("删除字典数据")
     @DeleteMapping("/data")
     @PreAuthorize("hasAuthority('system:dict:data:remove')")
+    @OperationLog(module = "字典管理", action = "删除字典数据", saveParams = false)
     public Result<Void> removeData(@RequestBody List<Long> ids) {
         dictDataService.remove(ids);
         return Result.success();

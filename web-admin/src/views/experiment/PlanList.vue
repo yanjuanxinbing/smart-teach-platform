@@ -4,7 +4,9 @@
       <div class="toolbar">
         <div class="toolbar-left">
           <el-input v-model="query.planTitle" placeholder="计划标题" clearable style="width: 220px" @keyup.enter="load" />
-          <el-input v-model="query.semester" placeholder="学期" clearable style="width: 160px" @keyup.enter="load" />
+          <el-select v-model="query.semester" placeholder="学期" clearable style="width: 160px">
+            <el-option v-for="d in (dict.semester && dict.semester.value ? dict.semester.value : dict.semester) || []" :key="d.value" :label="d.label" :value="d.value" />
+          </el-select>
           <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px">
             <el-option label="草稿" :value="0" />
             <el-option label="已发布" :value="1" />
@@ -50,7 +52,11 @@
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-row :gutter="16">
           <el-col :span="12"><el-form-item label="计划标题" prop="planTitle"><el-input v-model="form.planTitle" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="学期" prop="semester"><el-input v-model="form.semester" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="学期" prop="semester">
+            <el-select v-model="form.semester" placeholder="请选择学期" style="width:100%" clearable>
+              <el-option v-for="d in (dict.semester && dict.semester.value ? dict.semester.value : dict.semester) || []" :key="d.value" :label="d.label" :value="d.value" />
+            </el-select>
+          </el-form-item></el-col>
         </el-row>
         <el-row :gutter="16">
           <el-col :span="8">
@@ -63,10 +69,10 @@
             </el-form-item>
           </el-col>
           <el-col :span="8"><el-form-item label="课程名称"><el-input v-model="form.courseName" disabled /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="班级"><el-input v-model="form.className" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="班级" prop="className"><el-input v-model="form.className" /></el-form-item></el-col>
         </el-row>
         <el-row :gutter="16">
-          <el-col :span="8"><el-form-item label="教师"><el-input v-model="form.teacherName" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="教师"><el-input v-model="form.teacherName" disabled /></el-form-item></el-col>
         </el-row>
         <el-row :gutter="16">
           <el-col :span="8"><el-form-item label="实验地点"><el-input v-model="form.labRoom" /></el-form-item></el-col>
@@ -86,13 +92,6 @@
             <template #default="{ $index }"><el-input-number v-model="form.items[$index].expNo" :min="1" /></template>
           </el-table-column>
           <el-table-column label="实验名称" width="180"><template #default="{ row }"><el-input v-model="row.expName" /></template></el-table-column>
-          <el-table-column label="类型" width="120">
-            <template #default="{ row }">
-              <el-select v-model="row.expType" style="width:100%">
-                <el-option v-for="d in (dict.exp_type || [])" :key="d.value" :label="d.label" :value="Number(d.value)" />
-              </el-select>
-            </template>
-          </el-table-column>
           <el-table-column label="上课日期" width="170">
             <template #default="{ row }"><el-date-picker v-model="row.classDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></template>
           </el-table-column>
@@ -140,7 +139,7 @@ import { useDict } from '@/hooks/useDict'
 import { expPage, expAdd, expEdit, expRemove, expSubmit, expApprove, expReject, expDetail } from '@/api/experiment'
 import { listAllCourses } from '@/api/course'
 
-const dict = useDict('exp_type', 'semester')
+const dict = useDict('semester')
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
@@ -157,8 +156,9 @@ const form = reactive({
 })
 const rules = {
   planTitle: [{ required: true, message: '请输入计划标题' }],
-  semester: [{ required: true, message: '请输入学期' }],
-  courseId: [{ required: true, message: '请选择关联课程' }]
+  semester: [{ required: true, message: '请选择学期' }],
+  courseId: [{ required: true, message: '请选择关联课程' }],
+  className: [{ required: true, message: '请输入班级', trigger: 'blur' }]
 }
 
 const courseOptions = ref([])
@@ -167,7 +167,14 @@ const loadCourses = async () => {
 }
 const onCourseChange = (val) => {
   const c = courseOptions.value.find(x => x.id === val)
-  form.courseName = c ? c.courseName : ''
+  if (c) {
+    form.courseName = c.courseName
+    // 教师由所选课程自动带出
+    form.teacherName = c.teacherName || ''
+  } else {
+    form.courseName = ''
+    form.teacherName = ''
+  }
 }
 
 const detailDrawer = ref(false)
