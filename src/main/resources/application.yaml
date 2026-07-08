@@ -13,10 +13,7 @@ spring:
   profiles:
     active: dev
   # Disable Springfox / knife4j (Springfox 2.10.5 NPEs on JDK 21)
-  autoconfigure:
-#    exclude:
-#      - springfox.boot.autoconfigure.SpringfoxAutoConfiguration
-#      - com.github.xiaoymin.knife4j.spring.configuration.Knife4jAutoConfiguration
+
   servlet:
     multipart:
       max-file-size: 100MB
