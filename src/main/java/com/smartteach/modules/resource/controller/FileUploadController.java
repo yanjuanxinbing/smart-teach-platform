@@ -14,6 +14,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.File;
 import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDate;
 import java.util.HashMap;
 import java.util.Map;
@@ -45,13 +47,16 @@ public class FileUploadController {
             String datePath = LocalDate.now().toString().replace("-", "/");
             String fileName = UUID.randomUUID().toString().replace("-", "") + "." + suffix;
 
-            File dir = new File(uploadPath + datePath);
+            // toAbsolutePath() 兜底：避免在 Windows / Tomcat 嵌入模式下，相对路径被解析到临时目录
+            Path basePath = Paths.get(uploadPath).toAbsolutePath().normalize();
+            File dir = basePath.resolve(datePath).toFile();
             if (!dir.exists()) {
                 dir.mkdirs();
             }
             File dest = new File(dir, fileName);
             file.transferTo(dest);
 
+            // 同步回写实际使用的访问前缀，方便后续改用对象存储等只换 URL 规则的情况
             String accessUrl = accessPrefix + datePath + "/" + fileName;
 
             Map<String, Object> result = new HashMap<>();

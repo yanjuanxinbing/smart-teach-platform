@@ -43,6 +43,9 @@ public class ResourceServiceImpl extends ServiceImpl<ResourceMapper, Resource> i
         BeanUtils.copyProperties(dto, resource);
         resource.setUploadBy(UserContext.getUserId());
         resource.setUploadName(UserContext.getUsername());
+        // 资源类型在前端已经移除选择项，但 biz_resource.resource_type 是 NOT NULL 列，
+        // 为兼容历史数据与新数据，这里给一个兜底值
+        if (resource.getResourceType() == null) resource.setResourceType(1);
         if (resource.getStatus() == null) resource.setStatus(1);
         if (resource.getDownloadCount() == null) resource.setDownloadCount(0);
         if (resource.getViewCount() == null) resource.setViewCount(0);

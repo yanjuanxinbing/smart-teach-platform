@@ -12,12 +12,26 @@
     <select id="selectPermissionsByUserId" resultType="java.lang.String">
         SELECT DISTINCT m.permission
         FROM sys_menu m
-        INNER JOIN sys_role_menu rm ON rm.menu_id = m.id
-        INNER JOIN sys_user_role ur ON ur.role_id = rm.role_id
-        WHERE ur.user_id = #{userId}
-          AND m.deleted = 0
+        WHERE m.deleted = 0
           AND m.permission IS NOT NULL
           AND m.permission != ''
+          AND (
+              -- 超级管理员（ROLE_ADMIN）默认拥有全部权限，避免菜单维护遗漏时仍提示"没有相关权限"
+              EXISTS (
+                  SELECT 1
+                  FROM sys_user_role ur
+                  INNER JOIN sys_role r ON ur.role_id = r.id
+                  WHERE ur.user_id = #{userId}
+                    AND r.deleted = 0
+                    AND r.role_code = 'ROLE_ADMIN'
+              )
+              OR m.id IN (
+                  SELECT rm.menu_id
+                  FROM sys_role_menu rm
+                  INNER JOIN sys_user_role ur ON ur.role_id = rm.role_id
+                  WHERE ur.user_id = #{userId}
+              )
+          )
     </select>
 
 </mapper>
