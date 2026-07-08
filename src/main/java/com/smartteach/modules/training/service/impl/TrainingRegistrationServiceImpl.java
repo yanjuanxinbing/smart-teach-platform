@@ -70,6 +70,8 @@ public class TrainingRegistrationServiceImpl extends ServiceImpl<TrainingRegistr
         // 保存报名记录
         TrainingRegistration reg = new TrainingRegistration();
         BeanUtils.copyProperties(dto, reg);
+        // 冗余保存 planTitle，避免列表查询时再次 JOIN
+        reg.setPlanTitle(plan.getPlanTitle());
         if (reg.getStatus() == null) reg.setStatus(0);
         this.save(reg);
     }
