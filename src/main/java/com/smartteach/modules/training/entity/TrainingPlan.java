@@ -21,11 +21,6 @@ public class TrainingPlan extends BaseEntity {
     /** 实训项目名称 */
     private String projectName;
 
-    /** 关联课程ID（可空） */
-    private Long courseId;
-
-    private String courseName;
-
     /** 学期 */
     private String semester;
 
