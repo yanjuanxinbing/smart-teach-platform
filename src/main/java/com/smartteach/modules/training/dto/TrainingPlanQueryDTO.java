@@ -13,4 +13,5 @@ public class TrainingPlanQueryDTO extends PageQuery {
     private String className;
     private Long teacherId;
     private Integer status;
+    private String keyword;
 }

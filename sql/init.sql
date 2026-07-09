@@ -559,7 +559,6 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (400,  0, '资源管理',     1, '/resource',   NULL,                    'folder',   '', 5, 1, 1),
 (500,  0, '系统管理',     1, '/system',     NULL,                    'setting',  '', 9, 1, 1),
 (600,  0, '系统监控',     1, '/monitor',    NULL,                    'monitor',  '', 10, 1, 1),
-
 -- 课程计划管理
 (101, 100, '课程管理',     2, '/course/manage',     'course/CourseList',    NULL, 'course:list', 1, 1, 1),
 (102, 100, '章节与内容',   2, '/course/chapter',    'course/ChapterList',   NULL, 'course:query', 2, 1, 1),
@@ -572,7 +571,6 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (122, 103, '删除计划', 3, NULL, NULL, NULL, 'course:plan:remove', 3, 1, 1),
 (123, 103, '审核计划', 3, NULL, NULL, NULL, 'course:plan:approve', 4, 1, 1),
 (124, 103, '查看详情', 3, NULL, NULL, NULL, 'course:plan:query', 5, 1, 1),
-
 -- 课程实验计划管理
 (201, 200, '实验计划', 2, '/experiment/plan', 'experiment/PlanList', NULL, 'experiment:plan:list', 1, 1, 1),
 (210, 201, '新增', 3, NULL, NULL, NULL, 'experiment:plan:add', 1, 1, 1),
@@ -580,7 +578,6 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (212, 201, '删除', 3, NULL, NULL, NULL, 'experiment:plan:remove', 3, 1, 1),
 (213, 201, '审核', 3, NULL, NULL, NULL, 'experiment:plan:approve', 4, 1, 1),
 (214, 201, '查看详情', 3, NULL, NULL, NULL, 'experiment:plan:query', 5, 1, 1),
-
 -- 实训计划管理
 (301, 300, '实训计划', 2, '/training/plan', 'training/PlanList', NULL, 'training:plan:list', 1, 1, 1),
 (302, 300, '报名管理', 2, '/training/registration', 'training/RegistrationList', NULL, 'training:registration:list', 2, 1, 1),
@@ -588,9 +585,10 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (311, 301, '编辑', 3, NULL, NULL, NULL, 'training:plan:edit', 2, 1, 1),
 (312, 301, '删除', 3, NULL, NULL, NULL, 'training:plan:remove', 3, 1, 1),
 (313, 301, '审核', 3, NULL, NULL, NULL, 'training:plan:approve', 4, 1, 1),
-(320, 302, '审核报名', 3, NULL, NULL, NULL, 'training:registration:review', 1, 1, 1),
-(321, 302, '登记成绩', 3, NULL, NULL, NULL, 'training:registration:grade', 2, 1, 1),
-
+(320, 302, '新增报名', 3, NULL, NULL, NULL, 'training:registration:add', 1, 1, 1),
+(321, 302, '审核报名', 3, NULL, NULL, NULL, 'training:registration:review', 2, 1, 1),
+(322, 302, '登记成绩', 3, NULL, NULL, NULL, 'training:registration:grade', 3, 1, 1),
+(323, 302, '删除报名', 3, NULL, NULL, NULL, 'training:registration:remove', 4, 1, 1),
 -- 资源管理
 (401, 400, '资源分类', 2, '/resource/category', 'resource/CategoryList', NULL, 'resource:category:list', 1, 1, 1),
 (402, 400, '资源列表', 2, '/resource/list',     'resource/ResourceList', NULL, 'resource:list', 2, 1, 1),
@@ -600,7 +598,6 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (420, 402, '新增', 3, NULL, NULL, NULL, 'resource:add', 1, 1, 1),
 (421, 402, '编辑', 3, NULL, NULL, NULL, 'resource:edit', 2, 1, 1),
 (422, 402, '删除', 3, NULL, NULL, NULL, 'resource:remove', 3, 1, 1),
-
 -- 网站门户
 (10,   1, '轮播图', 2, '/portal/banner',    'portal/BannerList',    NULL, 'portal:article:list', 1, 1, 1),
 (11,   1, '通知公告', 2, '/portal/notice',   'portal/NoticeList',    NULL, 'portal:article:list', 2, 1, 1),
@@ -608,7 +605,6 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (20,  10, '新增', 3, NULL, NULL, NULL, 'portal:article:add', 1, 1, 1),
 (21,  10, '编辑', 3, NULL, NULL, NULL, 'portal:article:edit', 2, 1, 1),
 (22,  10, '删除', 3, NULL, NULL, NULL, 'portal:article:remove', 3, 1, 1),
-
 -- 系统管理
 (501, 500, '用户管理', 2, '/system/user',    'system/UserList',    NULL, 'system:user:list', 1, 1, 1),
 (502, 500, '部门管理', 2, '/system/dept',    'system/DeptList',    NULL, 'system:dept:list', 2, 1, 1),
@@ -626,7 +622,6 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (530, 504, '新增', 3, NULL, NULL, NULL, 'system:menu:add', 1, 1, 1),
 (531, 504, '编辑', 3, NULL, NULL, NULL, 'system:menu:edit', 2, 1, 1),
 (532, 504, '删除', 3, NULL, NULL, NULL, 'system:menu:remove', 3, 1, 1),
-
 -- 系统监控
 (601, 600, '服务器监控', 2, '/monitor/server',         'monitor/Server',  NULL, 'monitor:server:list', 1, 1, 1),
 (602, 600, '登录日志',   2, '/monitor/login-log',      'monitor/LoginLog', NULL, 'monitor:loginLog:list', 2, 1, 1),
@@ -664,21 +659,15 @@ SELECT ROW_NUMBER() OVER (ORDER BY id) + 1000, 1, id FROM sys_menu;
 -- 字典类型
 INSERT INTO `sys_dict_type`(`id`, `dict_name`, `dict_type`, `description`, `status`) VALUES
 (1, '课程性质', 'course_type', '课程性质字典', 1),
-(2, '实验类型', 'exp_type', '实验类型字典', 1),
-(3, '资源类型', 'resource_type', '教学资源类型', 1),
-(4, '课程内容类型', 'content_type', '课程内容类型', 1),
-(5, '门户内容类型', 'portal_type', '门户内容类型', 1),
-(6, '学期', 'semester', '当前学期列表', 1);
+(2, '资源类型', 'resource_type', '教学资源类型', 1),
+(3, '课程内容类型', 'content_type', '课程内容类型', 1),
+(4, '门户内容类型', 'portal_type', '门户内容类型', 1),
+(5, '学期', 'semester', '当前学期列表', 1);
 
 INSERT INTO `sys_dict_data`(`id`, `dict_type`, `dict_label`, `dict_value`, `list_class`, `sort`, `status`, `is_default`) VALUES
 -- 课程性质（仅保留必修、选修）
 (1, 'course_type', '必修', '1', 'primary', 1, 1, 1),
 (2, 'course_type', '选修', '2', 'success', 2, 1, 0),
--- 实验类型
-(10, 'exp_type', '验证性', '1', 'primary', 1, 1, 0),
-(11, 'exp_type', '综合性', '2', 'success', 2, 1, 0),
-(12, 'exp_type', '设计性', '3', 'warning', 3, 1, 0),
-(13, 'exp_type', '创新性', '4', 'danger',  4, 1, 0),
 -- 资源类型
 (20, 'resource_type', '文档', '1', 'primary', 1, 1, 0),
 (21, 'resource_type', '图片', '2', 'info',    2, 1, 0),
@@ -865,12 +854,6 @@ INSERT INTO `sys_login_log`(`id`, `username`, `ip`, `location`, `browser`, `os`,
 INSERT INTO `sys_operation_log`(`id`, `module`, `action`, `method`, `request_uri`, `http_method`, `params`, `result`, `ip`, `user_id`, `username`, `status`, `cost_time`, `operation_time`) VALUES 
 (9501, '课程管理', '修改课程发布状态', 'com.smartteach.controller.CourseController.updateStatus()', '/api/course/status', 'PUT', '{"id":2, "status":1}', '{"code":200, "msg":"success"}', '10.22.45.18', 1001, 'teacher1', 1, 45, DATE_SUB(NOW(), INTERVAL 50 MINUTE)),
 (9502, '教学计划', '新增计划明细', 'com.smartteach.controller.CoursePlanController.addItem()', '/api/course/plan/item', 'POST', '{"planId":10001, "weekNo":1, "chapterTitle":"绪论"}', '{"code":200, "msg":"success"}', '10.22.45.18', 1001, 'teacher1', 1, 112, DATE_SUB(NOW(), INTERVAL 45 MINUTE));
-
--- ---------------------------------------------------------------------
--- 脚本结束
--- ---------------------------------------------------------------------
-SELECT '测试数据补充完成，覆盖全功能模块场景' AS message;
-
 
 -- =====================================================================
 -- 结束

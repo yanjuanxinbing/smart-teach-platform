@@ -6,6 +6,7 @@ import com.smartteach.common.result.Result;
 import com.smartteach.modules.permission.dto.RoleSaveDTO;
 import com.smartteach.modules.permission.entity.SysRole;
 import com.smartteach.modules.permission.service.SysRoleService;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -50,6 +51,7 @@ public class SysRoleController {
     @ApiOperation("新增角色")
     @PostMapping
     @PreAuthorize("hasAuthority('system:role:add')")
+    @OperationLog(module = "角色管理", action = "新增角色", saveParams = false)
     public Result<Void> add(@Valid @RequestBody RoleSaveDTO dto) {
         SysRole role = new SysRole();
         BeanUtils.copyProperties(dto, role);
@@ -60,6 +62,7 @@ public class SysRoleController {
     @ApiOperation("编辑角色")
     @PutMapping
     @PreAuthorize("hasAuthority('system:role:edit')")
+    @OperationLog(module = "角色管理", action = "编辑角色（含权限分配）", saveParams = false)
     public Result<Void> edit(@Valid @RequestBody RoleSaveDTO dto) {
         SysRole role = new SysRole();
         BeanUtils.copyProperties(dto, role);
@@ -70,6 +73,7 @@ public class SysRoleController {
     @ApiOperation("批量删除角色")
     @DeleteMapping
     @PreAuthorize("hasAuthority('system:role:remove')")
+    @OperationLog(module = "角色管理", action = "批量删除角色", saveParams = false)
     public Result<Void> remove(@RequestBody List<Long> ids) {
         roleService.removeByIds(ids);
         return Result.success();

@@ -5,6 +5,7 @@ import com.smartteach.common.result.Result;
 import com.smartteach.modules.portal.dto.PortalArticleQueryDTO;
 import com.smartteach.modules.portal.entity.PortalArticle;
 import com.smartteach.modules.portal.service.PortalArticleService;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -38,6 +39,7 @@ public class PortalArticleController {
     @ApiOperation("新增门户内容")
     @PostMapping("/portal/manage")
     @PreAuthorize("hasAuthority('portal:article:add')")
+    @OperationLog(module = "门户内容", action = "新增门户内容")
     public Result<Void> add(@Valid @RequestBody PortalArticle article) {
         articleService.save(article);
         return Result.success();
@@ -46,6 +48,7 @@ public class PortalArticleController {
     @ApiOperation("编辑门户内容")
     @PutMapping("/portal/manage")
     @PreAuthorize("hasAuthority('portal:article:edit')")
+    @OperationLog(module = "门户内容", action = "编辑门户内容")
     public Result<Void> edit(@Valid @RequestBody PortalArticle article) {
         articleService.updateById(article);
         return Result.success();
@@ -54,6 +57,7 @@ public class PortalArticleController {
     @ApiOperation("批量删除门户内容")
     @DeleteMapping("/portal/manage")
     @PreAuthorize("hasAuthority('portal:article:remove')")
+    @OperationLog(module = "门户内容", action = "批量删除门户内容", saveParams = false)
     public Result<Void> remove(@RequestBody List<Long> ids) {
         articleService.removeByIds(ids);
         return Result.success();
@@ -62,6 +66,7 @@ public class PortalArticleController {
     @ApiOperation("发布")
     @PutMapping("/portal/manage/{id}/publish")
     @PreAuthorize("hasAuthority('portal:article:edit')")
+    @OperationLog(module = "门户内容", action = "发布门户内容", saveParams = false)
     public Result<Void> publish(@PathVariable Long id) {
         articleService.publish(id);
         return Result.success();
@@ -70,6 +75,7 @@ public class PortalArticleController {
     @ApiOperation("下线")
     @PutMapping("/portal/manage/{id}/offline")
     @PreAuthorize("hasAuthority('portal:article:edit')")
+    @OperationLog(module = "门户内容", action = "下线门户内容", saveParams = false)
     public Result<Void> offline(@PathVariable Long id) {
         articleService.offline(id);
         return Result.success();

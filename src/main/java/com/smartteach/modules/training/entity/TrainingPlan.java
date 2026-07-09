@@ -64,7 +64,7 @@ public class TrainingPlan extends BaseEntity {
     /** 考核方式 */
     private String assessment;
 
-    /** 状态 0草稿 1已发布 2进行中 3已结束 4已驳回 */
+    /** 状态 0草稿 1已发布 2审核中 3进行中 4已结束 5已驳回 */
     private Integer status;
 
     /** 审核人 */

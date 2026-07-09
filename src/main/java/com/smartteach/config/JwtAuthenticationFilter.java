@@ -23,6 +23,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.List;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * 每个请求解析 Authorization 头中的 JWT，校验通过后写入 SecurityContext 与 UserContext。
@@ -84,9 +85,13 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             UserContext.setUsername(username);
 
             List<String> permissions = sysUserMapper.selectPermissionsByUserId(userId);
-            List<SimpleGrantedAuthority> authorities = permissions.stream()
-                    .map(SimpleGrantedAuthority::new)
-                    .collect(Collectors.toList());
+            List<String> roles = sysUserMapper.selectRoleCodesByUserId(userId);
+
+            // 角色编码（如 ROLE_ADMIN）也注入 authorities，便于后续用 hasRole('ROLE_ADMIN') 简化判断
+            List<SimpleGrantedAuthority> authorities = Stream.concat(
+                    roles.stream(),
+                    permissions.stream()
+            ).map(SimpleGrantedAuthority::new).collect(Collectors.toList());
 
             UsernamePasswordAuthenticationToken authentication =
                     new UsernamePasswordAuthenticationToken(username, null, authorities);

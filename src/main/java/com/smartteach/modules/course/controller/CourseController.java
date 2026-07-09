@@ -8,6 +8,7 @@ import com.smartteach.modules.course.dto.CourseSaveDTO;
 import com.smartteach.modules.course.entity.Course;
 import com.smartteach.modules.course.service.CourseService;
 import com.smartteach.modules.course.vo.CourseDetailVO;
+import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -45,6 +46,7 @@ public class CourseController {
     @ApiOperation("新增课程")
     @PostMapping
     @PreAuthorize("hasAuthority('course:add')")
+    @OperationLog(module = "课程管理", action = "新增课程", saveParams = false)
     public Result<Void> add(@Valid @RequestBody CourseSaveDTO dto) {
         courseService.save(dto);
         return Result.success();
@@ -53,6 +55,7 @@ public class CourseController {
     @ApiOperation("编辑课程")
     @PutMapping
     @PreAuthorize("hasAuthority('course:edit')")
+    @OperationLog(module = "课程管理", action = "编辑课程", saveParams = false)
     public Result<Void> edit(@Valid @RequestBody CourseSaveDTO dto) {
         courseService.update(dto);
         return Result.success();
@@ -61,6 +64,7 @@ public class CourseController {
     @ApiOperation("批量删除课程")
     @DeleteMapping
     @PreAuthorize("hasAuthority('course:remove')")
+    @OperationLog(module = "课程管理", action = "批量删除课程", saveParams = false)
     public Result<Void> remove(@RequestBody List<Long> ids) {
         courseService.remove(ids);
         return Result.success();
@@ -69,6 +73,7 @@ public class CourseController {
     @ApiOperation("发布/停用课程")
     @PutMapping("/{id}/status")
     @PreAuthorize("hasAuthority('course:edit')")
+    @OperationLog(module = "课程管理", action = "修改课程状态", saveParams = false)
     public Result<Void> changeStatus(@PathVariable Long id, @RequestParam Integer status) {
         courseService.changeStatus(id, status);
         return Result.success();

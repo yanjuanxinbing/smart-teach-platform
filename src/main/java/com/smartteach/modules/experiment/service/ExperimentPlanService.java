@@ -15,7 +15,7 @@ public interface ExperimentPlanService extends IService<ExperimentPlan> {
 
     ExperimentPlanDetailVO detail(Long id);
 
-    void save(ExperimentPlanSaveDTO dto);
+    ExperimentPlan save(ExperimentPlanSaveDTO dto);
 
     void update(ExperimentPlanSaveDTO dto);
 

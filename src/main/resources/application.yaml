@@ -49,12 +49,6 @@ file:
   upload-path: ${user.home}/smart-teach-uploads/
   access-prefix: /api/files/
 
-# 密码初始化接口：用于重置忘记的管理员密码。生产环境务必关闭！
-init:
-  password-reset:
-    enabled: true
-    token: smartteach-init-2024
-
 # knife4j 接口文档
 knife4j:
   enable: true
