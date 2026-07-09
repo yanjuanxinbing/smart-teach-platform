@@ -3,12 +3,13 @@
     <el-card>
       <div class="toolbar">
         <div class="toolbar-left">
-          <el-input v-model="query.module" placeholder="模块" clearable style="width: 160px" />
-          <el-input v-model="query.username" placeholder="操作人" clearable style="width: 160px" />
-          <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px">
+          <el-input v-model="query.module" placeholder="模块" clearable style="width: 160px" @keyup.enter="search" />
+          <el-input v-model="query.username" placeholder="操作人" clearable style="width: 160px" @keyup.enter="search" />
+          <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px" @change="search">
             <el-option label="成功" :value="1" /><el-option label="失败" :value="0" />
           </el-select>
-          <el-button type="primary" @click="load">搜索</el-button>
+          <el-button type="primary" @click="search">搜索</el-button>
+          <el-button @click="resetQuery">重置</el-button>
         </div>
         <div>
           <el-button type="warning" @click="clean">清理30天前日志</el-button>
@@ -73,7 +74,29 @@ const selection = ref([])
 const detailDialog = ref(false)
 const current = ref({})
 
-const load = async () => { loading.value = true; try { const res = await operationLogPage(query); list.value = res.list; total.value = res.total } finally { loading.value = false } }
+const load = async () => {
+  loading.value = true
+  try {
+    const res = await operationLogPage(query)
+    // 防御性兜底：万一后端返回结构异常，分页器至少能渲染
+    list.value = Array.isArray(res?.list) ? res.list : []
+    total.value = Number(res?.total) || 0
+  } catch (e) {
+    list.value = []
+    total.value = 0
+  } finally {
+    loading.value = false
+  }
+}
+// 搜索/筛选时统一从第 1 页开始，否则用户可能停留在已经无数据的页码
+const search = () => { query.pageNum = 1; load() }
+const resetQuery = () => {
+  query.module = ''
+  query.username = ''
+  query.status = null
+  query.pageNum = 1
+  load()
+}
 const showDetail = (row) => { current.value = row; detailDialog.value = true }
 const clean = async () => { await ElMessageBox.confirm('确定清理30天前的操作日志？', '提示', { type: 'warning' }); await operationLogClean(30); ElMessage.success('已清理'); load() }
 const removeBatch = async () => { await ElMessageBox.confirm(`确定删除选中的 ${selection.value.length} 条日志？`, '提示', { type: 'warning' }); await operationLogRemove(selection.value.map(s => s.id)); ElMessage.success('删除成功'); load() }

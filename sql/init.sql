@@ -649,6 +649,7 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (732, 302, '新增报名', 3, NULL, NULL, NULL, 'training:registration:add',     3, 1, 1),
 (733, 302, '删除报名', 3, NULL, NULL, NULL, 'training:registration:remove',  4, 1, 1),
 -- 系统监控
+(739, 602, '删除',     3, NULL, NULL, NULL, 'monitor:loginLog:remove',      1, 1, 1),
 (740, 603, '删除',     3, NULL, NULL, NULL, 'monitor:operationLog:remove',   2, 1, 1);
 
 -- 超级管理员分配所有菜单
