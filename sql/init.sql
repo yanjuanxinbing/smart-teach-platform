@@ -830,16 +830,6 @@ INSERT INTO `training_registration`(`id`, `plan_id`, `plan_title`, `student_id`,
 (3011, 30001, '企业级企业中台级全栈开发企业实训', 2001, '王小明', '计科2201班', '18611112222', 1, 92.50, '项目架构设计清晰，答辩表现优异'), -- 已通过且已给成绩
 (3012, 30001, '企业级企业中台级全栈开发企业实训', 2002, '赵美美', '软工2202班', '18611113333', 0, NULL, NULL); -- 待审核状态
 
-
--- ---------------------------------------------------------------------
--- 6. 教学资源管理
--- ---------------------------------------------------------------------
-INSERT INTO `biz_resource`(`id`, `resource_name`, `resource_type`, `category_id`, `category_name`, `course_id`, `course_name`, `original_name`, `file_path`, `file_url`, `file_suffix`, `file_size`, `content_type`, `tags`, `download_count`, `view_count`, `status`, `upload_by`, `upload_name`) VALUES 
-(4001, '数据结构第一章课件PPT', 1, 11, '教学课件', 2, '数据结构', 'Chapter_1_Intro.pptx', '/uploads/2025/01/ds1.pptx', 'http://cdn.smartteach.edu.cn/uploads/2025/01/ds1.pptx', 'pptx', 4194304, 'application/vnd.ms-powerpoint', '数据结构,绪论,课件', 124, 450, 1, 1001, '张教授'),
-(4002, '算法时间复杂度速查图解', 2, 4, '教学素材', 2, '数据结构', 'complexity_chart.png', '/uploads/2025/01/chart.png', 'http://cdn.smartteach.edu.cn/uploads/2025/01/chart.png', 'png', 1048576, 'image/png', '算法,基础理论', 85, 912, 1, 1001, '张教授'),
-(4003, 'Linux进程调度实验虚拟机镜像', 5, 2, '实验资源', 3, '操作系统', 'ubuntu_os_lab.zip', '/uploads/2025/01/vm.zip', 'http://cdn.smartteach.edu.cn/uploads/2025/01/vm.zip', 'zip', 524288000, 'application/zip', '操作系统,环境镜像', 32, 89, 1, 1, '超级管理员');
-
-
 -- ---------------------------------------------------------------------
 -- 7. 系统日志 (模拟真实系统的访问活动)
 -- ---------------------------------------------------------------------
