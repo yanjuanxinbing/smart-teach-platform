@@ -358,15 +358,13 @@ CREATE TABLE `training_plan` (
     `id`             BIGINT       NOT NULL,
     `plan_title`     VARCHAR(200) NOT NULL,
     `project_name`   VARCHAR(200) NOT NULL,
-    `course_id`      BIGINT                DEFAULT NULL,
-    `course_name`    VARCHAR(100)          DEFAULT NULL,
-    `semester`       VARCHAR(20)           DEFAULT NULL,
-    `class_name`     VARCHAR(50)           DEFAULT NULL,
+    `semester`       VARCHAR(20)  NOT NULL,
+    `class_name`     VARCHAR(50)  NOT NULL,
     `teacher_id`     BIGINT                DEFAULT NULL,
     `teacher_name`   VARCHAR(50)           DEFAULT NULL,
     `location`       VARCHAR(100)          DEFAULT NULL,
-    `start_date`     DATE                  DEFAULT NULL,
-    `end_date`       DATE                  DEFAULT NULL,
+    `start_date`     DATE         NOT NULL,
+    `end_date`       DATE         NOT NULL,
     `duration_days`  INT                  DEFAULT NULL,
     `total_hours`    INT                  DEFAULT NULL,
     `capacity`       INT                  DEFAULT NULL,
@@ -384,6 +382,26 @@ CREATE TABLE `training_plan` (
     `deleted`        TINYINT      NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`)
 ) ENGINE = InnoDB COMMENT ='实训计划';
+
+DROP TABLE IF EXISTS `training_plan_stage`;
+CREATE TABLE `training_plan_stage` (
+    `id`             BIGINT NOT NULL,
+    `plan_id`        BIGINT NOT NULL COMMENT '所属实训计划ID',
+    `stage_name`     VARCHAR(100) NOT NULL COMMENT '阶段名称',
+    `start_date`     DATE         DEFAULT NULL COMMENT '阶段起始日期',
+    `end_date`       DATE         DEFAULT NULL COMMENT '阶段结束日期',
+    `duration_days`  INT          DEFAULT NULL COMMENT '持续天数',
+    `content`        TEXT         COMMENT '任务内容',
+    `remark`         VARCHAR(500) DEFAULT NULL COMMENT '备注',
+    `sort_no`        INT          DEFAULT 0 COMMENT '排序号',
+    `create_time`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time`    DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_by`      BIGINT          DEFAULT NULL,
+    `update_by`      BIGINT          DEFAULT NULL,
+    `deleted`        TINYINT NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_plan` (`plan_id`)
+) ENGINE = InnoDB COMMENT ='实训计划阶段明细';
 
 DROP TABLE IF EXISTS `training_registration`;
 CREATE TABLE `training_registration` (
@@ -407,6 +425,47 @@ CREATE TABLE `training_registration` (
     PRIMARY KEY (`id`),
     KEY `idx_plan` (`plan_id`)
 ) ENGINE = InnoDB COMMENT ='实训报名';
+
+DROP TABLE IF EXISTS `training_attendance`;
+CREATE TABLE `training_attendance` (
+    `id`              BIGINT NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `plan_id`         BIGINT NOT NULL COMMENT '实训计划ID',
+    `registration_id` BIGINT NOT NULL COMMENT '报名记录ID',
+    `student_id`      BIGINT          DEFAULT NULL COMMENT '学生ID（可空）',
+    `student_name`    VARCHAR(50)     DEFAULT NULL COMMENT '学生姓名',
+    `attendance_date` DATE   NOT NULL COMMENT '签到日期',
+    `sign_in_time`    DATETIME        DEFAULT NULL COMMENT '当日签到时间',
+    `sign_out_time`   DATETIME        DEFAULT NULL COMMENT '当日签退时间',
+    `status`          TINYINT         DEFAULT 0 COMMENT '当日状态 0未签到 1已签到 2已签退 3请假',
+    `remark`          VARCHAR(255)    DEFAULT NULL COMMENT '备注',
+    `create_time`     DATETIME        DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_time`     DATETIME        DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `create_by`       BIGINT          DEFAULT NULL COMMENT '创建人',
+    `update_by`       BIGINT          DEFAULT NULL COMMENT '更新人',
+    `deleted`         TINYINT         DEFAULT 0 COMMENT '逻辑删除',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_reg_date` (`registration_id`, `attendance_date`, `deleted`),
+    KEY `idx_plan_id` (`plan_id`),
+    KEY `idx_student_id` (`student_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='实训每日签到记录';
+
+DROP TABLE IF EXISTS `training_score_item`;
+CREATE TABLE `training_score_item` (
+    `id`              BIGINT NOT NULL AUTO_INCREMENT,
+    `registration_id` BIGINT NOT NULL,
+    `item_name`       VARCHAR(50)  NOT NULL,
+    `item_score`      DECIMAL(5, 2)          DEFAULT NULL,
+    `max_score`       DECIMAL(5, 2)          DEFAULT 100.00,
+    `weight`          DECIMAL(5, 2)          DEFAULT NULL COMMENT '权重（百分比数字，如 30 表示 30%；<=1 时按倍数兼容旧数据）',
+    `comment`         VARCHAR(255)           DEFAULT NULL,
+    `create_time`     DATETIME               DEFAULT CURRENT_TIMESTAMP,
+    `update_time`     DATETIME               DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_by`       BIGINT                 DEFAULT NULL,
+    `update_by`       BIGINT                 DEFAULT NULL,
+    `deleted`         TINYINT                DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_registration_id` (`registration_id`)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COMMENT ='实训成绩明细';
 
 -- ---------------------------------------------------------------------
 -- 6. 资源管理模块 2张表
@@ -828,8 +887,15 @@ INSERT INTO `experiment_plan_item`(`id`, `plan_id`, `exp_no`, `exp_name`, `exp_t
 -- 5. 实训计划与实训报名
 -- ---------------------------------------------------------------------
 -- 实训计划 (training_plan)
-INSERT INTO `training_plan`(`id`, `plan_title`, `project_name`, `course_id`, `course_name`, `semester`, `class_name`, `teacher_id`, `teacher_name`, `location`, `start_date`, `end_date`, `duration_days`, `total_hours`, `capacity`, `objective`, `status`) VALUES 
-(30001, '企业级企业中台级全栈开发企业实训', '基于Spring Cloud的在线协同办公中台系统开发', 6, 'Web应用开发', '2025-2026-1', '软工大三混合班', 1002, '李副教授', '实训楼A栋301软件工程创新实验室', '2026-01-12', '2026-01-26', 14, 80, 50, '培养学生大型分布式微服务项目的协同开发与DevOps工程实践能力。', 1);
+INSERT INTO `training_plan`(`id`, `plan_title`, `project_name`, `semester`, `class_name`, `teacher_id`, `teacher_name`, `location`, `start_date`, `end_date`, `duration_days`, `total_hours`, `capacity`, `objective`, `status`) VALUES
+(30001, '企业级企业中台级全栈开发企业实训', '基于Spring Cloud的在线协同办公中台系统开发', '2025-2026-1', '软工大三混合班', 1002, '李副教授', '实训楼A栋301软件工程创新实验室', '2026-01-12', '2026-01-26', 15, 80, 50, '培养学生大型分布式微服务项目的协同开发与DevOps工程实践能力。', 1);
+
+-- 实训计划阶段 (training_plan_stage)
+INSERT INTO `training_plan_stage`(`id`, `plan_id`, `stage_name`, `start_date`, `end_date`, `duration_days`, `content`, `remark`, `sort_no`) VALUES
+(40001, 30001, '需求分析与架构设计', '2026-01-12', '2026-01-14', 3, '完成业务需求拆解、系统架构设计、技术选型与API契约定义。', '输出《需求规格说明书》《系统架构设计文档》。', 1),
+(40002, 30001, '基础平台搭建', '2026-01-15', '2026-01-18', 4, '搭建微服务脚手架、注册中心、配置中心、网关、统一鉴权、日志与监控体系。', '完成CI/CD流水线初版。', 2),
+(40003, 30001, '核心业务开发', '2026-01-19', '2026-01-23', 5, '按微服务拆分实现核心业务模块，前后端联调，单元测试覆盖。', '提交每日站会进度。', 3),
+(40004, 30001, '测试与项目答辩', '2026-01-24', '2026-01-26', 3, '集成测试、性能压测、问题修复、答辩准备与项目演示。', '完成项目答辩与成绩评定。', 4);
 
 -- 实训报名明细 (training_registration)
 INSERT INTO `training_registration`(`id`, `plan_id`, `plan_title`, `student_id`, `student_name`, `class_name`, `phone`, `status`, `score`, `comment`) VALUES 
