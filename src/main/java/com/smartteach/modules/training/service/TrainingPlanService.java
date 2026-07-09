@@ -5,7 +5,6 @@ import com.smartteach.common.base.PageResult;
 import com.smartteach.modules.training.dto.TrainingPlanQueryDTO;
 import com.smartteach.modules.training.dto.TrainingPlanSaveDTO;
 import com.smartteach.modules.training.entity.TrainingPlan;
-import com.smartteach.modules.training.vo.TrainingPlanDetailVO;
 
 import java.util.List;
 
@@ -13,7 +12,7 @@ public interface TrainingPlanService extends IService<TrainingPlan> {
 
     PageResult<TrainingPlan> page(TrainingPlanQueryDTO query);
 
-    TrainingPlanDetailVO detail(Long id);
+    TrainingPlan detail(Long id);
 
     TrainingPlan save(TrainingPlanSaveDTO dto);
 
