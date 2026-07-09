@@ -9,16 +9,17 @@ import com.smartteach.common.base.PageResult;
 import com.smartteach.common.exception.BusinessException;
 import com.smartteach.common.result.ResultCode;
 import com.smartteach.modules.training.dto.TrainingRegistrationSaveDTO;
+import com.smartteach.modules.training.dto.TrainingScoreItemDTO;
 import com.smartteach.modules.training.entity.TrainingPlan;
 import com.smartteach.modules.training.entity.TrainingRegistration;
 import com.smartteach.modules.training.mapper.TrainingRegistrationMapper;
 import com.smartteach.modules.training.service.TrainingPlanService;
 import com.smartteach.modules.training.service.TrainingRegistrationService;
+import com.smartteach.modules.training.service.TrainingScoreItemService;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
 import java.util.List;
 
 @Service
@@ -26,9 +27,12 @@ public class TrainingRegistrationServiceImpl extends ServiceImpl<TrainingRegistr
         implements TrainingRegistrationService {
 
     private final TrainingPlanService planService;
+    private final TrainingScoreItemService scoreItemService;
 
-    public TrainingRegistrationServiceImpl(TrainingPlanService planService) {
+    public TrainingRegistrationServiceImpl(TrainingPlanService planService,
+                                           TrainingScoreItemService scoreItemService) {
         this.planService = planService;
+        this.scoreItemService = scoreItemService;
     }
 
     @Override
@@ -96,22 +100,6 @@ public class TrainingRegistrationServiceImpl extends ServiceImpl<TrainingRegistr
     }
 
     @Override
-    public void signIn(Long id) {
-        TrainingRegistration reg = new TrainingRegistration();
-        reg.setId(id);
-        reg.setSignInTime(LocalDateTime.now());
-        this.updateById(reg);
-    }
-
-    @Override
-    public void signOut(Long id) {
-        TrainingRegistration reg = new TrainingRegistration();
-        reg.setId(id);
-        reg.setSignOutTime(LocalDateTime.now());
-        this.updateById(reg);
-    }
-
-    @Override
     public void grade(Long id, BigDecimal score, String comment) {
         TrainingRegistration reg = this.getById(id);
         if (reg == null) {
@@ -129,6 +117,22 @@ public class TrainingRegistrationServiceImpl extends ServiceImpl<TrainingRegistr
         update.setId(id);
         update.setScore(score);
         update.setComment(comment);
+        update.setStatus(3);
+        this.updateById(update);
+    }
+
+    @Override
+    public void gradeWithItems(Long registrationId, List<TrainingScoreItemDTO> items) {
+        TrainingRegistration reg = this.getById(registrationId);
+        if (reg == null) throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        if (reg.getStatus() == null || reg.getStatus() != 1) {
+            throw new BusinessException("只有已通过的报名才能登记成绩");
+        }
+        scoreItemService.saveItems(registrationId, items);
+        BigDecimal totalScore = scoreItemService.calcTotalScore(registrationId);
+        TrainingRegistration update = new TrainingRegistration();
+        update.setId(registrationId);
+        update.setScore(totalScore);
         update.setStatus(3);
         this.updateById(update);
     }
