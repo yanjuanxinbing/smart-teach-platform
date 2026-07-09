@@ -658,21 +658,15 @@ SELECT ROW_NUMBER() OVER (ORDER BY id) + 1000, 1, id FROM sys_menu;
 -- 字典类型
 INSERT INTO `sys_dict_type`(`id`, `dict_name`, `dict_type`, `description`, `status`) VALUES
 (1, '课程性质', 'course_type', '课程性质字典', 1),
-(2, '实验类型', 'exp_type', '实验类型字典', 1),
-(3, '资源类型', 'resource_type', '教学资源类型', 1),
-(4, '课程内容类型', 'content_type', '课程内容类型', 1),
-(5, '门户内容类型', 'portal_type', '门户内容类型', 1),
-(6, '学期', 'semester', '当前学期列表', 1);
+(2, '资源类型', 'resource_type', '教学资源类型', 1),
+(3, '课程内容类型', 'content_type', '课程内容类型', 1),
+(4, '门户内容类型', 'portal_type', '门户内容类型', 1),
+(5, '学期', 'semester', '当前学期列表', 1);
 
 INSERT INTO `sys_dict_data`(`id`, `dict_type`, `dict_label`, `dict_value`, `list_class`, `sort`, `status`, `is_default`) VALUES
 -- 课程性质（仅保留必修、选修）
 (1, 'course_type', '必修', '1', 'primary', 1, 1, 1),
 (2, 'course_type', '选修', '2', 'success', 2, 1, 0),
--- 实验类型
-(10, 'exp_type', '验证性', '1', 'primary', 1, 1, 0),
-(11, 'exp_type', '综合性', '2', 'success', 2, 1, 0),
-(12, 'exp_type', '设计性', '3', 'warning', 3, 1, 0),
-(13, 'exp_type', '创新性', '4', 'danger',  4, 1, 0),
 -- 资源类型
 (20, 'resource_type', '文档', '1', 'primary', 1, 1, 0),
 (21, 'resource_type', '图片', '2', 'info',    2, 1, 0),
@@ -859,12 +853,6 @@ INSERT INTO `sys_login_log`(`id`, `username`, `ip`, `location`, `browser`, `os`,
 INSERT INTO `sys_operation_log`(`id`, `module`, `action`, `method`, `request_uri`, `http_method`, `params`, `result`, `ip`, `user_id`, `username`, `status`, `cost_time`, `operation_time`) VALUES 
 (9501, '课程管理', '修改课程发布状态', 'com.smartteach.controller.CourseController.updateStatus()', '/api/course/status', 'PUT', '{"id":2, "status":1}', '{"code":200, "msg":"success"}', '10.22.45.18', 1001, 'teacher1', 1, 45, DATE_SUB(NOW(), INTERVAL 50 MINUTE)),
 (9502, '教学计划', '新增计划明细', 'com.smartteach.controller.CoursePlanController.addItem()', '/api/course/plan/item', 'POST', '{"planId":10001, "weekNo":1, "chapterTitle":"绪论"}', '{"code":200, "msg":"success"}', '10.22.45.18', 1001, 'teacher1', 1, 112, DATE_SUB(NOW(), INTERVAL 45 MINUTE));
-
--- ---------------------------------------------------------------------
--- 脚本结束
--- ---------------------------------------------------------------------
-SELECT '测试数据补充完成，覆盖全功能模块场景' AS message;
-
 
 -- =====================================================================
 -- 结束

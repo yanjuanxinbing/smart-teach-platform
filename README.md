@@ -160,27 +160,6 @@ npm run dev
 
 > 数据库 `sys_user` 表里的默认密码是 BCrypt 加密后的 `admin`，登录后请到"个人信息 → 修改密码"自行修改为强密码。
 
-### 忘记管理员密码？两种重置方式
-
-**方式一（推荐）：调用后端一次性重置接口**  
-后端提供了一个带 token 鉴权的一次性密码重置接口（默认开启），需要先在 [application.yaml](src/main/resources/application.yaml) 里看到 `init.password-reset.token: smartteach-init-2024`：
-
-```bash
-curl -X POST http://localhost:8080/api/init/reset-password \
-  -H "Content-Type: application/json" \
-  -d '{"token":"smartteach-init-2024","username":"admin","newPassword":"admin123"}'
-```
-成功后用 `admin / admin123` 登录即可。生产环境务必把 `init.password-reset.enabled` 改为 `false`！
-
-**方式二：使用项目内置的密码哈希生成器**  
-```bash
-mvn -q exec:java -Dexec.mainClass=com.smartteach.tools.PasswordHashGen -Dexec.args="admin123"
-```
-会输出新的 BCrypt 哈希值，复制后执行：
-```sql
-UPDATE sys_user SET password='<粘贴上面的哈希>' WHERE username='admin';
-```
-
 ## 📚 功能模块说明
 
 ### 1. 网站门户
