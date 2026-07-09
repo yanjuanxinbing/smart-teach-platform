@@ -8,7 +8,6 @@ import com.smartteach.modules.training.dto.TrainingPlanQueryDTO;
 import com.smartteach.modules.training.dto.TrainingPlanSaveDTO;
 import com.smartteach.modules.training.entity.TrainingPlan;
 import com.smartteach.modules.training.service.TrainingPlanService;
-import com.smartteach.modules.training.vo.TrainingPlanDetailVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -40,7 +39,7 @@ public class TrainingPlanController {
     @ApiOperation("获取实训计划详情")
     @GetMapping("/{id}")
     @PreAuthorize("hasAuthority('training:plan:query')")
-    public Result<TrainingPlanDetailVO> detail(@PathVariable Long id) {
+    public Result<TrainingPlan> detail(@PathVariable Long id) {
         return Result.success(planService.detail(id));
     }
 

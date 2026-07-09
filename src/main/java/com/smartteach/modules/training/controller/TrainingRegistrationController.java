@@ -5,7 +5,6 @@ import com.smartteach.common.base.PageResult;
 import com.smartteach.common.result.Result;
 import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import com.smartteach.modules.training.dto.TrainingRegistrationSaveDTO;
-import com.smartteach.modules.training.dto.TrainingScoreItemDTO;
 import com.smartteach.modules.training.entity.TrainingRegistration;
 import com.smartteach.modules.training.service.TrainingRegistrationService;
 import io.swagger.annotations.Api;
@@ -20,7 +19,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * 实训报名/成绩管理
+ * 实训报名/签到/成绩管理
  */
 @Api(tags = "实训计划管理-报名")
 @RestController
@@ -57,6 +56,22 @@ public class TrainingRegistrationController {
         return Result.success();
     }
 
+    @ApiOperation("签到")
+    @PutMapping("/{id}/sign-in")
+    @OperationLog(module = "实训报名", action = "签到", saveParams = false)
+    public Result<Void> signIn(@PathVariable Long id) {
+        registrationService.signIn(id);
+        return Result.success();
+    }
+
+    @ApiOperation("签退")
+    @PutMapping("/{id}/sign-out")
+    @OperationLog(module = "实训报名", action = "签退", saveParams = false)
+    public Result<Void> signOut(@PathVariable Long id) {
+        registrationService.signOut(id);
+        return Result.success();
+    }
+
     @ApiOperation("登记成绩")
     @PutMapping("/{id}/grade")
     @PreAuthorize("hasAuthority('training:registration:grade')")
@@ -65,15 +80,6 @@ public class TrainingRegistrationController {
         BigDecimal score = new BigDecimal(body.get("score").toString());
         String comment = (String) body.get("comment");
         registrationService.grade(id, score, comment);
-        return Result.success();
-    }
-
-    @ApiOperation("多维评分")
-    @PutMapping("/{id}/grade-items")
-    @PreAuthorize("hasAuthority('training:registration:grade')")
-    @OperationLog(module = "实训报名", action = "多维评分", saveParams = false)
-    public Result<Void> gradeItems(@PathVariable Long id, @RequestBody List<TrainingScoreItemDTO> items) {
-        registrationService.gradeWithItems(id, items);
         return Result.success();
     }
 
