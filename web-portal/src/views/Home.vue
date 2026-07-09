@@ -504,7 +504,7 @@ const workflow = [
 const formatDate = (t) => t ? dayjs(t).format('YYYY.MM.DD') : ''
 const formatShortDate = (t) => t ? dayjs(t).format('MM.DD') : '--.--'
 const stripHtml = (s) => s ? s.replace(/<[^>]+>/g, '').slice(0, 110) + '…' : '暂无摘要'
-const goArticle = (item) => router.push(/article/)
+const goArticle = (item) => router.push(`/article/${item.id}`)
 
 // 数字递增动画
 const animateNumber = (el, target, duration = 1200, decimals = 0) => {
