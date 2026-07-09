@@ -630,7 +630,32 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 -- 系统监控
 (601, 600, '服务器监控', 2, '/monitor/server',         'monitor/Server',  NULL, 'monitor:server:list', 1, 1, 1),
 (602, 600, '登录日志',   2, '/monitor/login-log',      'monitor/LoginLog', NULL, 'monitor:loginLog:list', 2, 1, 1),
-(603, 600, '操作日志',   2, '/monitor/operation-log',  'monitor/OperationLog', NULL, 'monitor:operationLog:list', 3, 1, 1);
+(603, 600, '操作日志',   2, '/monitor/operation-log',  'monitor/OperationLog', NULL, 'monitor:operationLog:list', 3, 1, 1),
+-- 补充按钮：用于对齐 Controller 上 @PreAuthorize 的全部权限标识
+-- 系统管理
+(700, 501, '查询',     3, NULL, NULL, NULL, 'system:user:query',        5, 1, 1),
+(701, 502, '新增',     3, NULL, NULL, NULL, 'system:dept:add',         2, 1, 1),
+(702, 502, '编辑',     3, NULL, NULL, NULL, 'system:dept:edit',        3, 1, 1),
+(703, 502, '删除',     3, NULL, NULL, NULL, 'system:dept:remove',      4, 1, 1),
+(704, 503, '查询',     3, NULL, NULL, NULL, 'system:role:query',       5, 1, 1),
+(710, 505, '类型新增', 3, NULL, NULL, NULL, 'system:dict:type:add',    2, 1, 1),
+(711, 505, '类型编辑', 3, NULL, NULL, NULL, 'system:dict:type:edit',   3, 1, 1),
+(712, 505, '类型删除', 3, NULL, NULL, NULL, 'system:dict:type:remove', 4, 1, 1),
+(713, 505, '数据列表', 3, NULL, NULL, NULL, 'system:dict:data:list',   5, 1, 1),
+(714, 505, '数据新增', 3, NULL, NULL, NULL, 'system:dict:data:add',    6, 1, 1),
+(715, 505, '数据编辑', 3, NULL, NULL, NULL, 'system:dict:data:edit',   7, 1, 1),
+(716, 505, '数据删除', 3, NULL, NULL, NULL, 'system:dict:data:remove', 8, 1, 1),
+(720, 506, '新增',     3, NULL, NULL, NULL, 'system:config:add',       2, 1, 1),
+(721, 506, '编辑',     3, NULL, NULL, NULL, 'system:config:edit',      3, 1, 1),
+(722, 506, '删除',     3, NULL, NULL, NULL, 'system:config:remove',    4, 1, 1),
+-- 业务模块
+(730, 201, '查看详情', 3, NULL, NULL, NULL, 'experiment:plan:query',         5, 1, 1),
+(731, 301, '查看详情', 3, NULL, NULL, NULL, 'training:plan:query',           5, 1, 1),
+(732, 302, '新增报名', 3, NULL, NULL, NULL, 'training:registration:add',     3, 1, 1),
+(733, 302, '删除报名', 3, NULL, NULL, NULL, 'training:registration:remove',  4, 1, 1),
+-- 系统监控
+(739, 602, '删除',     3, NULL, NULL, NULL, 'monitor:loginLog:remove',      1, 1, 1),
+(740, 603, '删除',     3, NULL, NULL, NULL, 'monitor:operationLog:remove',   2, 1, 1);
 
 -- 超级管理员分配所有菜单
 INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
