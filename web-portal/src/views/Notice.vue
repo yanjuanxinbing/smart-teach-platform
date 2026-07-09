@@ -72,7 +72,7 @@ const list = ref([])
 const dayOf = (t) => t ? dayjs(t).format('DD') : '--'
 const ym = (t) => t ? dayjs(t).format('YYYY.MM') : '----.--'
 const stripHtml = (s) => s ? s.replace(/<[^>]+>/g, '').slice(0, 160) + '…' : '暂无摘要'
-const goArticle = (item) => router.push(/article/)
+const goArticle = (item) => router.push(`/article/${item.id}`)
 
 onMounted(async () => {
   try { list.value = (await listByType(2, 50)) || [] } catch (e) { list.value = [] }
