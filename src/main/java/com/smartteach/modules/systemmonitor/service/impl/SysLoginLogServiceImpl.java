@@ -13,6 +13,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 @Service
 public class SysLoginLogServiceImpl extends ServiceImpl<SysLoginLogMapper, SysLoginLog> implements SysLoginLogService {
@@ -37,6 +38,14 @@ public class SysLoginLogServiceImpl extends ServiceImpl<SysLoginLogMapper, SysLo
                 .orderByDesc(SysLoginLog::getLoginTime);
         IPage<SysLoginLog> page = this.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
         return PageResult.of(page);
+    }
+
+    @Override
+    public void remove(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) {
+            return;
+        }
+        this.removeByIds(ids);
     }
 
     /** 简单UA解析，生产环境建议使用 UserAgentUtils 等专业库 */

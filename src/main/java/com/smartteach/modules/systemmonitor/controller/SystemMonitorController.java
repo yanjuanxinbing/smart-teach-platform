@@ -50,6 +50,14 @@ public class SystemMonitorController {
         return Result.success(loginLogService.page(query));
     }
 
+    @ApiOperation("批量删除登录日志")
+    @DeleteMapping("/login-log")
+    @PreAuthorize("hasAuthority('monitor:loginLog:remove')")
+    public Result<Void> removeLoginLog(@RequestBody List<Long> ids) {
+        loginLogService.remove(ids);
+        return Result.success();
+    }
+
     @ApiOperation("分页查询操作日志")
     @GetMapping("/operation-log/page")
     @PreAuthorize("hasAuthority('monitor:operationLog:list')")
