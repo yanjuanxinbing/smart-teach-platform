@@ -32,8 +32,11 @@ public class TrainingRegistrationController {
     @ApiOperation("分页查询报名记录")
     @GetMapping("/page")
     @PreAuthorize("hasAuthority('training:registration:list')")
-    public Result<PageResult<TrainingRegistration>> page(@RequestParam(required = false) Long planId, PageQuery query) {
-        return Result.success(registrationService.page(planId, query));
+    public Result<PageResult<TrainingRegistration>> page(@RequestParam(required = false) String keyword,
+                                                        @RequestParam(required = false) String className,
+                                                        @RequestParam(required = false) Integer status,
+                                                        PageQuery query) {
+        return Result.success(registrationService.page(keyword, className, status, query));
     }
 
     @ApiOperation("新增报名")
@@ -77,10 +80,34 @@ public class TrainingRegistrationController {
     @PreAuthorize("hasAuthority('training:registration:grade')")
     @OperationLog(module = "实训报名", action = "登记成绩", saveParams = false)
     public Result<Void> grade(@PathVariable Long id, @RequestBody Map<String, Object> body) {
-        BigDecimal score = new BigDecimal(body.get("score").toString());
-        String comment = (String) body.get("comment");
-        registrationService.grade(id, score, comment);
+        // 先把原始值取出来再做类型转换，避免在三元里同时出现 map.get(...).toString() 的潜在 NPE
+        Object rScoreObj = body.get("regularScore");
+        Object eScoreObj = body.get("examScore");
+        Object rWeightObj = body.get("regularWeight");
+        Object eWeightObj = body.get("examWeight");
+
+        BigDecimal regularScore = rScoreObj == null ? null : toBigDecimal(rScoreObj);
+        BigDecimal examScore = eScoreObj == null ? null : toBigDecimal(eScoreObj);
+        Integer regularWeight = rWeightObj == null ? null : toInteger(rWeightObj);
+        Integer examWeight = eWeightObj == null ? null : toInteger(eWeightObj);
+        String comment = body.get("comment") == null ? null : body.get("comment").toString();
+
+        registrationService.grade(id, regularScore, examScore, regularWeight, examWeight, comment);
         return Result.success();
+    }
+
+    private static BigDecimal toBigDecimal(Object o) {
+        if (o == null) return null;
+        if (o instanceof BigDecimal) return (BigDecimal) o;
+        if (o instanceof Number) return new BigDecimal(o.toString());
+        return new BigDecimal(o.toString());
+    }
+
+    private static Integer toInteger(Object o) {
+        if (o == null) return null;
+        if (o instanceof Integer) return (Integer) o;
+        if (o instanceof Number) return ((Number) o).intValue();
+        return Integer.valueOf(o.toString());
     }
 
     @ApiOperation("批量删除报名记录")

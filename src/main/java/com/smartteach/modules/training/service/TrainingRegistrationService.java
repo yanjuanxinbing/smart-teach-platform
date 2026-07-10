@@ -10,7 +10,7 @@ import java.util.List;
 
 public interface TrainingRegistrationService extends IService<TrainingRegistration> {
 
-    PageResult<TrainingRegistration> page(Long planId, PageQuery query);
+    PageResult<TrainingRegistration> page(String keyword, String className, Integer status, PageQuery query);
 
     void register(TrainingRegistrationSaveDTO dto);
 
@@ -20,7 +20,8 @@ public interface TrainingRegistrationService extends IService<TrainingRegistrati
 
     void signOut(Long id);
 
-    void grade(Long id, java.math.BigDecimal score, String comment);
+    void grade(Long id, java.math.BigDecimal regularScore, java.math.BigDecimal examScore,
+               Integer regularWeight, Integer examWeight, String comment);
 
     void remove(List<Long> ids);
 }

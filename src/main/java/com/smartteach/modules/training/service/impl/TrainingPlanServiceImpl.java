@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class TrainingPlanServiceImpl extends ServiceImpl<TrainingPlanMapper, TrainingPlan> implements TrainingPlanService {
@@ -108,27 +109,14 @@ public class TrainingPlanServiceImpl extends ServiceImpl<TrainingPlanMapper, Tra
     }
 
     @Override
-    public void submitForReview(Long id) {
-        TrainingPlan plan = this.getById(id);
-        if (plan == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
-        }
-        if (plan.getStatus() != 1) {
-            throw new BusinessException("当前状态不允许此操作");
-        }
-        TrainingPlan update = new TrainingPlan();
-        update.setId(id);
-        update.setStatus(2);
-        this.updateById(update);
-    }
-
-    @Override
     public void approve(Long id, Long approverId, String approverName, String remark) {
         TrainingPlan plan = this.getById(id);
         if (plan == null) {
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
-        if (plan.getStatus() != 2) {
+        // 已发布(1) 或 历史的审核中(2) 都可以审核通过
+        Integer st = plan.getStatus();
+        if (st == null || (st != 1 && st != 2)) {
             throw new BusinessException("当前状态不允许此操作");
         }
         TrainingPlan update = new TrainingPlan();
@@ -146,7 +134,8 @@ public class TrainingPlanServiceImpl extends ServiceImpl<TrainingPlanMapper, Tra
         if (plan == null) {
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
-        if (plan.getStatus() != 2) {
+        Integer st = plan.getStatus();
+        if (st == null || (st != 1 && st != 2)) {
             throw new BusinessException("当前状态不允许此操作");
         }
         TrainingPlan update = new TrainingPlan();
@@ -189,5 +178,16 @@ public class TrainingPlanServiceImpl extends ServiceImpl<TrainingPlanMapper, Tra
         update.setApproverName(null);
         update.setApproveRemark(null);
         this.updateById(update);
+    }
+
+    @Override
+    public List<String> listDistinctClasses() {
+        // 通过 selectObjs 取 distinct class_name，自动过滤 null 与空字符串
+        List<Object> values = this.baseMapper.selectObjs(new LambdaQueryWrapper<TrainingPlan>()
+                .select(TrainingPlan::getClassName)
+                .isNotNull(TrainingPlan::getClassName)
+                .ne(TrainingPlan::getClassName, "")
+                .orderByAsc(TrainingPlan::getClassName));
+        return values.stream().map(String::valueOf).distinct().collect(Collectors.toList());
     }
 }
