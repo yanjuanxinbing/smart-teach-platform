@@ -1,7 +1,6 @@
 package com.smartteach.common.utils;
 
 import io.jsonwebtoken.Claims;
-import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
 import org.springframework.beans.factory.annotation.Value;
@@ -20,37 +19,21 @@ public class JwtUtil {
     @Value("${jwt.secret}")
     private String secret;
 
-    @Value("${jwt.expire}")
-    private long expire;
-
-    /**
-     * 生成 token
-     */
     public String generateToken(Long userId, String username) {
         Map<String, Object> claims = new HashMap<>();
         claims.put("userId", userId);
         claims.put("username", username);
         Date now = new Date();
-        Date expireDate = new Date(now.getTime() + expire);
         return Jwts.builder()
                 .setClaims(claims)
                 .setIssuedAt(now)
-                .setExpiration(expireDate)
+                .setExpiration(null)
                 .signWith(SignatureAlgorithm.HS512, secret)
                 .compact();
     }
 
     public Claims parseToken(String token) {
         return Jwts.parser().setSigningKey(secret).parseClaimsJws(token).getBody();
-    }
-
-    public boolean isTokenExpired(String token) {
-        try {
-            Date expiration = parseToken(token).getExpiration();
-            return expiration.before(new Date());
-        } catch (ExpiredJwtException e) {
-            return true;
-        }
     }
 
     public Long getUserId(String token) {
