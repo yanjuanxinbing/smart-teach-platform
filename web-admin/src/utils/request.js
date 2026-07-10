@@ -26,11 +26,16 @@ service.interceptors.response.use(response => {
   if (res.code === 200) {
     return res.data
   }
-  ElMessage.error(res.message || '操作失败')
+  // silentError: true 时不弹全局错误 toast，由调用方自己接管并展示更友好的提示
+  if (!response.config || !response.config.silentError) {
+    ElMessage.error(res.message || '操作失败')
+  }
   return Promise.reject(new Error(res.message || '操作失败'))
 }, error => {
   NProgress.done()
-  ElMessage.error(error.message || '网络异常')
+  if (!error.config || !error.config.silentError) {
+    ElMessage.error(error.message || '网络异常')
+  }
   return Promise.reject(error)
 })
 

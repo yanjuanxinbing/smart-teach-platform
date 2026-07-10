@@ -525,6 +525,65 @@ CREATE TABLE `sys_operation_log` (
 ) ENGINE = InnoDB COMMENT ='操作日志';
 
 -- =====================================================================
+-- 8. 作业管理模块 2 张表
+-- =====================================================================
+DROP TABLE IF EXISTS `assignment`;
+CREATE TABLE `assignment` (
+    `id`           BIGINT       NOT NULL,
+    `course_id`    BIGINT       NOT NULL,
+    `chapter_id`   BIGINT       NOT NULL,
+    `content_id`   BIGINT                                         DEFAULT NULL COMMENT '关联 course_content.id（可选）',
+    `title`        VARCHAR(200) NOT NULL,
+    `description`  TEXT                                            DEFAULT NULL,
+    `deadline`     DATETIME     NOT NULL,
+    `total_score`  DECIMAL(5,2) NOT NULL                          DEFAULT 100.00,
+    `allow_late`   TINYINT      NOT NULL                          DEFAULT 1 COMMENT '0否 1是',
+    `status`       TINYINT      NOT NULL                          DEFAULT 0 COMMENT '0草稿 1已发布 2已截止',
+    `create_time`  DATETIME     NOT NULL                          DEFAULT CURRENT_TIMESTAMP,
+    `update_time`  DATETIME     NOT NULL                          DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_by`    BIGINT                                         DEFAULT NULL,
+    `update_by`    BIGINT                                         DEFAULT NULL,
+    `deleted`      TINYINT      NOT NULL                          DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_content`         (`content_id`),
+    KEY `idx_course_chapter`  (`course_id`, `chapter_id`),
+    KEY `idx_status`          (`status`),
+    KEY `idx_deadline`        (`deadline`)
+) ENGINE = InnoDB COMMENT ='作业';
+
+DROP TABLE IF EXISTS `assignment_submission`;
+CREATE TABLE `assignment_submission` (
+    `id`             BIGINT        NOT NULL,
+    `assignment_id`  BIGINT        NOT NULL,
+    `student_id`     BIGINT        NOT NULL,
+    `student_name`   VARCHAR(50)                                  DEFAULT NULL,
+    `class_name`     VARCHAR(50)                                  DEFAULT NULL,
+    `submit_text`    TEXT                                          DEFAULT NULL,
+    `file_url`       VARCHAR(500)                                 DEFAULT NULL,
+    `original_name`  VARCHAR(255)                                 DEFAULT NULL,
+    `file_suffix`    VARCHAR(20)                                  DEFAULT NULL,
+    `file_size`      BIGINT                                       DEFAULT NULL,
+    `is_late`        TINYINT      NOT NULL                        DEFAULT 0 COMMENT '0否 1是',
+    `submit_time`    DATETIME                                      DEFAULT NULL,
+    `score`          DECIMAL(5,2)                                 DEFAULT NULL,
+    `comment`        VARCHAR(500)                                 DEFAULT NULL,
+    `grader_id`      BIGINT                                       DEFAULT NULL,
+    `grader_name`    VARCHAR(50)                                  DEFAULT NULL,
+    `grade_time`     DATETIME                                      DEFAULT NULL,
+    `status`         TINYINT      NOT NULL                        DEFAULT 0 COMMENT '0草稿 1已提交 2已批改',
+    `create_time`    DATETIME     NOT NULL                        DEFAULT CURRENT_TIMESTAMP,
+    `update_time`    DATETIME     NOT NULL                        DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_by`      BIGINT                                        DEFAULT NULL,
+    `update_by`      BIGINT                                        DEFAULT NULL,
+    `deleted`        TINYINT      NOT NULL                        DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_assignment`             (`assignment_id`),
+    KEY `idx_student`                (`student_id`),
+    KEY `idx_assignment_student_time`(`assignment_id`, `student_id`, `submit_time`),
+    KEY `idx_status`                 (`status`)
+) ENGINE = InnoDB COMMENT ='作业提交';
+
+-- =====================================================================
 -- 初始化数据
 -- =====================================================================
 
@@ -650,7 +709,26 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (733, 302, '删除报名', 3, NULL, NULL, NULL, 'training:registration:remove',  4, 1, 1),
 -- 系统监控
 (739, 602, '删除',     3, NULL, NULL, NULL, 'monitor:loginLog:remove',      1, 1, 1),
-(740, 603, '删除',     3, NULL, NULL, NULL, 'monitor:operationLog:remove',   2, 1, 1);
+(740, 603, '删除',     3, NULL, NULL, NULL, 'monitor:operationLog:remove',   2, 1, 1),
+-- 8. 作业管理（顶级目录 750；教师子菜单 751/752 + 按钮；学生子菜单 753/754 + 按钮）
+(750, 0,   '作业管理',     1, '/assignment',                NULL,                       'Notebook', '',  6, 1, 1),
+-- 教师侧
+(751, 750, '作业列表',     2, '/assignment/list',                 'course/AssignmentList',  NULL, 'assignment:list',             1, 1, 1),
+(752, 750, '提交批改',     2, '/assignment/submission-list',     'course/SubmissionList',  NULL, 'assignment:submission:list',  2, 1, 1),
+(760, 751, '新增作业',     3, NULL, NULL, NULL, 'assignment:add',     1, 1, 1),
+(761, 751, '编辑作业',     3, NULL, NULL, NULL, 'assignment:edit',     2, 1, 1),
+(762, 751, '删除作业',     3, NULL, NULL, NULL, 'assignment:remove',   3, 1, 1),
+(763, 751, '发布作业',     3, NULL, NULL, NULL, 'assignment:publish',  4, 1, 1),
+(764, 751, '关闭作业',     3, NULL, NULL, NULL, 'assignment:close',    5, 1, 1),
+(765, 751, '查看详情',     3, NULL, NULL, NULL, 'assignment:query',    6, 1, 1),
+(770, 752, '批改评分',     3, NULL, NULL, NULL, 'assignment:grade',    1, 1, 1),
+-- 学生侧
+(753, 750, '我的作业',     2, '/student/assignment/list',        'student/MyAssignmentList',  NULL, 'assignment:my:list',   3, 1, 1),
+(754, 750, '提交作业',     2, '/student/assignment/list',       'student/AssignmentSubmit',  NULL, 'assignment:submit',    4, 1, 1),
+(780, 753, '查看',         3, NULL, NULL, NULL, 'assignment:my:query', 1, 1, 1),
+(781, 754, '保存草稿',     3, NULL, NULL, NULL, 'assignment:save',     1, 1, 1),
+(782, 754, '提交作业',     3, NULL, NULL, NULL, 'assignment:submit',   2, 1, 1),
+(783, 754, '删除草稿',     3, NULL, NULL, NULL, 'assignment:my:remove', 3, 1, 1);
 
 -- 超级管理员分配所有菜单
 INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
