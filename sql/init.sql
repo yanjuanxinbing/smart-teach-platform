@@ -837,10 +837,10 @@ USE `smart_teach_platform`;
 -- 密码均为 123456 (对应的 BCrypt 哈希值如下)
 -- ---------------------------------------------------------------------
 INSERT INTO `sys_user`(`id`, `username`, `password`, `real_name`, `phone`, `email`, `gender`, `dept_id`, `status`, `remark`) VALUES 
-(1001, 'teacher1', '$2a$10$v09gH/v9G7XN.zY6w2q6mO3R1m3SGeW0O8E3B6A6pE6wA6N6G6C6S', '张教授', '13800138001', 'zhang@smartteach.edu.cn', 1, 2, 1, '计算机科学系专业课教师'),
-(1002, 'teacher2', '$2a$10$v09gH/v9G7XN.zY6w2q6mO3R1m3SGeW0O8E3B6A6pE6wA6N6G6C6S', '李副教授', '13800138002', 'li@smartteach.edu.cn', 2, 3, 1, '软件工程系骨干教师'),
-(2001, 'student1', '$2a$10$v09gH/v9G7XN.zY6w2q6mO3R1m3SGeW0O8E3B6A6pE6wA6N6G6C6S', '王小明', '18611112222', 'wangxm@std.edu.cn', 1, 2, 1, '计科2201班学生'),
-(2002, 'student2', '$2a$10$v09gH/v9G7XN.zY6w2q6mO3R1m3SGeW0O8E3B6A6pE6wA6N6G6C6S', '赵美美', '18611113333', 'zhaomm@std.edu.cn', 2, 3, 1, '软工2202班学生');
+(1001, 'teacher1', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '张教授', '13800138001', 'zhang@smartteach.edu.cn', 1, 2, 1, '计算机科学系专业课教师'),
+(1002, 'teacher2', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '李副教授', '13800138002', 'li@smartteach.edu.cn', 2, 3, 1, '软件工程系骨干教师'),
+(2001, 'student1', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '王小明', '18611112222', 'wangxm@std.edu.cn', 1, 2, 1, '计科2201班学生'),
+(2002, 'student2', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '赵美美', '18611113333', 'zhaomm@std.edu.cn', 2, 3, 1, '软工2202班学生');
 
 -- 分配角色
 INSERT INTO `sys_user_role`(`id`, `user_id`, `role_id`) VALUES 
