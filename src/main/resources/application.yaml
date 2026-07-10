@@ -38,8 +38,6 @@ mybatis-plus:
 # 自定义配置：JWT
 jwt:
   secret: SmartTeachPlatformSecretKey20240101ShouldBeChangedInProd
-  # token 有效期（毫秒），默认 12 小时
-  expire: 43200000
   header: Authorization
   token-prefix: "Bearer "
 

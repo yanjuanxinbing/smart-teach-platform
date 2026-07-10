@@ -75,10 +75,6 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
         String token = authHeader.substring(tokenPrefix.length());
         try {
-            if (jwtUtil.isTokenExpired(token)) {
-                writeUnauthorized(response, "登录已过期，请重新登录");
-                return;
-            }
             Long userId = jwtUtil.getUserId(token);
             String username = jwtUtil.getUsername(token);
             UserContext.setUserId(userId);
