@@ -31,7 +31,19 @@ public class TrainingRegistration extends BaseEntity {
     /** 签退时间 */
     private LocalDateTime signOutTime;
 
-    /** 成绩 */
+    /** 平时成绩 */
+    private java.math.BigDecimal regularScore;
+
+    /** 考核成绩 */
+    private java.math.BigDecimal examScore;
+
+    /** 平时成绩占比（百分比 0-100） */
+    private Integer regularWeight;
+
+    /** 考核成绩占比（百分比 0-100） */
+    private Integer examWeight;
+
+    /** 最终成绩（按权重计算） */
     private java.math.BigDecimal score;
 
     /** 评语 */

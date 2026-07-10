@@ -22,13 +22,22 @@ public interface TrainingPlanService extends IService<TrainingPlan> {
 
     void publish(Long id);
 
-    void submitForReview(Long id);
-
+    /**
+     * 审核通过：已发布(1) 或历史遗留的审核中(2) → 进行中(3)
+     */
     void approve(Long id, Long approverId, String approverName, String remark);
 
+    /**
+     * 审核驳回：已发布(1) 或历史遗留的审核中(2) → 已驳回(5)
+     */
     void reject(Long id, Long approverId, String approverName, String remark);
 
     void finish(Long id);
 
     void revertToDraft(Long id);
+
+    /**
+     * 获取已存在的班级列表（去重、空值过滤），用于报名管理等场景的下拉选择
+     */
+    List<String> listDistinctClasses();
 }
