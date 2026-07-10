@@ -553,9 +553,9 @@ INSERT INTO `sys_user_role`(`id`, `user_id`, `role_id`) VALUES (1, 1, 1);
 INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `component`, `icon`, `permission`, `sort`, `visible`, `status`) VALUES
 -- 顶级目录
 (1,    0, '网站门户',   1, '/portal',     NULL,                    'promotion', '', 1, 1, 1),
-(100,  0, '课程计划管理', 1, '/course',     NULL,                    'education', '', 2, 1, 1),
-(200,  0, '课程实验计划管理', 1, '/experiment', NULL,                  'experiment', '', 3, 1, 1),
-(300,  0, '实训计划管理',  1, '/training',   NULL,                    'training', '', 4, 1, 1),
+(100,  0, '课程计划管理',     1, '/course',     NULL, 'Reading',       '', 2, 1, 1),
+(200,  0, '课程实验计划管理', 1, '/experiment', NULL, 'DataAnalysis',  '', 3, 1, 1),
+(300,  0, '实训计划管理',     1, '/training',   NULL, 'Briefcase',     '', 4, 1, 1),
 (400,  0, '资源管理',     1, '/resource',   NULL,                    'folder',   '', 5, 1, 1),
 (500,  0, '系统管理',     1, '/system',     NULL,                    'setting',  '', 9, 1, 1),
 (600,  0, '系统监控',     1, '/monitor',    NULL,                    'monitor',  '', 10, 1, 1),
