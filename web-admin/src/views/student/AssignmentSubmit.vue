@@ -1,0 +1,274 @@
+<template>
+  <div class="app-container">
+    <el-card v-if="assignment">
+      <template #header>
+        <div class="header">
+          <span class="title">{{ assignment.title }}</span>
+          <el-tag :type="['info','success','warning'][assignment.status]">{{ ['草稿','已发布','已截止'][assignment.status] }}</el-tag>
+          <el-tag type="info" style="margin-left:8px">总分：{{ assignment.totalScore }}</el-tag>
+          <el-button size="small" link @click="$router.back()" style="margin-left:auto">返回</el-button>
+        </div>
+      </template>
+
+      <el-descriptions :column="2" border style="margin-bottom: 16px">
+        <el-descriptions-item label="截止时间">
+          <span :style="{ color: isPastDeadline ? '#f56c6c' : '' }">{{ assignment.deadline }}</span>
+          <el-tag v-if="isPastDeadline" type="warning" size="small" style="margin-left:8px">已过截止</el-tag>
+          <el-tag v-if="assignment.allowLate === 1" type="success" size="small" style="margin-left:8px">允许迟交</el-tag>
+          <el-tag v-else type="danger" size="small" style="margin-left:8px">不允许迟交</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="关联章节内容">#{{ assignment.contentId }}</el-descriptions-item>
+        <el-descriptions-item label="作业说明" :span="2">
+          <div style="white-space:pre-wrap">{{ assignment.description || '（老师没有补充说明）' }}</div>
+        </el-descriptions-item>
+      </el-descriptions>
+
+      <!-- 已批改：只读分数+评语 -->
+      <el-alert
+        v-if="latest && latest.status === 2"
+        type="success"
+        :closable="false"
+        style="margin-bottom: 16px"
+      >
+        <template #title>
+          <span>已批改：成绩 {{ latest.score }} / {{ assignment.totalScore }}</span>
+        </template>
+        <div style="margin-top: 8px">评语：{{ latest.comment || '（老师没有留下评语）' }}</div>
+        <div style="margin-top: 4px; color: #999; font-size: 12px">
+          批改人：{{ latest.graderName || '-' }} ｜ 批改时间：{{ latest.gradeTime || '-' }}
+        </div>
+      </el-alert>
+
+      <!-- 已提交待批改：只读 -->
+      <el-alert
+        v-else-if="latest && latest.status === 1"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 16px"
+      >
+        <template #title>
+          <span>已提交，等待老师批改（提交时间：{{ latest.submitTime }}）</span>
+        </template>
+        <div v-if="latest.isLate === 1" style="margin-top: 4px; color: #e6a23c">本次提交为迟交</div>
+      </el-alert>
+
+      <!-- 表单：草稿 / 还没提过 / 已批改后想再交 -->
+      <el-form
+        v-if="canEdit"
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="100px"
+      >
+        <el-form-item label="提交正文" prop="submitText">
+          <el-input v-model="form.submitText" type="textarea" :rows="8" placeholder="写正文、可附文件一起交" />
+        </el-form-item>
+        <el-form-item label="附件">
+          <el-upload :http-request="upload" :show-file-list="false" :before-upload="beforeUpload">
+            <el-button>{{ form.fileUrl ? '更换附件' : '选择文件' }}</el-button>
+            <span v-if="form.fileUrl" style="margin-left:8px">{{ form.originalName }}</span>
+          </el-upload>
+          <div v-if="form.fileUrl" style="margin-top:8px">
+            <el-button size="small" link v-if="form.fileUrl" @click="clearAttachment">清除附件</el-button>
+          </div>
+        </el-form-item>
+
+        <!-- 附件预览 -->
+        <el-form-item v-if="form.fileUrl" label="附件预览">
+          <iframe v-if="previewType === 'pdf'" :src="form.fileUrl" class="preview-frame" />
+          <img v-else-if="previewType === 'image'" :src="form.fileUrl" class="preview-image" />
+          <video v-else-if="previewType === 'video'" :src="form.fileUrl" controls class="preview-media" />
+          <audio v-else-if="previewType === 'audio'" :src="form.fileUrl" controls class="preview-media" />
+          <div v-else style="color:#909399; font-size:12px">该类型不能在线预览，下载/提交即可</div>
+        </el-form-item>
+
+        <el-form-item>
+          <el-button type="primary" :loading="submitting" v-if="userStore.hasAuthority('assignment:save')" @click="saveDraft">保存草稿</el-button>
+          <el-button type="success" :loading="submitting" v-if="userStore.hasAuthority('assignment:submit')" @click="onSubmit">提交作业</el-button>
+          <el-button type="danger" v-if="canDeleteDraft" @click="removeDraft">删除草稿</el-button>
+          <el-button @click="$router.back()">返回</el-button>
+        </el-form-item>
+      </el-form>
+    </el-card>
+
+    <el-empty v-else description="作业不存在或已被删除" />
+  </div>
+</template>
+
+<style scoped>
+.header { display: flex; align-items: center; gap: 8px; }
+.title { font-size: 18px; font-weight: 600; }
+.preview-frame { width: 100%; max-width: 600px; height: 400px; border: 1px solid #ebeef5; }
+.preview-image { max-width: 600px; max-height: 400px; object-fit: contain; border: 1px solid #ebeef5; }
+.preview-media { max-width: 600px; }
+</style>
+
+<script setup>
+import { ref, reactive, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { useUserStore } from '@/store/user'
+import { assignDetail } from '@/api/assignment'
+import { submissionLatest, submissionSaveDraft, submissionSubmit, submissionRemove } from '@/api/assignment'
+import { uploadFile } from '@/api/resource'
+
+const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
+
+// 路由参数可能是 ":id" 这种字面值（侧边栏菜单没传 id 直接点进来），
+// 也要防御 null / undefined / 非数字。校验不过直接跳回我的作业列表。
+const assignmentId = computed(() => {
+  const raw = route.params.id
+  if (raw === undefined || raw === null || raw === '') return NaN
+  const n = Number(raw)
+  return Number.isFinite(n) ? n : NaN
+})
+const assignment = ref(null)
+const latest = ref(null)
+const formRef = ref()
+const submitting = ref(false)
+
+const form = reactive({
+  id: null, assignmentId: null, submitText: '',
+  fileUrl: '', originalName: '', fileSuffix: '', fileSize: null
+})
+const rules = {
+  submitText: [{ required: false }]   // 允许仅文件提交；如要必填在这里调
+}
+
+const isPastDeadline = computed(() => {
+  if (!assignment.value?.deadline) return false
+  return new Date(assignment.value.deadline.replace(/-/g, '/')).getTime() < Date.now()
+})
+
+const canEdit = computed(() => {
+  if (!assignment.value) return false
+  // 已截止且不允许迟交 → 不能改
+  if (assignment.value.status === 2) return false
+  // 已批改 → 默认不能再改
+  if (latest.value && latest.value.status === 2) return false
+  return true
+})
+const canDeleteDraft = computed(() => userStore.hasAuthority('assignment:my:remove') && latest.value && latest.value.status === 0)
+
+const previewType = computed(() => {
+  const name = (form.originalName || '').toLowerCase()
+  const ext = name.includes('.') ? name.split('.').pop() : ''
+  if (ext === 'pdf') return 'pdf'
+  if (['png','jpg','jpeg','gif','bmp','webp','svg'].includes(ext)) return 'image'
+  if (['mp4','webm','ogg','mov','avi','mkv'].includes(ext)) return 'video'
+  if (['mp3','wav','ogg','flac','aac','m4a'].includes(ext)) return 'audio'
+  return 'other'
+})
+
+const load = async () => {
+  if (!Number.isFinite(assignmentId.value)) {
+    ElMessage.warning('作业 id 不合法')
+    router.replace('/student/assignment/list')
+    return
+  }
+  // 作业可能已经被老师删了 / 改路径了，加 try/catch 防止整个页面挂掉
+  let a = null
+  let sub = null
+  try {
+    const detail = await assignDetail(assignmentId.value)
+    a = detail
+  } catch (e) {
+    ElMessage.warning('作业已被删除或不可访问，返回列表')
+    router.replace('/student/assignment/list')
+    return
+  }
+  try {
+    sub = await submissionLatest(assignmentId.value)
+  } catch (_) {
+    sub = null
+  }
+  assignment.value = a
+  latest.value = sub
+  if (sub) {
+    form.id = sub.id
+    form.assignmentId = sub.assignmentId
+    form.submitText = sub.submitText || ''
+    form.fileUrl = sub.fileUrl || ''
+    form.originalName = sub.originalName || ''
+    form.fileSuffix = sub.fileSuffix || ''
+    form.fileSize = sub.fileSize
+  } else {
+    form.id = null
+    form.assignmentId = assignmentId.value
+    form.submitText = ''
+    form.fileUrl = ''
+    form.originalName = ''
+    form.fileSuffix = ''
+    form.fileSize = null
+  }
+}
+
+const buildDto = () => ({
+  id: form.id,
+  assignmentId: assignmentId.value,
+  submitText: form.submitText,
+  fileUrl: form.fileUrl || null,
+  originalName: form.originalName || null,
+  fileSuffix: form.fileSuffix || null,
+  fileSize: form.fileSize
+})
+
+const beforeUpload = (file) => {
+  if (file.size > 50 * 1024 * 1024) {
+    ElMessage.error('文件大小不能超过50MB')
+    return false
+  }
+}
+
+const upload = async (option) => {
+  try {
+    const res = await uploadFile(option.file)
+    form.fileUrl = res.fileUrl
+    form.originalName = res.originalName
+    form.fileSuffix = res.fileSuffix
+    form.fileSize = res.fileSize
+    ElMessage.success('上传成功')
+  } catch (e) {
+    ElMessage.error('上传失败：' + (e.message || '请稍后重试'))
+  }
+}
+
+const clearAttachment = () => {
+  form.fileUrl = ''
+  form.originalName = ''
+  form.fileSuffix = ''
+  form.fileSize = null
+}
+
+const saveDraft = async () => {
+  submitting.value = true
+  try {
+    form.id = await submissionSaveDraft(buildDto())
+    ElMessage.success('草稿已保存')
+    await load()
+  } finally { submitting.value = false }
+}
+
+const onSubmit = async () => {
+  await ElMessageBox.confirm('确认提交本次作业吗？提交后无法再修改，但可以重新提交一个新版本。', '提示', { type: 'warning' })
+  submitting.value = true
+  try {
+    await submissionSubmit(buildDto())
+    ElMessage.success('提交成功')
+    // 提交成功后 load() 可能会因为作业已被删除而抛错，这里吞掉避免提示干扰
+    try { await load() } catch (_) { /* 静默：提交本身已成功 */ }
+  } finally { submitting.value = false }
+}
+
+const removeDraft = async () => {
+  await ElMessageBox.confirm('确定删除草稿？', '提示', { type: 'warning' })
+  await submissionRemove([latest.value.id])
+  ElMessage.success('草稿已删除')
+  await load()
+}
+
+onMounted(load)
+</script>

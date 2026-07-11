@@ -21,4 +21,6 @@ public class UserVO {
     private LocalDateTime createTime;
     private List<Long> roleIds;
     private List<String> roleNames;
+    /** 用户拥有的权限标识（菜单/按钮 permission 字段），用于前端 hasAuthority() */
+    private List<String> permissions;
 }
