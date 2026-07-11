@@ -232,7 +232,7 @@ CREATE TABLE `course_content` (
     `course_id`     BIGINT       NOT NULL,
     `chapter_id`    BIGINT       NOT NULL,
     `content_title` VARCHAR(200) NOT NULL,
-    `content_type`  TINYINT      NOT NULL COMMENT '1PPT 2视频 3文档 4链接 5富文本',
+    `content_type`  TINYINT      NOT NULL COMMENT '1PPT 2视频 3文档 4富文本',
     `resource_id`   BIGINT                DEFAULT NULL,
     `resource_url`  VARCHAR(500)         DEFAULT NULL,
     `rich_text`     MEDIUMTEXT,
@@ -761,8 +761,7 @@ INSERT INTO `sys_dict_data`(`id`, `dict_type`, `dict_label`, `dict_value`, `list
 (30, 'content_type', '课件PPT', '1', 'primary', 1, 1, 0),
 (31, 'content_type', '视频',   '2', 'danger',  2, 1, 0),
 (32, 'content_type', '文档',   '3', 'info',    3, 1, 0),
-(33, 'content_type', '链接',   '4', 'success', 4, 1, 0),
-(34, 'content_type', '富文本', '5', 'warning', 5, 1, 0),
+(34, 'content_type', '富文本', '5', 'warning', 4, 1, 0),
 -- 门户内容类型
 (40, 'portal_type', '轮播图',   '1', 'primary', 1, 1, 0),
 (41, 'portal_type', '通知公告', '2', 'warning', 2, 1, 0),
