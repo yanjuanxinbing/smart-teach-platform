@@ -3,7 +3,7 @@
     <el-card>
       <div class="toolbar">
         <div class="toolbar-left">
-          <el-input v-model="query.keyword" placeholder="资源名称" clearable style="width: 220px" @keyup.enter="load" />
+          <el-input v-model="query.resourceName" placeholder="资源名称" clearable style="width: 220px" @keyup.enter="load" />
           <!-- 筛选区：把普通 el-select 换成 el-tree-select，才能展示子分类 -->
           <el-tree-select
             v-model="query.categoryId"
@@ -130,7 +130,6 @@ import { Plus, Document, Download } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
 import { useDict } from '@/hooks/useDict'
 import { useUserStore } from '@/store/user'
-import router from '@/router'
 import { resPage, resAdd, resRemove, resChangeStatus, resCategoryTree, uploadFile } from '@/api/resource'
 import { listAllCourses } from '@/api/course'
 import * as mammoth from 'mammoth'
@@ -139,7 +138,7 @@ const dict = useDict('resource_type')
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
-const query = reactive({ pageNum: 1, pageSize: 10, keyword: '', categoryId: null, resourceType: null })
+const query = reactive({ pageNum: 1, pageSize: 10, resourceName: '', categoryId: null, resourceType: null })
 const categoryOptions = ref([])
 const courseOptions = ref([])
 
@@ -259,20 +258,6 @@ const download = async (row) => {
     })
   } catch (e) {
     ElMessage.error('网络异常：' + (e.message || '请稍后重试'))
-    return
-  }
-
-  // Step 1: 401 友好提示，绝不让后端 JSON 响应被浏览器当成文件下载
-  if (response.status === 401) {
-    try {
-      await ElMessageBox.confirm('登录状态已过期，请重新登录', '提示', {
-        confirmButtonText: '重新登录',
-        cancelButtonText: '取消',
-        type: 'warning'
-      })
-      userStore.logout()
-      router.push('/login')
-    } catch (_) { /* 用户点取消，啥也不做 */ }
     return
   }
 

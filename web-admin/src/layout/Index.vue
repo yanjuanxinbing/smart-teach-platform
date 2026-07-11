@@ -76,9 +76,9 @@ const menuList = ref([])
 const activeMenu = computed(() => route.path)
 
 onMounted(async () => {
-  if (!userStore.userInfo) {
-    try { await userStore.fetchUserInfo() } catch (e) {}
-  }
+  // 总是先拉一次 /auth/me，把 permissions / roles 灌回 store；
+  // 不然页面刷新后 hasAuthority() 永远返回 false，依赖权限显隐的按钮会消失
+  try { await userStore.fetchUserInfo() } catch (e) {}
   try {
     menuList.value = await userStore.fetchMyMenu()
   } catch (e) {

@@ -59,6 +59,31 @@ const routes = [
         component: () => import('@/views/training/RegistrationList.vue'),
         meta: { title: '报名管理', icon: 'UserFilled' }
       },
+      // 作业管理（顶级菜单由后端 my-menu 控制；此处按角色筛路由即可）
+      {
+        path: 'assignment/list',
+        name: 'AssignmentList',
+        component: () => import('@/views/course/AssignmentList.vue'),
+        meta: { title: '作业列表', icon: 'Notebook' }
+      },
+      {
+        path: 'assignment/submission-list',
+        name: 'SubmissionList',
+        component: () => import('@/views/course/SubmissionList.vue'),
+        meta: { title: '提交批改', icon: 'EditPen' }
+      },
+      {
+        path: 'student/assignment/list',
+        name: 'StudentAssignmentList',
+        component: () => import('@/views/student/MyAssignmentList.vue'),
+        meta: { title: '我的作业', icon: 'Reading' }
+      },
+      {
+        path: 'student/assignment/submit/:id',
+        name: 'StudentAssignmentSubmit',
+        component: () => import('@/views/student/AssignmentSubmit.vue'),
+        meta: { title: '提交作业', icon: 'EditPen' }
+      },
       // 资源管理
       {
         path: 'resource/category',

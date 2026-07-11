@@ -17,7 +17,6 @@ public enum ResultCode {
     USER_PASSWORD_ERROR(1002, "用户名或密码错误"),
     USER_DISABLED(1003, "账号已被禁用"),
     USER_EXIST(1004, "用户已存在"),
-    TOKEN_INVALID(1005, "登录状态无效，请重新登录"),
     OLD_PASSWORD_ERROR(1006, "原密码不正确"),
 
     // 业务模块相关 2000+

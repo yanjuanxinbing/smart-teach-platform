@@ -20,6 +20,10 @@ export const useUserStore = defineStore('user', {
     async fetchUserInfo() {
       const data = await getUserInfo()
       this.userInfo = data
+      // 刷新页面后 Pinia 状态被重置，但 /auth/me 会同时返回 roleNames + permissions，
+      // 这里把它们灌回 store，hasAuthority() 才能正常工作
+      if (data && data.roleNames) this.roles = data.roleNames
+      if (data && data.permissions) this.permissions = data.permissions
       return data
     },
     async fetchMyMenu() {

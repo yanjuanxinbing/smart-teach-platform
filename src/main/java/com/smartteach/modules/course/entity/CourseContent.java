@@ -22,7 +22,7 @@ public class CourseContent extends BaseEntity {
     /** 内容标题 */
     private String contentTitle;
 
-    /** 类型 1课件PPT 2视频 3文档 4链接 5富文本 */
+    /** 类型 1课件PPT 2视频 3文档 4富文本 */
     private Integer contentType;
 
     /** 资源ID（关联 sys_resource） */

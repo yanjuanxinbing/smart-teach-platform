@@ -56,8 +56,11 @@ public class AuthController {
     @ApiOperation("获取当前登录用户信息")
     @GetMapping("/me")
     public Result<UserVO> me() {
-        UserVO vo = userService.getDetail(UserContext.getUserId());
-        vo.setRoleNames(userMapper.selectRoleCodesByUserId(UserContext.getUserId()));
+        Long userId = UserContext.getUserId();
+        UserVO vo = userService.getDetail(userId);
+        vo.setRoleNames(userMapper.selectRoleCodesByUserId(userId));
+        // 同时返回权限标识，让前端在页面刷新后能恢复 hasAuthority() 的判断依据
+        vo.setPermissions(userMapper.selectPermissionsByUserId(userId));
         return Result.success(vo);
     }
 
