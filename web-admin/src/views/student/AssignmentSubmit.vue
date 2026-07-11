@@ -117,14 +117,13 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
-// 路由参数可能是 ":id" 这种字面值（侧边栏菜单没传 id 直接点进来），
-// 也要防御 null / undefined / 非数字。校验不过直接跳回我的作业列表。
 const assignmentId = computed(() => {
-  const raw = route.params.id
-  if (raw === undefined || raw === null || raw === '') return NaN
-  const n = Number(raw)
-  return Number.isFinite(n) ? n : NaN
-})
+  const raw = route.params.id;
+  if (raw === undefined || raw === null || raw === '') return null
+  const str = String(raw);
+  return /^\d+$/.test(str) ? str : null
+});
+
 const assignment = ref(null)
 const latest = ref(null)
 const formRef = ref()
@@ -164,7 +163,7 @@ const previewType = computed(() => {
 })
 
 const load = async () => {
-  if (!Number.isFinite(assignmentId.value)) {
+  if (!assignmentId.value) {
     ElMessage.warning('作业 id 不合法')
     router.replace('/student/assignment/list')
     return

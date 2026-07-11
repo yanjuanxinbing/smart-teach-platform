@@ -211,7 +211,7 @@ const downloadAttachment = () => {
 onMounted(async () => {
   // 支持从"作业列表"页传 assignmentId 过来
   if (route.query.assignmentId) {
-    query.assignmentId = Number(route.query.assignmentId)
+    query.assignmentId = String(route.query.assignmentId);
   }
   // 顶部作业下拉一次性拉完（数据规模小）
   const res = await assignPage({ pageNum: 1, pageSize: 1000, status: null })
