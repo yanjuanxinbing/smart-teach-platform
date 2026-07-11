@@ -3,7 +3,7 @@
     <el-card>
       <div class="toolbar">
         <div class="toolbar-left">
-          <el-input v-model="query.keyword" placeholder="项目/计划标题" clearable style="width: 220px" @keyup.enter="search" />
+          <el-input v-model="query.keyword" placeholder="项目名称" clearable style="width: 220px" @keyup.enter="search" />
           <el-select v-model="query.semester" placeholder="学期" clearable style="width: 160px" @change="search">
             <el-option v-for="s in semesterOptions" :key="s" :label="s" :value="s" />
           </el-select>
@@ -52,8 +52,7 @@
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑实训计划' : '新增实训计划'" width="800px" top="5vh">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-row :gutter="16">
-          <el-col :span="12"><el-form-item label="计划标题" prop="planTitle"><el-input v-model="form.planTitle" /></el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="项目名称" prop="projectName"><el-input v-model="form.projectName" /></el-form-item></el-col>
+          <el-col :span="24"><el-form-item label="项目名称" prop="projectName"><el-input v-model="form.projectName" /></el-form-item></el-col>
         </el-row>
         <el-row :gutter="16">
           <el-col :span="8"><el-form-item label="学期" prop="semester">
@@ -135,7 +134,6 @@ const submitting = ref(false)
 const formRef = ref()
 const form = reactive({ id: null, planTitle: '', projectName: '', semester: '', className: '', teacherName: '', location: '', startDate: '', endDate: '', durationDays: 0, totalHours: 0, capacity: 30, objective: '', content: '', assessment: '', status: 0 })
 const rules = {
-  planTitle: [{ required: true, message: '请输入计划标题' }],
   projectName: [{ required: true, message: '请输入项目名称' }],
   semester: [{ required: true, message: '请选择学期', trigger: 'change' }],
   className: [{ required: true, message: '请输入班级', trigger: 'blur' }],
@@ -203,6 +201,7 @@ const openForm = async (row) => {
 
 const submit = async () => {
   await formRef.value.validate()
+  form.planTitle = form.projectName
   submitting.value = true
   try { if (form.id) await trainingEdit(form); else await trainingAdd(form); ElMessage.success('保存成功'); dialogVisible.value = false; load() }
   finally { submitting.value = false }
