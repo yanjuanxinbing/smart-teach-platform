@@ -78,12 +78,6 @@ const routes = [
         component: () => import('@/views/student/MyAssignmentList.vue'),
         meta: { title: '我的作业', icon: 'Reading' }
       },
-      {
-        path: 'student/assignment/submit/:id',
-        name: 'StudentAssignmentSubmit',
-        component: () => import('@/views/student/AssignmentSubmit.vue'),
-        meta: { title: '提交作业', icon: 'EditPen' }
-      },
       // 资源管理
       {
         path: 'resource/category',
