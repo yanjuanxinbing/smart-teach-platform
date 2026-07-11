@@ -728,11 +728,10 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (770, 752, '批改评分',     3, NULL, NULL, NULL, 'assignment:grade',    1, 1, 1),
 -- 学生侧
 (753, 750, '我的作业',     2, '/student/assignment/list',        'student/MyAssignmentList',  NULL, 'assignment:my:list',   3, 1, 1),
-(754, 750, '提交作业',     2, '/student/assignment/list',       'student/AssignmentSubmit',  NULL, 'assignment:submit',    4, 1, 1),
 (780, 753, '查看',         3, NULL, NULL, NULL, 'assignment:my:query', 1, 1, 1),
-(781, 754, '保存草稿',     3, NULL, NULL, NULL, 'assignment:save',     1, 1, 1),
-(782, 754, '提交作业',     3, NULL, NULL, NULL, 'assignment:submit',   2, 1, 1),
-(783, 754, '删除草稿',     3, NULL, NULL, NULL, 'assignment:my:remove', 3, 1, 1);
+(781, 753, '保存草稿',     3, NULL, NULL, NULL, 'assignment:save',     2, 1, 1),
+(782, 753, '提交作业',     3, NULL, NULL, NULL, 'assignment:submit',   3, 1, 1),
+(783, 753, '删除草稿',     3, NULL, NULL, NULL, 'assignment:my:remove', 4, 1, 1);
 
 -- 超级管理员分配所有菜单
 INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)

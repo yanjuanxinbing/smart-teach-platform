@@ -19,4 +19,7 @@ public class AssignmentQueryDTO extends PageQuery {
     private String keyword;
 
     private Integer status;
+
+    /** 学生端我的作业：排除草稿（status=0）作业 */
+    private Boolean excludeDraft;
 }

@@ -25,6 +25,10 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -53,6 +57,7 @@ public class AssignmentSubmissionServiceImpl extends ServiceImpl<AssignmentSubmi
                 .orderByDesc(AssignmentSubmission::getSubmitTime)
                 .orderByDesc(AssignmentSubmission::getCreateTime);
         IPage<AssignmentSubmission> page = this.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
+        fillAssignmentTitle(page.getRecords());
         return PageResult.of(page);
     }
 
@@ -224,5 +229,24 @@ public class AssignmentSubmissionServiceImpl extends ServiceImpl<AssignmentSubmi
     private String lookupRealName(Long userId) {
         SysUser user = userService.getById(userId);
         return user == null ? null : user.getRealName();
+    }
+
+    /**
+     * 按 assignment_id 批量补充作业标题（列表展示用），作业已删除则留空。
+     */
+    private void fillAssignmentTitle(List<AssignmentSubmission> records) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+        Set<Long> ids = records.stream()
+                .map(AssignmentSubmission::getAssignmentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        if (ids.isEmpty()) {
+            return;
+        }
+        Map<Long, String> titleMap = assignmentService.listByIds(ids).stream()
+                .collect(Collectors.toMap(Assignment::getId, Assignment::getTitle, (a, b) -> a));
+        records.forEach(r -> r.setAssignmentTitle(titleMap.get(r.getAssignmentId())));
     }
 }

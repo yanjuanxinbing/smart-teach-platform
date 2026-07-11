@@ -39,6 +39,7 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
                 .eq(query.getContentId() != null, Assignment::getContentId, query.getContentId())
                 .like(StringUtils.hasText(query.getKeyword()), Assignment::getTitle, query.getKeyword())
                 .eq(query.getStatus() != null, Assignment::getStatus, query.getStatus())
+                .ne(Boolean.TRUE.equals(query.getExcludeDraft()), Assignment::getStatus, 0)
                 .orderByDesc(Assignment::getCreateTime);
         IPage<Assignment> page = this.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
         return PageResult.of(page);

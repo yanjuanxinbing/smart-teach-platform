@@ -1,5 +1,6 @@
 package com.smartteach.modules.course.assignment.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.smartteach.common.base.BaseEntity;
 import lombok.Data;
@@ -22,6 +23,10 @@ public class AssignmentSubmission extends BaseEntity {
     private Long studentId;
     private String studentName;
     private String className;
+
+    /** 所属作业标题（非持久化，列表展示用） */
+    @TableField(exist = false)
+    private String assignmentTitle;
 
     /** 提交正文 */
     private String submitText;

@@ -45,7 +45,7 @@
           <template #default="{ row }">
             <el-button size="small" link v-if="userStore.hasAuthority('assignment:edit') && row.status !== 2" @click="openForm(row)">编辑</el-button>
             <el-button size="small" link v-if="userStore.hasAuthority('assignment:publish') && row.status === 0" @click="changeStatus(row, 'publish')">发布</el-button>
-            <el-button size="small" link v-if="userStore.hasAuthority('assignment:close') && row.status === 1" @click="changeStatus(row, 'close')">关闭</el-button>
+            <el-button size="small" link v-if="userStore.hasAuthority('assignment:close') && row.status === 1" @click="changeStatus(row, 'close')">截止</el-button>
             <el-button size="small" link type="danger" v-if="userStore.hasAuthority('assignment:remove')" @click="remove(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -213,7 +213,7 @@ const remove = async (row) => {
 }
 
 const changeStatus = async (row, action) => {
-  const verb = action === 'publish' ? '发布' : '关闭'
+  const verb = action === 'publish' ? '发布' : '截止'
   await ElMessageBox.confirm(`确定${verb}作业"${row.title}"？`, '提示', { type: 'warning' })
   if (action === 'publish') await assignPublish(row.id); else await assignClose(row.id)
   ElMessage.success(`${verb}成功`)
