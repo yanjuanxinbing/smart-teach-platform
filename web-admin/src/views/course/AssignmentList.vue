@@ -28,24 +28,18 @@
         </el-table-column>
         <el-table-column prop="deadline" label="截止时间" width="170" />
         <el-table-column prop="totalScore" label="总分" width="80" />
-        <el-table-column label="允许迟交" width="80">
-          <template #default="{ row }">
-            <el-tag :type="row.allowLate === 0 ? 'danger' : 'success'" size="small">
-              {{ row.allowLate === 0 ? '否' : '是' }}
-            </el-tag>
-          </template>
-        </el-table-column>
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="['info','success','warning'][row.status]">{{ ['草稿','已发布','已截止'][row.status] }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="170" />
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column label="操作" width="320" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" link v-if="userStore.hasAuthority('assignment:edit') && row.status !== 2" @click="openForm(row)">编辑</el-button>
+            <el-button size="small" link v-if="userStore.hasAuthority('assignment:edit')" @click="openForm(row)">编辑</el-button>
             <el-button size="small" link v-if="userStore.hasAuthority('assignment:publish') && row.status === 0" @click="changeStatus(row, 'publish')">发布</el-button>
             <el-button size="small" link v-if="userStore.hasAuthority('assignment:close') && row.status === 1" @click="changeStatus(row, 'close')">截止</el-button>
+            <el-button size="small" link v-if="userStore.hasAuthority('assignment:republish') && row.status === 2" @click="changeStatus(row, 'republish')">重新发布</el-button>
             <el-button size="small" link type="danger" v-if="userStore.hasAuthority('assignment:remove')" @click="remove(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -83,9 +77,6 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="允许迟交">
-          <el-switch v-model="form.allowLate" :active-value="1" :inactive-value="0" active-text="是" inactive-text="否" />
-        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="dialogVisible = false">取消</el-button>
@@ -103,7 +94,7 @@ import Pagination from '@/components/Pagination.vue'
 import { useUserStore } from '@/store/user'
 import { myCourses, chapterList } from '@/api/course'
 import {
-  assignPage, assignAdd, assignEdit, assignRemove, assignPublish, assignClose
+  assignPage, assignAdd, assignEdit, assignRemove, assignPublish, assignClose, assignRepublish
 } from '@/api/assignment'
 
 const userStore = useUserStore()
@@ -126,7 +117,7 @@ const submitting = ref(false)
 const formRef = ref()
 const form = reactive({
   id: null, courseId: null, chapterId: null,
-  title: '', description: '', deadline: null, totalScore: 100, allowLate: 1, status: 0
+  title: '', description: '', deadline: null, totalScore: 100, status: 0
 })
 const rules = {
   courseId: [{ required: true, message: '请选择课程' }],
@@ -179,7 +170,7 @@ const openForm = (row) => {
     Object.assign(form, {
       id: row.id, courseId: row.courseId, chapterId: row.chapterId,
       title: row.title, description: row.description, deadline: row.deadline,
-      totalScore: row.totalScore, allowLate: row.allowLate, status: row.status
+      totalScore: row.totalScore, status: row.status
     })
     // 回填联动：先加载该课程的章节，再把 form.chapterId 设回去
     onFormCourseChange(row.courseId).then(() => {
@@ -188,7 +179,7 @@ const openForm = (row) => {
   } else {
     Object.assign(form, {
       id: null, courseId: null, chapterId: null,
-      title: '', description: '', deadline: null, totalScore: 100, allowLate: 1, status: 0
+      title: '', description: '', deadline: null, totalScore: 100, status: 0
     })
     formChapterOptions.value = []
   }
@@ -213,9 +204,12 @@ const remove = async (row) => {
 }
 
 const changeStatus = async (row, action) => {
-  const verb = action === 'publish' ? '发布' : '截止'
+  const verbMap = { publish: '发布', close: '截止', republish: '重新发布' }
+  const verb = verbMap[action] || '操作'
   await ElMessageBox.confirm(`确定${verb}作业"${row.title}"？`, '提示', { type: 'warning' })
-  if (action === 'publish') await assignPublish(row.id); else await assignClose(row.id)
+  if (action === 'publish') await assignPublish(row.id)
+  else if (action === 'close') await assignClose(row.id)
+  else if (action === 'republish') await assignRepublish(row.id)
   ElMessage.success(`${verb}成功`)
   load()
 }

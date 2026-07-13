@@ -63,8 +63,6 @@
           <el-descriptions-item label="截止时间">
             <span :style="{ color: dialogPastDeadline ? '#f56c6c' : '' }">{{ assignment.deadline }}</span>
             <el-tag v-if="dialogPastDeadline" type="warning" size="small" style="margin-left:8px">已过截止</el-tag>
-            <el-tag v-if="assignment.allowLate === 1" type="success" size="small" style="margin-left:8px">允许迟交</el-tag>
-            <el-tag v-else type="danger" size="small" style="margin-left:8px">不允许迟交</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="关联章节内容">#{{ assignment.contentId }}</el-descriptions-item>
           <el-descriptions-item label="作业说明" :span="2">

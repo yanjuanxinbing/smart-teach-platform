@@ -24,5 +24,8 @@ public interface AssignmentService extends IService<Assignment> {
     /** 已发布→已截止 */
     void close(Long id);
 
+    /** 已截止→已发布 */
+    void republish(Long id);
+
     void remove(List<Long> ids);
 }
