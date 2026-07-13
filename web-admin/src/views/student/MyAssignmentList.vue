@@ -14,8 +14,11 @@
       </div>
 
       <el-table :data="list" v-loading="loading" border>
-        <el-table-column prop="title" label="作业标题" min-width="220" show-overflow-tooltip />
-        <el-table-column prop="description" label="作业说明" min-width="220" show-overflow-tooltip />
+        <el-table-column prop="title" label="作业标题" min-width="200" show-overflow-tooltip />
+        <el-table-column label="科目" width="160" show-overflow-tooltip>
+          <template #default="{ row }">{{ courseMap[row.courseId] || ('#' + row.courseId) }}</template>
+        </el-table-column>
+        <el-table-column prop="description" label="作业说明" min-width="200" show-overflow-tooltip />
         <el-table-column prop="deadline" label="截止时间" width="170">
           <template #default="{ row }">
             <span :style="{ color: isPastDeadline(row.deadline) && row.status === 1 ? '#f56c6c' : '' }">{{ row.deadline }}</span>
@@ -154,17 +157,19 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import Pagination from '@/components/Pagination.vue'
 import { useUserStore } from '@/store/user'
-import { assignPage, assignDetail, submissionLatest, submissionSaveDraft, submissionSubmit, submissionRemove } from '@/api/assignment'
+import { assignMyPage, assignDetail, submissionLatest, submissionSaveDraft, submissionSubmit, submissionRemove } from '@/api/assignment'
 import { uploadFile } from '@/api/resource'
+import { listAllCourses } from '@/api/course'
 
 const userStore = useUserStore()
 
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
-const query = reactive({ pageNum: 1, pageSize: 10, keyword: '', status: null, excludeDraft: true })
+const query = reactive({ pageNum: 1, pageSize: 10, keyword: '', status: null })
 const myStatusMap = reactive({})
 const myScoreMap = reactive({})
+const courseMap = reactive({})
 
 const isPastDeadline = (deadline) => {
   if (!deadline) return false
@@ -174,7 +179,8 @@ const isPastDeadline = (deadline) => {
 const load = async () => {
   loading.value = true
   try {
-    const res = await assignPage(query)
+    // 学生端：使用专用的 /assignment/my-page，服务端按所在班级自动过滤
+    const res = await assignMyPage(query)
     list.value = res.list
     total.value = res.total
     // 后台并发拉每个作业的 latest 提交，把我的状态/分数缓存
@@ -356,5 +362,12 @@ const removeDraft = async () => {
   await loadSubmit()
 }
 
-onMounted(load)
+onMounted(async () => {
+  // 一次性拉全部课程，构建 courseId → "课程编号 课程名" 映射，给"科目"列展示
+  try {
+    const all = await listAllCourses()
+    all.forEach(c => { courseMap[c.id] = `${c.courseCode} ${c.courseName}` })
+  } catch (_) { /* 静默，不阻塞列表渲染 */ }
+  load()
+})
 </script>

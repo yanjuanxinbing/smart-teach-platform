@@ -14,4 +14,7 @@ public interface SysLoginLogService extends IService<SysLoginLog> {
     PageResult<SysLoginLog> page(PageQuery query);
 
     void remove(List<Long> ids);
+
+    /** 统计今日成功登录次数（按 loginTime >= 今日零点） */
+    long countTodaySuccess();
 }

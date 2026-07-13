@@ -40,7 +40,7 @@ import { LineChart } from 'echarts/charts'
 import { GridComponent, TooltipComponent, TitleComponent } from 'echarts/components'
 import VChart from 'vue-echarts'
 import { useUserStore } from '@/store/user'
-import { serverInfo } from '@/api/monitor'
+import { serverInfo, dashboardStats } from '@/api/monitor'
 
 use([CanvasRenderer, LineChart, GridComponent, TooltipComponent, TitleComponent])
 
@@ -49,15 +49,31 @@ const cards = ref([
   { title: '今日登录', value: 0, icon: 'User', color: '#409EFF' },
   { title: '课程总数', value: 0, icon: 'Notebook', color: '#67C23A' },
   { title: '资源数',   value: 0, icon: 'Files',    color: '#E6A23C' },
-  { title: '服务器',   value: '正常', icon: 'Monitor', color: '#F56C6C' }
+  { title: '服务器',   value: 'CPU 0%', icon: 'Monitor', color: '#F56C6C' }
 ])
 const cpuOption = ref({})
 
 onMounted(async () => {
+  // 首页统计：今日登录 / 课程总数 / 资源数
+  try {
+    const stats = await dashboardStats()
+    if (stats) {
+      cards.value[0].value = stats.todayLoginCount ?? 0
+      cards.value[1].value = stats.courseCount ?? 0
+      cards.value[2].value = stats.resourceCount ?? 0
+    }
+  } catch (e) {
+    console.error('获取首页统计失败', e)
+  }
+
+  // 服务器 CPU
   try {
     const data = await serverInfo()
-    cards.value[3].value = 'CPU ' + data.cpu.userUsage.toFixed(0) + '%'
-  } catch (e) {}
+    cards.value[3].value = 'CPU ' + (data.cpu?.userUsage ?? 0).toFixed(0) + '%'
+  } catch (e) {
+    console.error('获取服务器信息失败', e)
+  }
+
   cpuOption.value = {
     tooltip: { trigger: 'axis' },
     xAxis: { type: 'category', data: Array.from({ length: 10 }, (_, i) => i + 1 + '分钟前').reverse() },

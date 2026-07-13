@@ -588,6 +588,57 @@ CREATE TABLE `assignment_submission` (
 ) ENGINE = InnoDB COMMENT ='作业提交';
 
 -- =====================================================================
+-- 9. 班级管理 3 张表
+-- =====================================================================
+DROP TABLE IF EXISTS `sys_class`;
+CREATE TABLE `sys_class` (
+    `id`          BIGINT       NOT NULL COMMENT '主键，雪花ID',
+    `class_name`  VARCHAR(50)  NOT NULL                COMMENT '班级名称（如 计科2201班）',
+    `grade`       VARCHAR(20)           DEFAULT NULL   COMMENT '年级（如 2022级）',
+    `dept_id`     BIGINT       NOT NULL                COMMENT '所属部门ID',
+    `sort`        INT                   DEFAULT 0,
+    `status`      TINYINT      NOT NULL DEFAULT 1       COMMENT '0禁用 1启用',
+    `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_by`   BIGINT                DEFAULT NULL,
+    `update_by`   BIGINT                DEFAULT NULL,
+    `deleted`     TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_dept` (`dept_id`),
+    KEY `idx_name` (`class_name`)
+) ENGINE = InnoDB COMMENT ='班级';
+
+DROP TABLE IF EXISTS `sys_user_class`;
+CREATE TABLE `sys_user_class` (
+    `id`          BIGINT   NOT NULL,
+    `user_id`     BIGINT   NOT NULL                COMMENT '用户ID',
+    `class_id`    BIGINT   NOT NULL                COMMENT '班级ID',
+    `create_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_by`   BIGINT            DEFAULT NULL,
+    `update_by`   BIGINT            DEFAULT NULL,
+    `deleted`     TINYINT  NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_class_user` (`class_id`, `user_id`),
+    KEY `idx_user_class` (`user_id`, `class_id`)
+) ENGINE = InnoDB COMMENT ='用户-班级关系';
+
+DROP TABLE IF EXISTS `assignment_target_class`;
+CREATE TABLE `assignment_target_class` (
+    `id`            BIGINT   NOT NULL,
+    `assignment_id` BIGINT   NOT NULL                COMMENT '作业ID',
+    `class_id`      BIGINT   NOT NULL                COMMENT '班级ID',
+    `create_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time`   DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_by`     BIGINT            DEFAULT NULL,
+    `update_by`     BIGINT            DEFAULT NULL,
+    `deleted`       TINYINT  NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_class_assignment` (`class_id`, `assignment_id`),
+    KEY `idx_assignment_class` (`assignment_id`, `class_id`)
+) ENGINE = InnoDB COMMENT ='作业-班级关系';
+
+-- =====================================================================
 -- 初始化数据
 -- =====================================================================
 
@@ -731,11 +782,24 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (780, 753, '查看',         3, NULL, NULL, NULL, 'assignment:my:query', 1, 1, 1),
 (781, 753, '保存草稿',     3, NULL, NULL, NULL, 'assignment:save',     2, 1, 1),
 (782, 753, '提交作业',     3, NULL, NULL, NULL, 'assignment:submit',   3, 1, 1),
-(783, 753, '删除草稿',     3, NULL, NULL, NULL, 'assignment:my:remove', 4, 1, 1);
+(783, 753, '删除草稿',     3, NULL, NULL, NULL, 'assignment:my:remove', 4, 1, 1),
+-- 9. 班级管理（系统管理下的子菜单 507；按钮 540-544）
+(507, 500, '班级管理',  2, '/system/class', 'system/ClassList', 'User', 'class:list',          7, 1, 1),
+(540, 507, '新增',      3, NULL, NULL, NULL, 'class:add',             1, 1, 1),
+(541, 507, '编辑',      3, NULL, NULL, NULL, 'class:edit',            2, 1, 1),
+(542, 507, '删除',      3, NULL, NULL, NULL, 'class:remove',          3, 1, 1),
+(543, 507, '查询',      3, NULL, NULL, NULL, 'class:query',           4, 1, 1),
+(544, 507, '分配成员',  3, NULL, NULL, NULL, 'class:member:assign',   5, 1, 1);
 
 -- 超级管理员分配所有菜单
 INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY id) + 1000, 1, id FROM sys_menu;
+
+-- 系统管理员(role=2)额外获得班级管理菜单（其他菜单走 ROLE_ADMIN 已自动获得，role=2 没有自动授权）
+INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
+SELECT ROW_NUMBER() OVER (ORDER BY id) + 5000, 2, id FROM sys_menu
+WHERE id IN (507, 540, 541, 542, 543, 544)
+  AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 2);
 
 -- 字典类型
 INSERT INTO `sys_dict_type`(`id`, `dict_name`, `dict_type`, `description`, `status`) VALUES
@@ -841,11 +905,23 @@ INSERT INTO `sys_user`(`id`, `username`, `password`, `real_name`, `phone`, `emai
 (2002, 'student2', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '赵美美', '18611113333', 'zhaomm@std.edu.cn', 2, 3, 1, '软工2202班学生');
 
 -- 分配角色
-INSERT INTO `sys_user_role`(`id`, `user_id`, `role_id`) VALUES 
+INSERT INTO `sys_user_role`(`id`, `user_id`, `role_id`) VALUES
 (101, 1001, 3), -- 张教授 -> 教师
 (102, 1002, 3), -- 李副教授 -> 教师
 (201, 2001, 4), -- 王小明 -> 学生
 (202, 2002, 4); -- 赵美美 -> 学生
+
+-- 班级（隶属现有部门：计算机科学系 id=2、软件工程系 id=3）
+INSERT INTO `sys_class`(`id`, `class_name`, `grade`, `dept_id`, `sort`, `status`) VALUES
+(1, '计科2201班', '2022级', 2, 1, 1),
+(2, '软工2202班', '2022级', 3, 2, 1);
+
+-- 用户-班级关系（学生归属本班；教师按"任课"维度挂到对应班）
+INSERT INTO `sys_user_class`(`id`, `user_id`, `class_id`) VALUES
+(1, 2001, 1), -- 王小明 -> 计科2201班
+(2, 2002, 2), -- 赵美美 -> 软工2202班
+(3, 1001, 1), -- 张教授 -> 计科2201班（任课教师）
+(4, 1001, 2); -- 张教授 -> 软工2202班（跨班任课）
 
 
 -- ---------------------------------------------------------------------

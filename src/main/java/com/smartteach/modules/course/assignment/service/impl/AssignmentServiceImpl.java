@@ -7,6 +7,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.smartteach.common.base.PageResult;
 import com.smartteach.common.exception.BusinessException;
 import com.smartteach.common.result.ResultCode;
+import com.smartteach.common.utils.UserContext;
 import com.smartteach.modules.course.assignment.dto.AssignmentQueryDTO;
 import com.smartteach.modules.course.assignment.dto.AssignmentSaveDTO;
 import com.smartteach.modules.course.assignment.entity.Assignment;
@@ -14,6 +15,10 @@ import com.smartteach.modules.course.assignment.entity.AssignmentSubmission;
 import com.smartteach.modules.course.assignment.mapper.AssignmentMapper;
 import com.smartteach.modules.course.assignment.mapper.AssignmentSubmissionMapper;
 import com.smartteach.modules.course.assignment.service.AssignmentService;
+import com.smartteach.modules.system.entity.SysAssignmentClass;
+import com.smartteach.modules.system.entity.SysUserClass;
+import com.smartteach.modules.system.mapper.SysAssignmentClassMapper;
+import com.smartteach.modules.system.mapper.SysUserClassMapper;
 import org.springframework.beans.BeanUtils;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,16 +26,25 @@ import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignment> implements AssignmentService {
 
     private final AssignmentSubmissionMapper submissionMapper;
+    private final SysAssignmentClassMapper assignmentClassMapper;
+    private final SysUserClassMapper userClassMapper;
 
-    public AssignmentServiceImpl(AssignmentSubmissionMapper submissionMapper) {
+    public AssignmentServiceImpl(AssignmentSubmissionMapper submissionMapper,
+                                 SysAssignmentClassMapper assignmentClassMapper,
+                                 SysUserClassMapper userClassMapper) {
         this.submissionMapper = submissionMapper;
+        this.assignmentClassMapper = assignmentClassMapper;
+        this.userClassMapper = userClassMapper;
     }
 
     @Override
@@ -43,6 +57,46 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
                 .eq(query.getStatus() != null, Assignment::getStatus, query.getStatus())
                 .ne(Boolean.TRUE.equals(query.getExcludeDraft()), Assignment::getStatus, 0)
                 .orderByDesc(Assignment::getCreateTime);
+
+        // 教师端按目标班级筛选：用 apply 传参，避免 inSql 拼接 SQL 注入风险
+        if (query.getClassId() != null) {
+            wrapper.apply("id IN (SELECT assignment_id FROM assignment_target_class WHERE class_id = {0} AND deleted = 0)", query.getClassId());
+        }
+
+        IPage<Assignment> page = this.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
+        return PageResult.of(page);
+    }
+
+    @Override
+    public PageResult<Assignment> myPage(AssignmentQueryDTO query) {
+        Long studentId = UserContext.getUserId();
+        if (studentId == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+
+        // 1. 拿到这个学生所在的班级
+        List<Long> myClassIds = userClassMapper.selectList(
+                new LambdaQueryWrapper<SysUserClass>().eq(SysUserClass::getUserId, studentId))
+                .stream().map(SysUserClass::getClassId).collect(Collectors.toList());
+        if (myClassIds.isEmpty()) {
+            return PageResult.of(new Page<>(query.getPageNum(), query.getPageSize()));
+        }
+
+        // 2. 拿到这些班级被哪些作业指向
+        List<Long> myAssignmentIds = assignmentClassMapper.selectList(
+                new LambdaQueryWrapper<SysAssignmentClass>().in(SysAssignmentClass::getClassId, myClassIds))
+                .stream().map(SysAssignmentClass::getAssignmentId).distinct().collect(Collectors.toList());
+        if (myAssignmentIds.isEmpty()) {
+            return PageResult.of(new Page<>(query.getPageNum(), query.getPageSize()));
+        }
+
+        // 3. 组合查询：必须落在我的班级里、不是草稿、按关键字/状态再过滤
+        LambdaQueryWrapper<Assignment> wrapper = new LambdaQueryWrapper<>();
+        wrapper.in(Assignment::getId, myAssignmentIds)
+                .ne(Assignment::getStatus, 0)
+                .like(StringUtils.hasText(query.getKeyword()), Assignment::getTitle, query.getKeyword())
+                .eq(query.getStatus() != null, Assignment::getStatus, query.getStatus())
+                .orderByDesc(Assignment::getCreateTime);
         IPage<Assignment> page = this.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
         return PageResult.of(page);
     }
@@ -53,10 +107,16 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
         if (a == null) {
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
+        // 顺手把 classIds 填上，给前端编辑表单回填
+        List<Long> classIds = assignmentClassMapper.selectList(
+                new LambdaQueryWrapper<SysAssignmentClass>().eq(SysAssignmentClass::getAssignmentId, id))
+                .stream().map(SysAssignmentClass::getClassId).collect(Collectors.toList());
+        a.setClassIds(classIds);
         return a;
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void save(AssignmentSaveDTO dto) {
         Assignment a = new Assignment();
         BeanUtils.copyProperties(dto, a);
@@ -67,9 +127,14 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
             a.setStatus(0);
         }
         this.save(a);
+        // 写目标班级关联
+        if (dto.getClassIds() != null && !dto.getClassIds().isEmpty() && a.getId() != null) {
+            batchInsertAssignmentClass(a.getId(), dto.getClassIds());
+        }
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void update(AssignmentSaveDTO dto) {
         if (dto.getId() == null) {
             throw new BusinessException("id 不能为空");
@@ -78,6 +143,9 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
         if (existing == null) {
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
+        if (existing.getStatus() != null && existing.getStatus() == 2) {
+            throw new BusinessException("已截止的作业不允许编辑");
+        }
         Assignment a = new Assignment();
         BeanUtils.copyProperties(dto, a);
         // 按截止时间和当前时间自动决定状态：
@@ -85,18 +153,13 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
         //   新截止时间 ≤ now  → 已截止（2）
         a.setStatus(deriveStatusByDeadline(a.getDeadline()));
         this.updateById(a);
-    }
 
-    /**
-     * 根据截止时间相对当前时刻推算状态：
-     *   截止时间在未来 → 已发布
-     *   截止时间在过去/等于当前 → 已截止
-     */
-    private Integer deriveStatusByDeadline(LocalDateTime deadline) {
-        if (deadline == null) {
-            return 0;
+        // 目标班级：先软删旧的，再插新的（整批替换）
+        assignmentClassMapper.delete(
+                new LambdaQueryWrapper<SysAssignmentClass>().eq(SysAssignmentClass::getAssignmentId, dto.getId()));
+        if (dto.getClassIds() != null && !dto.getClassIds().isEmpty()) {
+            batchInsertAssignmentClass(dto.getId(), dto.getClassIds());
         }
-        return deadline.isAfter(LocalDateTime.now()) ? 1 : 2;
     }
 
     @Override
@@ -148,13 +211,15 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
             }
         }
         this.removeByIds(ids);
+        // 同步软删目标班级关联
+        for (Long id : ids) {
+            assignmentClassMapper.delete(
+                    new LambdaQueryWrapper<SysAssignmentClass>().eq(SysAssignmentClass::getAssignmentId, id));
+        }
     }
 
     /**
-     * 自动截止：把已发布且截止时间已过的作业批量改为已截止。
-     * 由定时任务每 5 分钟调用一次。
-     *
-     * @return 本轮被关闭的作业数量
+     * 自动关闭已过期作业
      */
     public int autoCloseExpired() {
         LocalDateTime now = LocalDateTime.now();
@@ -171,5 +236,32 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
         update.setStatus(2);
         this.update(update, new LambdaQueryWrapper<Assignment>().in(Assignment::getId, ids));
         return ids.size();
+    }
+
+    // ---- helpers ----
+
+    private Integer deriveStatusByDeadline(LocalDateTime deadline) {
+        if (deadline == null) {
+            return 0;
+        }
+        return deadline.isAfter(LocalDateTime.now()) ? 1 : 2;
+    }
+
+    private void batchInsertAssignmentClass(Long assignmentId, List<Long> classIds) {
+        Set<Long> unique = new HashSet<>();
+        List<SysAssignmentClass> rows = new ArrayList<>();
+        for (Long cid : classIds) {
+            if (cid != null && unique.add(cid)) {
+                SysAssignmentClass ac = new SysAssignmentClass();
+                ac.setAssignmentId(assignmentId);
+                ac.setClassId(cid);
+                rows.add(ac);
+            }
+        }
+        if (!rows.isEmpty()) {
+            for (SysAssignmentClass ac : rows) {
+                assignmentClassMapper.insert(ac);
+            }
+        }
     }
 }

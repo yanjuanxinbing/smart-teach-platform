@@ -12,6 +12,9 @@ public interface AssignmentService extends IService<Assignment> {
 
     PageResult<Assignment> page(AssignmentQueryDTO query);
 
+    /** 学生端：按所在班级过滤的作业列表 */
+    PageResult<Assignment> myPage(AssignmentQueryDTO query);
+
     Assignment detail(Long id);
 
     void save(AssignmentSaveDTO dto);
