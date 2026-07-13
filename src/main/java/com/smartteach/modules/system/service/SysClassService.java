@@ -2,10 +2,12 @@ package com.smartteach.modules.system.service;
 
 import com.baomidou.mybatisplus.extension.service.IService;
 import com.smartteach.common.base.PageResult;
+import com.smartteach.modules.system.dto.SysClassBatchAddDTO;
 import com.smartteach.modules.system.dto.SysClassMemberDTO;
 import com.smartteach.modules.system.dto.SysClassQueryDTO;
 import com.smartteach.modules.system.dto.SysClassSaveDTO;
 import com.smartteach.modules.system.entity.SysClass;
+import com.smartteach.modules.system.vo.SysClassBatchAddResultVO;
 import com.smartteach.modules.system.vo.SysClassVO;
 import com.smartteach.modules.user.vo.UserVO;
 
@@ -37,4 +39,7 @@ public interface SysClassService extends IService<SysClass> {
 
     /** 整批替换班级成员 */
     void assignMembers(SysClassMemberDTO dto);
+
+    /** 批量绑定班级成员（append-only，已存在则跳过），返回逐条结果 */
+    SysClassBatchAddResultVO batchAddMembers(SysClassBatchAddDTO dto);
 }

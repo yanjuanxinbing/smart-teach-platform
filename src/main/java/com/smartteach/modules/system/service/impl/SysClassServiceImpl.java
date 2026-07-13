@@ -9,6 +9,7 @@ import com.smartteach.common.base.PageResult;
 import com.smartteach.common.exception.BusinessException;
 import com.smartteach.common.result.ResultCode;
 import com.smartteach.common.utils.UserContext;
+import com.smartteach.modules.system.dto.SysClassBatchAddDTO;
 import com.smartteach.modules.system.dto.SysClassMemberDTO;
 import com.smartteach.modules.system.dto.SysClassQueryDTO;
 import com.smartteach.modules.system.dto.SysClassSaveDTO;
@@ -21,7 +22,9 @@ import com.smartteach.modules.system.mapper.SysClassMapper;
 import com.smartteach.modules.system.mapper.SysUserClassMapper;
 import com.smartteach.modules.system.service.SysClassService;
 import com.smartteach.modules.system.service.SysDeptService;
+import com.smartteach.modules.system.vo.SysClassBatchAddResultVO;
 import com.smartteach.modules.system.vo.SysClassVO;
+import com.smartteach.modules.user.entity.SysUser;
 import com.smartteach.modules.user.service.SysUserService;
 import com.smartteach.modules.user.vo.UserVO;
 import org.springframework.beans.BeanUtils;
@@ -221,6 +224,97 @@ public class SysClassServiceImpl extends ServiceImpl<SysClassMapper, SysClass> i
             uc.setClassId(dto.getClassId());
             userClassMapper.insert(uc);
         }
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public SysClassBatchAddResultVO batchAddMembers(SysClassBatchAddDTO dto) {
+        SysClassBatchAddResultVO result = new SysClassBatchAddResultVO();
+        int total = 0, ok = 0, skip = 0, fail = 0;
+        List<SysClassBatchAddResultVO.FailItem> errors = new ArrayList<>();
+        if (dto == null || dto.getItems() == null) {
+            result.setTotal(0); result.setSuccess(0); result.setSkipped(0); result.setFailed(0);
+            result.setErrors(errors);
+            return result;
+        }
+
+        // 用 Map 把这一批里出现的班级名 / 用户名批量查一次
+        Set<String> classNames = new HashSet<>();
+        Set<String> usernames = new HashSet<>();
+        for (SysClassBatchAddDTO.Item it : dto.getItems()) {
+            if (it == null) continue;
+            if (StringUtils.hasText(it.getClassName())) classNames.add(it.getClassName().trim());
+            if (StringUtils.hasText(it.getUsername())) usernames.add(it.getUsername().trim());
+        }
+
+        // 班级名 → classId；只查 status=1 已启用的
+        Map<String, Long> classMap = Collections.emptyMap();
+        if (!classNames.isEmpty()) {
+            classMap = this.lambdaQuery()
+                    .in(SysClass::getClassName, classNames)
+                    .eq(SysClass::getStatus, 1)
+                    .list()
+                    .stream()
+                    .collect(Collectors.toMap(SysClass::getClassName, SysClass::getId, (a, b) -> a));
+        }
+
+        // 用户名 → userId（注意：这里复用了 BaseEntity 的 @TableLogic，
+        // 自动加 deleted=0 过滤，软删除过的用户不再被匹配——这是预期的行为）
+        Map<String, Long> userMap = Collections.emptyMap();
+        if (!usernames.isEmpty()) {
+            userMap = userService.lambdaQuery()
+                    .in(SysUser::getUsername, usernames)
+                    .list()
+                    .stream()
+                    .collect(Collectors.toMap(SysUser::getUsername, SysUser::getId, (a, b) -> a));
+        }
+
+        for (SysClassBatchAddDTO.Item it : dto.getItems()) {
+            if (it == null) continue;
+            total++;
+            String cn = it.getClassName() == null ? "" : it.getClassName().trim();
+            String un = it.getUsername() == null ? "" : it.getUsername().trim();
+            Long classId = classMap.get(cn);
+            Long userId = userMap.get(un);
+            if (classId == null) {
+                fail++;
+                errors.add(failItem(cn, un, "班级不存在或未启用"));
+                continue;
+            }
+            if (userId == null) {
+                fail++;
+                errors.add(failItem(cn, un, "账号不存在"));
+                continue;
+            }
+            // 已存在则跳过（idempotent）
+            Long existing = userClassMapper.selectCount(
+                    new LambdaQueryWrapper<SysUserClass>()
+                            .eq(SysUserClass::getClassId, classId)
+                            .eq(SysUserClass::getUserId, userId));
+            if (existing != null && existing > 0) {
+                skip++;
+                continue;
+            }
+            SysUserClass uc = new SysUserClass();
+            uc.setClassId(classId);
+            uc.setUserId(userId);
+            userClassMapper.insert(uc);
+            ok++;
+        }
+        result.setTotal(total);
+        result.setSuccess(ok);
+        result.setSkipped(skip);
+        result.setFailed(fail);
+        result.setErrors(errors);
+        return result;
+    }
+
+    private SysClassBatchAddResultVO.FailItem failItem(String cn, String un, String reason) {
+        SysClassBatchAddResultVO.FailItem fi = new SysClassBatchAddResultVO.FailItem();
+        fi.setClassName(cn);
+        fi.setUsername(un);
+        fi.setReason(reason);
+        return fi;
     }
 
     // ----------- private helpers -----------

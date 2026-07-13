@@ -45,7 +45,9 @@ CREATE TABLE `sys_user` (
     `update_by`   BIGINT                DEFAULT NULL,
     `deleted`     TINYINT      NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_username` (`username`)
+    -- 仅对"未删除"的行强制唯一；逻辑删除（deleted=1）的行 username 可重复，
+    -- 这样删除用户后可重新创建同名/同账号用户。NULL 在函数式索引中不参与唯一性判断。
+    UNIQUE KEY `uk_username_active` ((CASE WHEN deleted = 0 THEN username END))
 ) ENGINE = InnoDB COMMENT ='系统用户';
 
 DROP TABLE IF EXISTS `sys_role`;
@@ -1067,6 +1069,28 @@ INSERT INTO `message_notify`(`id`, `user_id`, `type`, `level`, `title`, `content
 (7, 2001, 'course',  'info',    '新课程已发布：《Java 程序设计基础》', '主讲：李副教授 · 开课学期：2025-2026-1', '新课程已发布。', '/course/2', 0),
 (8, 2001, 'assignment','warn',  '《实验三》剩余 3 天截止',     '请尽快提交，否则将影响平时成绩。', '剩余 3 天截止。', '/student/assignment/list', 0),
 (9, 2001, 'private', 'success', '辅导员已通过你的请假申请',   '系统已更新你的请假状态。', '系统已更新你的请假状态。', '/profile/message', 1);
+-- 既存库的迁移：把 sys_user 上的旧简单 UK 替换为"仅作用于未删除行"的函数式 UK
+-- 新装库（fresh init.sql）不会重复执行，因为 DROP/CREATE 已经重建了 sys_user。
+-- MySQL 8.0.16+ 才有 DROP INDEX IF EXISTS；8.0 整系列都支持函数式索引。
+-- =====================================================================
+-- 仅当旧索引还在时才执行 DROP / ADD，避免对新装库误报"重复键"
+SET @stmt := IF(
+    EXISTS(SELECT 1 FROM information_schema.STATISTICS
+           WHERE TABLE_SCHEMA = DATABASE()
+             AND TABLE_NAME = 'sys_user'
+             AND INDEX_NAME = 'uk_username'),
+    'ALTER TABLE `sys_user` DROP INDEX `uk_username`',
+    'SELECT 1');
+PREPARE s FROM @stmt; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @stmt := IF(
+    NOT EXISTS(SELECT 1 FROM information_schema.STATISTICS
+               WHERE TABLE_SCHEMA = DATABASE()
+                 AND TABLE_NAME = 'sys_user'
+                 AND INDEX_NAME = 'uk_username_active'),
+    'ALTER TABLE `sys_user` ADD UNIQUE KEY `uk_username_active` ((CASE WHEN deleted = 0 THEN username END))',
+    'SELECT 1');
+PREPARE s FROM @stmt; EXECUTE s; DEALLOCATE PREPARE s;
 
 -- =====================================================================
 -- 结束

@@ -16,7 +16,10 @@
           <el-input v-model="query.keyword" placeholder="班级名称" clearable style="width: 200px" @keyup.enter="load" />
           <el-button type="primary" @click="load">搜索</el-button>
         </div>
-        <el-button type="primary" :icon="Plus" v-if="userStore.hasAuthority('class:add')" @click="openForm()">新增班级</el-button>
+        <div class="toolbar-right">
+          <el-button type="success" :icon="Upload" v-if="userStore.hasAuthority('class:member:assign')" @click="openImportDialog">表格导入</el-button>
+          <el-button type="primary" :icon="Plus" v-if="userStore.hasAuthority('class:add')" @click="openForm()">新增班级</el-button>
+        </div>
       </div>
 
       <el-table :data="list" v-loading="loading" border>
@@ -119,19 +122,80 @@
         <el-button type="primary" :loading="assignSubmitting" @click="saveMembers">保存</el-button>
       </template>
     </el-dialog>
+
+    <!-- 表格导入：CSV 列：班级名称 / 账号；APPEND-ONLY，不替换已有成员 -->
+    <el-dialog v-model="importVisible" title="表格导入班级成员" width="780px" destroy-on-close>
+      <el-alert type="info" :closable="false" show-icon style="margin-bottom: 12px" title="使用说明">
+        <template #default>
+          1. 文件必须是 <b>CSV</b> 格式（Excel 可"另存为 CSV"导出）；<br>
+          2. 表头必须包含：<b>班级名称、账号</b>（顺序不限、可中英文别名）；<br>
+          3. 班级名称需已存在，账号需对应已有用户；未匹配的行会被跳过并显示原因；<br>
+          4. 已绑定的成员会被识别为"已存在"，<b>不会重复插入</b>。
+        </template>
+      </el-alert>
+
+      <el-upload
+        v-if="importRows.length === 0 && !importDone"
+        :auto-upload="false" :show-file-list="false" accept=".csv"
+        :on-change="handleImportCsv" drag style="margin-bottom: 12px"
+      >
+        <el-icon class="el-icon--upload"><Plus /></el-icon>
+        <div class="el-upload__text">将 CSV 文件拖到此处，或<em>点击选择</em></div>
+      </el-upload>
+
+      <div v-else-if="importRows.length">
+        <div class="import-summary">
+          共 {{ importRows.length }} 行待提交
+          <el-button link type="primary" @click="resetImport" style="margin-left: 12px">重新选择文件</el-button>
+        </div>
+        <el-table :data="importRows" v-loading="importPreviewLoading" max-height="320" border>
+          <el-table-column type="index" label="#" width="50" />
+          <el-table-column prop="className" label="班级名称" min-width="160" />
+          <el-table-column prop="username" label="账号" min-width="120" />
+          <el-table-column label="预校验" min-width="200">
+            <template #default="{ row }">
+              <el-tag v-if="!row.warn" type="info" size="small">提交时由服务端校验</el-tag>
+              <el-tag v-else type="warning" size="small">{{ row.warn }}</el-tag>
+            </template>
+          </el-table-column>
+        </el-table>
+      </div>
+
+      <!-- 结果汇总 -->
+      <div v-if="importDone && importResult" class="import-result">
+        <el-divider />
+        <div style="margin-bottom: 6px">
+          <el-tag type="success">新绑定 {{ importResult.success }}</el-tag>
+          <el-tag type="info" style="margin-left: 6px">跳过（已是成员） {{ importResult.skipped }}</el-tag>
+          <el-tag type="danger" style="margin-left: 6px">失败 {{ importResult.failed }}</el-tag>
+        </div>
+        <el-table v-if="importResult.errors && importResult.errors.length" :data="importResult.errors" max-height="220" border>
+          <el-table-column prop="className" label="班级名称" min-width="140" />
+          <el-table-column prop="username" label="账号" min-width="120" />
+          <el-table-column prop="reason" label="失败原因" min-width="200" />
+        </el-table>
+      </div>
+
+      <template #footer>
+        <el-button @click="importVisible = false">取消</el-button>
+        <el-button v-if="importRows.length && !importDone" type="primary" :loading="importSubmitting" @click="submitImport">
+          提交（{{ importRows.length }} 行）
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, ArrowRight } from '@element-plus/icons-vue'
+import { Plus, ArrowRight, Upload } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
 import { useUserStore } from '@/store/user'
 import { useDict } from '@/hooks/useDict'
 import {
   classPage, classAdd, classEdit, classRemove,
-  classListMembers, classAssignMembers
+  classListMembers, classAssignMembers, classBatchAddMembers
 } from '@/api/system'
 import { deptTree } from '@/api/system'
 import { userPage } from '@/api/system'
@@ -222,6 +286,109 @@ const openMembersDialog = async (row) => {
   await Promise.all([loadAssignedUsers(), loadAvailableUsers()])
 }
 
+// ===== 表格导入（CSV: 班级名称 + 账号）=====
+const IMPORT_HEADER_ALIASES = {
+  className: ['className', 'class_name', '班级名称', '班级名', '班级'],
+  username:  ['username', '账号', '登录账号', '工号', '学号']
+}
+const importVisible = ref(false)
+const importRows = ref([])
+const importResult = ref(null)
+const importPreviewLoading = ref(false)
+const importSubmitting = ref(false)
+const importDone = ref(false)
+
+const openImportDialog = () => {
+  resetImport()
+  importVisible.value = true
+}
+const resetImport = () => {
+  importRows.value = []
+  importResult.value = null
+  importDone.value = false
+}
+
+const handleImportCsv = async (uploadFile) => {
+  const raw = uploadFile?.raw
+  if (!raw) return
+  importPreviewLoading.value = true
+  try {
+    const text = await raw.text()
+    const lines = parseCsvText(text)
+    if (lines.length === 0) { ElMessage.warning('文件为空'); return }
+    const headers = (lines[0] || []).map(h => (h || '').trim())
+    const columnMap = { className: -1, username: -1 }
+    for (const k of Object.keys(columnMap)) {
+      for (const alias of IMPORT_HEADER_ALIASES[k]) {
+        const idx = headers.indexOf(alias)
+        if (idx !== -1) { columnMap[k] = idx; break }
+      }
+    }
+    const missing = Object.keys(columnMap).filter(k => columnMap[k] === -1)
+    if (missing.length) {
+      ElMessage.error(`CSV 缺少列：${missing.map(k => IMPORT_HEADER_ALIASES[k][0]).join(' / ')}`)
+      importRows.value = []
+      return
+    }
+    const dataLines = lines.slice(1).filter(arr => arr.some(c => (c || '').trim() !== ''))
+    importRows.value = dataLines.map((arr, idx) => ({
+      rowIndex: idx,
+      className: (arr[columnMap.className] || '').trim(),
+      username:  (arr[columnMap.username]  || '').trim(),
+      warn: ((arr[columnMap.className] || '').trim() === '' || (arr[columnMap.username] || '').trim() === '')
+        ? '班级或账号为空，提交时会被服务端拒绝'
+        : ''
+    }))
+    importDone.value = false
+    importResult.value = null
+  } finally { importPreviewLoading.value = false }
+}
+
+function parseCsvText(text) {
+  if (text && text.charCodeAt(0) === 0xFEFF) text = text.slice(1)
+  const rows = []
+  let row = [], cell = '', inQuotes = false
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i]
+    if (inQuotes) {
+      if (ch === '"') {
+        if (text[i + 1] === '"') { cell += '"'; i++ }
+        else inQuotes = false
+      } else cell += ch
+    } else {
+      if (ch === '"') inQuotes = true
+      else if (ch === ',') { row.push(cell); cell = '' }
+      else if (ch === '\n' || ch === '\r') {
+        if (ch === '\r' && text[i + 1] === '\n') i++
+        row.push(cell); cell = ''
+        rows.push(row); row = []
+      } else cell += ch
+    }
+  }
+  if (cell !== '' || row.length) { row.push(cell); rows.push(row) }
+  return rows
+}
+
+const submitImport = async () => {
+  const valid = importRows.value.filter(r => r.className && r.username)
+  if (valid.length === 0) {
+    ElMessage.warning('没有可提交的有效行')
+    return
+  }
+  importSubmitting.value = true
+  try {
+    const res = await classBatchAddMembers({ items: valid.map(r => ({
+      className: r.className, username: r.username
+    })) })
+    importResult.value = res
+    importDone.value = true
+    const { success, skipped, failed } = res
+    const tag = failed === 0 ? 'success' : 'warning'
+    ElMessage[tag](`完成：新绑定 ${success}，跳过 ${skipped}，失败 ${failed}`)
+    load()
+  } finally { importSubmitting.value = false }
+}
+
 // radio 切换时同时刷新两栏（已分配按 role 过滤，可选按 role + 关键字过滤）
 const loadMembers = async () => {
   await Promise.all([loadAssignedUsers(), loadAvailableUsers()])
@@ -307,10 +474,14 @@ onMounted(async () => {
 <style scoped>
 .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
 .toolbar-left { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.toolbar-right { display: flex; align-items: center; gap: 8px; }
 
 .members-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 12px; }
 .members-grid { display: grid; grid-template-columns: minmax(0, 1fr) 56px minmax(0, 1fr); gap: 12px; align-items: stretch; }
 .members-col { border: 1px solid var(--el-border-color-lighter); border-radius: 6px; padding: 8px; background: #fff; min-width: 0; overflow-x: auto; }
 .members-col-title { font-size: 13px; color: #909399; padding: 4px 6px 8px; border-bottom: 1px solid var(--el-border-color-lighter); margin-bottom: 6px; }
 .members-arrow { display: flex; align-items: center; justify-content: center; }
+.import-summary { display: flex; align-items: center; gap: 4px; margin-bottom: 8px; color: var(--el-text-color-secondary); font-size: 13px; }
+.import-result { margin-top: 12px; }
+.el-upload-dragger { padding: 24px 0; }
 </style>

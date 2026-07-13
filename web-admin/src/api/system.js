@@ -42,6 +42,7 @@ export const classListAll     = ()       => request.get('/system/class/list-all'
 export const classMyClasses   = ()       => request.get('/system/class/my-classes')
 export const classListMembers = (id, roleName) => request.get(`/system/class/${id}/members`, { params: { roleName } })
 export const classAssignMembers = (data) => request.post('/system/class/members', data)
+export const classBatchAddMembers = (data) => request.post('/system/class/members/batch-add', data)
 
 // 字典
 export const dictTypePage = (params) => request.get('/system/dict/type/page', { params })
