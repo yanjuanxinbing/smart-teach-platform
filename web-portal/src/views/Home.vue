@@ -170,7 +170,11 @@
               v-for="(b, i) in banners"
               :key="b.id || i"
               class="carousel__slide"
-              :class="{ 'is-active': i === carouselIndex }"
+              :class="{ 'is-active': i === carouselIndex, 'is-clickable': !!b.linkUrl || !!b.id }"
+              role="link"
+              tabindex="0"
+              @click="goBannerClick(b)"
+              @keyup.enter="goBannerClick(b)"
             >
               <div class="carousel__media">
                 <img v-if="b.coverImage" :src="b.coverImage" :alt="b.title" class="carousel__img" />
@@ -193,11 +197,11 @@
                 </h3>
                 <p class="carousel__desc">{{ stripHtml(b.content) }}</p>
                 <div class="carousel__actions">
-                  <a class="btn btn--primary" @click="goArticle(b)" role="button">
-                    阅读全文
+                  <a class="btn btn--primary" @click.stop="goBannerClick(b)" role="button">
+                    {{ b.linkUrl ? '查看详情' : '阅读全文' }}
                     <el-icon class="icon" :size="14"><ArrowRight /></el-icon>
                   </a>
-                  <router-link to="/news" class="btn btn--ghost">查看资讯</router-link>
+                  <router-link to="/news" class="btn btn--ghost" @click.stop>查看资讯</router-link>
                 </div>
               </div>
             </div>
@@ -505,6 +509,23 @@ const formatDate = (t) => t ? dayjs(t).format('YYYY.MM.DD') : ''
 const formatShortDate = (t) => t ? dayjs(t).format('MM.DD') : '--.--'
 const stripHtml = (s) => s ? s.replace(/<[^>]+>/g, '').slice(0, 110) + '…' : '暂无摘要'
 const goArticle = (item) => router.push(`/article/${item.id}`)
+
+// 轮播图点击：管理后台若配置了 linkUrl，则跳到该链接；
+// 留空则跳到门户"内容"栏目（文章详情页 /article/:id）。
+// 外链（http/https）在新标签打开；站内路径走路由；非 http 开头的也按站内处理。
+const isExternal = (url) => /^https?:\/\//i.test(url)
+const goBannerClick = (item) => {
+  const url = (item && item.linkUrl || '').trim()
+  if (url) {
+    if (isExternal(url)) {
+      window.open(url, '_blank', 'noopener,noreferrer')
+    } else {
+      router.push(url)
+    }
+  } else if (item && item.id) {
+    router.push(`/article/${item.id}`)
+  }
+}
 
 // 数字递增动画
 const animateNumber = (el, target, duration = 1200, decimals = 0) => {
@@ -987,6 +1008,9 @@ onBeforeUnmount(() => { if (io) io.disconnect(); stopCarousel() })
   pointer-events: auto;
   transform: translateY(0);
 }
+.carousel__slide.is-clickable { cursor: pointer; }
+.carousel__slide.is-clickable:hover .carousel__title { color: var(--accent); }
+.carousel__slide.is-clickable:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 
 .carousel__media {
   position: relative;
