@@ -2,10 +2,12 @@ package com.smartteach.modules.system.controller;
 
 import com.smartteach.common.base.PageResult;
 import com.smartteach.common.result.Result;
+import com.smartteach.modules.system.dto.SysClassBatchAddDTO;
 import com.smartteach.modules.system.dto.SysClassMemberDTO;
 import com.smartteach.modules.system.dto.SysClassQueryDTO;
 import com.smartteach.modules.system.dto.SysClassSaveDTO;
 import com.smartteach.modules.system.service.SysClassService;
+import com.smartteach.modules.system.vo.SysClassBatchAddResultVO;
 import com.smartteach.modules.system.vo.SysClassVO;
 import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import com.smartteach.modules.user.vo.UserVO;
@@ -112,5 +114,13 @@ public class SysClassController {
     public Result<Void> assignMembers(@Valid @RequestBody SysClassMemberDTO dto) {
         classService.assignMembers(dto);
         return Result.success();
+    }
+
+    @ApiOperation("批量添加班级成员（append-only；已有的跳过）")
+    @PostMapping("/members/batch-add")
+    @PreAuthorize("hasAuthority('class:member:assign')")
+    @OperationLog(module = "班级管理", action = "批量添加班级成员", saveParams = false)
+    public Result<SysClassBatchAddResultVO> batchAddMembers(@Valid @RequestBody SysClassBatchAddDTO dto) {
+        return Result.success(classService.batchAddMembers(dto));
     }
 }
