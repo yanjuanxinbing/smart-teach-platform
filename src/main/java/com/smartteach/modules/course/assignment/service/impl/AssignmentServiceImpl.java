@@ -20,7 +20,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @Service
 public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignment> implements AssignmentService {
@@ -76,25 +78,25 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
         if (existing == null) {
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
-        // 已截止的作业仍允许编辑（主要用于调整截止时间或转回已发布）
         Assignment a = new Assignment();
         BeanUtils.copyProperties(dto, a);
+        // 按截止时间和当前时间自动决定状态：
+        //   新截止时间 > now  → 已发布（1）
+        //   新截止时间 ≤ now  → 已截止（2）
+        a.setStatus(deriveStatusByDeadline(a.getDeadline()));
         this.updateById(a);
     }
 
-    @Override
-    public void republish(Long id) {
-        Assignment a = this.getById(id);
-        if (a == null) {
-            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+    /**
+     * 根据截止时间相对当前时刻推算状态：
+     *   截止时间在未来 → 已发布
+     *   截止时间在过去/等于当前 → 已截止
+     */
+    private Integer deriveStatusByDeadline(LocalDateTime deadline) {
+        if (deadline == null) {
+            return 0;
         }
-        if (a.getStatus() == null || a.getStatus() != 2) {
-            throw new BusinessException("只有已截止状态的作业可以重新发布");
-        }
-        Assignment update = new Assignment();
-        update.setId(id);
-        update.setStatus(1);
-        this.updateById(update);
+        return deadline.isAfter(LocalDateTime.now()) ? 1 : 2;
     }
 
     @Override
@@ -146,5 +148,28 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
             }
         }
         this.removeByIds(ids);
+    }
+
+    /**
+     * 自动截止：把已发布且截止时间已过的作业批量改为已截止。
+     * 由定时任务每 5 分钟调用一次。
+     *
+     * @return 本轮被关闭的作业数量
+     */
+    public int autoCloseExpired() {
+        LocalDateTime now = LocalDateTime.now();
+        List<Assignment> expired = this.lambdaQuery()
+                .eq(Assignment::getStatus, 1)
+                .isNotNull(Assignment::getDeadline)
+                .le(Assignment::getDeadline, now)
+                .list();
+        if (expired.isEmpty()) {
+            return 0;
+        }
+        List<Long> ids = expired.stream().map(Assignment::getId).collect(Collectors.toList());
+        Assignment update = new Assignment();
+        update.setStatus(2);
+        this.update(update, new LambdaQueryWrapper<Assignment>().in(Assignment::getId, ids));
+        return ids.size();
     }
 }

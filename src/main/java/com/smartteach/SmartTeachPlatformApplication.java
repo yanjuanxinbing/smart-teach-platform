@@ -3,6 +3,7 @@ package com.smartteach;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 /**
  * 智能化在线教学支持服务平台管理中心系统 - 启动类
@@ -12,6 +13,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication
 @MapperScan("com.smartteach.modules.**.mapper")
+@EnableScheduling
 public class SmartTeachPlatformApplication {
 
     public static void main(String[] args) {

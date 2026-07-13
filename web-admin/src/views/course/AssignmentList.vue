@@ -39,7 +39,6 @@
             <el-button size="small" link v-if="userStore.hasAuthority('assignment:edit')" @click="openForm(row)">编辑</el-button>
             <el-button size="small" link v-if="userStore.hasAuthority('assignment:publish') && row.status === 0" @click="changeStatus(row, 'publish')">发布</el-button>
             <el-button size="small" link v-if="userStore.hasAuthority('assignment:close') && row.status === 1" @click="changeStatus(row, 'close')">截止</el-button>
-            <el-button size="small" link v-if="userStore.hasAuthority('assignment:republish') && row.status === 2" @click="changeStatus(row, 'republish')">重新发布</el-button>
             <el-button size="small" link type="danger" v-if="userStore.hasAuthority('assignment:remove')" @click="remove(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -94,7 +93,7 @@ import Pagination from '@/components/Pagination.vue'
 import { useUserStore } from '@/store/user'
 import { myCourses, chapterList } from '@/api/course'
 import {
-  assignPage, assignAdd, assignEdit, assignRemove, assignPublish, assignClose, assignRepublish
+  assignPage, assignAdd, assignEdit, assignRemove, assignPublish, assignClose
 } from '@/api/assignment'
 
 const userStore = useUserStore()
@@ -204,12 +203,9 @@ const remove = async (row) => {
 }
 
 const changeStatus = async (row, action) => {
-  const verbMap = { publish: '发布', close: '截止', republish: '重新发布' }
-  const verb = verbMap[action] || '操作'
+  const verb = action === 'publish' ? '发布' : '截止'
   await ElMessageBox.confirm(`确定${verb}作业"${row.title}"？`, '提示', { type: 'warning' })
-  if (action === 'publish') await assignPublish(row.id)
-  else if (action === 'close') await assignClose(row.id)
-  else if (action === 'republish') await assignRepublish(row.id)
+  if (action === 'publish') await assignPublish(row.id); else await assignClose(row.id)
   ElMessage.success(`${verb}成功`)
   load()
 }
