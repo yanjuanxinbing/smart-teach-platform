@@ -45,7 +45,9 @@ CREATE TABLE `sys_user` (
     `update_by`   BIGINT                DEFAULT NULL,
     `deleted`     TINYINT      NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_username` (`username`)
+    -- 仅对"未删除"的行强制唯一；逻辑删除（deleted=1）的行 username 可重复，
+    -- 这样删除用户后可重新创建同名/同账号用户。NULL 在函数式索引中不参与唯一性判断。
+    UNIQUE KEY `uk_username_active` ((CASE WHEN deleted = 0 THEN username END))
 ) ENGINE = InnoDB COMMENT ='系统用户';
 
 DROP TABLE IF EXISTS `sys_role`;
@@ -1000,6 +1002,30 @@ INSERT INTO `sys_login_log`(`id`, `username`, `ip`, `location`, `browser`, `os`,
 INSERT INTO `sys_operation_log`(`id`, `module`, `action`, `method`, `request_uri`, `http_method`, `params`, `result`, `ip`, `user_id`, `username`, `status`, `cost_time`, `operation_time`) VALUES 
 (9501, '课程管理', '修改课程发布状态', 'com.smartteach.controller.CourseController.updateStatus()', '/api/course/status', 'PUT', '{"id":2, "status":1}', '{"code":200, "msg":"success"}', '10.22.45.18', 1001, 'teacher1', 1, 45, DATE_SUB(NOW(), INTERVAL 50 MINUTE)),
 (9502, '教学计划', '新增计划明细', 'com.smartteach.controller.CoursePlanController.addItem()', '/api/course/plan/item', 'POST', '{"planId":10001, "weekNo":1, "chapterTitle":"绪论"}', '{"code":200, "msg":"success"}', '10.22.45.18', 1001, 'teacher1', 1, 112, DATE_SUB(NOW(), INTERVAL 45 MINUTE));
+
+-- =====================================================================
+-- 既存库的迁移：把 sys_user 上的旧简单 UK 替换为"仅作用于未删除行"的函数式 UK
+-- 新装库（fresh init.sql）不会重复执行，因为 DROP/CREATE 已经重建了 sys_user。
+-- MySQL 8.0.16+ 才有 DROP INDEX IF EXISTS；8.0 整系列都支持函数式索引。
+-- =====================================================================
+-- 仅当旧索引还在时才执行 DROP / ADD，避免对新装库误报"重复键"
+SET @stmt := IF(
+    EXISTS(SELECT 1 FROM information_schema.STATISTICS
+           WHERE TABLE_SCHEMA = DATABASE()
+             AND TABLE_NAME = 'sys_user'
+             AND INDEX_NAME = 'uk_username'),
+    'ALTER TABLE `sys_user` DROP INDEX `uk_username`',
+    'SELECT 1');
+PREPARE s FROM @stmt; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @stmt := IF(
+    NOT EXISTS(SELECT 1 FROM information_schema.STATISTICS
+               WHERE TABLE_SCHEMA = DATABASE()
+                 AND TABLE_NAME = 'sys_user'
+                 AND INDEX_NAME = 'uk_username_active'),
+    'ALTER TABLE `sys_user` ADD UNIQUE KEY `uk_username_active` ((CASE WHEN deleted = 0 THEN username END))',
+    'SELECT 1');
+PREPARE s FROM @stmt; EXECUTE s; DEALLOCATE PREPARE s;
 
 -- =====================================================================
 -- 结束
