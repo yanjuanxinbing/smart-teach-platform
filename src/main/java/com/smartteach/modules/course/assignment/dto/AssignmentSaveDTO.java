@@ -6,8 +6,10 @@ import javax.validation.constraints.DecimalMax;
 import javax.validation.constraints.DecimalMin;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
+import javax.validation.constraints.Size;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 作业发布/编辑表单 DTO（同一份 DTO 同时被新增和编辑复用）
@@ -41,4 +43,8 @@ public class AssignmentSaveDTO {
 
     /** 状态：0草稿 / 1已发布 / 2已截止 */
     private Integer status;
+
+    /** 目标班级ID列表（空列表表示不关联班级，草稿态允许） */
+    @Size(max = 50, message = "目标班级最多 50 个")
+    private List<Long> classIds;
 }

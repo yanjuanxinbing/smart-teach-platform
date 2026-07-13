@@ -27,11 +27,18 @@ public class AssignmentController {
 
     private final AssignmentService assignmentService;
 
-    @ApiOperation("分页查询作业")
+    @ApiOperation("分页查询作业（教师端，按 query 过滤）")
     @GetMapping("/page")
     @PreAuthorize("hasAuthority('assignment:list') or hasAuthority('assignment:my:list')")
     public Result<PageResult<Assignment>> page(AssignmentQueryDTO query) {
         return Result.success(assignmentService.page(query));
+    }
+
+    @ApiOperation("学生端我的作业（按所在班级自动过滤）")
+    @GetMapping("/my-page")
+    @PreAuthorize("hasAuthority('assignment:my:list')")
+    public Result<PageResult<Assignment>> myPage(AssignmentQueryDTO query) {
+        return Result.success(assignmentService.myPage(query));
     }
 
     @ApiOperation("作业详情")

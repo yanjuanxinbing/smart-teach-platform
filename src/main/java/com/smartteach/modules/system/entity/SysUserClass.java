@@ -1,0 +1,18 @@
+package com.smartteach.modules.system.entity;
+
+import com.baomidou.mybatisplus.annotation.TableName;
+import com.smartteach.common.base.BaseEntity;
+import lombok.Data;
+import lombok.EqualsAndHashCode;
+
+/**
+ * 用户-班级 关系（M:N）
+ */
+@Data
+@EqualsAndHashCode(callSuper = true)
+@TableName("sys_user_class")
+public class SysUserClass extends BaseEntity {
+
+    private Long userId;
+    private Long classId;
+}

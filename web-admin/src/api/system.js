@@ -31,6 +31,18 @@ export const deptAdd = (data) => request.post('/system/dept', data)
 export const deptEdit = (data) => request.put('/system/dept', data)
 export const deptRemove = (id) => request.delete(`/system/dept/${id}`)
 
+// 班级
+export const classPage        = (params) => request.get('/system/class/page', { params })
+export const classDetail      = (id)     => request.get(`/system/class/${id}`)
+export const classAdd         = (data)   => request.post('/system/class', data)
+export const classEdit        = (data)   => request.put('/system/class', data)
+export const classRemove      = (ids)    => request.delete('/system/class', { data: ids })
+export const classListByDept  = (deptId) => request.get('/system/class/list-by-dept', { params: { deptId } })
+export const classListAll     = ()       => request.get('/system/class/list-all')
+export const classMyClasses   = ()       => request.get('/system/class/my-classes')
+export const classListMembers = (id, roleName) => request.get(`/system/class/${id}/members`, { params: { roleName } })
+export const classAssignMembers = (data) => request.post('/system/class/members', data)
+
 // 字典
 export const dictTypePage = (params) => request.get('/system/dict/type/page', { params })
 export const dictTypeList = () => request.get('/system/dict/type/list')
