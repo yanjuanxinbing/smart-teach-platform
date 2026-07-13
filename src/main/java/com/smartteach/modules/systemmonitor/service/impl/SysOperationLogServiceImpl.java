@@ -31,6 +31,21 @@ public class SysOperationLogServiceImpl extends ServiceImpl<SysOperationLogMappe
     }
 
     @Override
+    public PageResult<SysOperationLog> pageOfUser(Long userId, com.smartteach.modules.profile.dto.MyLogQueryDTO query) {
+        LambdaQueryWrapper<SysOperationLog> wrapper = new LambdaQueryWrapper<>();
+        wrapper.eq(userId != null, SysOperationLog::getUserId, userId)
+                .and(StringUtils.isNotBlank(query.getType()), w -> w.eq(SysOperationLog::getModule, query.getType())
+                        .or().like(SysOperationLog::getAction, query.getType()))
+                .and(StringUtils.isNotBlank(query.getKeyword()), w -> w
+                        .like(SysOperationLog::getAction, query.getKeyword())
+                        .or().like(SysOperationLog::getModule, query.getKeyword())
+                        .or().like(SysOperationLog::getIp, query.getKeyword()))
+                .orderByDesc(SysOperationLog::getOperationTime);
+        IPage<SysOperationLog> page = this.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
+        return PageResult.of(page);
+    }
+
+    @Override
     public void clean(int beforeDays) {
         LocalDateTime threshold = LocalDateTime.now().minusDays(beforeDays);
         this.remove(new LambdaQueryWrapper<SysOperationLog>().lt(SysOperationLog::getOperationTime, threshold));

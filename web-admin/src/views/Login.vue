@@ -39,6 +39,11 @@ const rules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
+/**
+ * 登录成功后的目标地址：后台工作台首页（同域路由跳转）
+ */
+const ADMIN_HOME_URL = '/dashboard'
+
 const submit = async () => {
   await formRef.value.validate()
   loading.value = true
@@ -46,7 +51,7 @@ const submit = async () => {
     await userStore.loginAction(form)
     await userStore.fetchUserInfo()
     ElMessage.success('登录成功')
-    router.push('/')
+    router.push(ADMIN_HOME_URL)
   } finally {
     loading.value = false
   }
