@@ -24,8 +24,12 @@ public interface AssignmentService extends IService<Assignment> {
     /** 已发布→已截止 */
     void close(Long id);
 
-    /** 已截止→已发布 */
-    void republish(Long id);
-
     void remove(List<Long> ids);
+
+    /**
+     * 自动关闭已过期作业（定时任务调用，状态已发布 + deadline <= now → 已截止）
+     *
+     * @return 本轮被关闭的作业数量
+     */
+    int autoCloseExpired();
 }
