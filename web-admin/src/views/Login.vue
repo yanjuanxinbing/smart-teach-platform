@@ -14,7 +14,10 @@
           <el-button type="primary" :loading="loading" style="width:100%" @click="submit">登录</el-button>
         </el-form-item>
       </el-form>
-      <div class="login-tip">默认账号：admin / 密码：admin（首次登录后请到"个人信息"修改密码）</div>
+      <div class="login-tip">
+        还没有账号？<el-button link type="primary" @click="$router.push('/register')">立即注册</el-button>
+      </div>
+      <div class="login-tip" style="margin-top: 4px">默认账号：admin / 密码：admin（首次登录后请到"个人信息"修改密码）</div>
     </div>
   </div>
 </template>

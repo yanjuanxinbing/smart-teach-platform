@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { login, getUserInfo, logout } from '@/api/auth'
+import { login, register, getUserInfo, logout } from '@/api/auth'
 import Cookies from 'js-cookie'
 
 export const useUserStore = defineStore('user', {
@@ -12,6 +12,13 @@ export const useUserStore = defineStore('user', {
   actions: {
     async loginAction(form) {
       const { token, permissions, roles } = await login(form)
+      this.token = token
+      this.permissions = permissions || []
+      this.roles = roles || []
+      Cookies.set('token', token, { expires: 7 })
+    },
+    async registerAction(form) {
+      const { token, permissions, roles } = await register(form)
       this.token = token
       this.permissions = permissions || []
       this.roles = roles || []

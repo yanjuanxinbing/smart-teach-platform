@@ -44,7 +44,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private final AntPathMatcher pathMatcher = new AntPathMatcher();
 
     private static final String[] WHITE_LIST = {
-            "/auth/login", "/auth/captcha",
+            "/auth/login", "/auth/register", "/auth/captcha",
             "/doc.html", "/webjars/**", "/swagger-resources/**", "/v2/api-docs", "/v3/api-docs/**",
             "/files/**", "/portal/site/**"
     };
