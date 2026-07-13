@@ -7,3 +7,6 @@ export const loginLogRemove = (ids) => request.delete('/monitor/login-log', { da
 export const operationLogPage = (params) => request.get('/monitor/operation-log/page', { params })
 export const operationLogClean = (beforeDays) => request.delete('/monitor/operation-log/clean', { params: { beforeDays } })
 export const operationLogRemove = (ids) => request.delete('/monitor/operation-log', { data: ids })
+
+// 首页统计
+export const dashboardStats = () => request.get('/monitor/dashboard/stats')

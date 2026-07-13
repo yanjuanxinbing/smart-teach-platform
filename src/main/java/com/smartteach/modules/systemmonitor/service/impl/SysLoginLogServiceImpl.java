@@ -12,7 +12,9 @@ import com.smartteach.modules.systemmonitor.service.SysLoginLogService;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.util.List;
 
 @Service
@@ -46,6 +48,15 @@ public class SysLoginLogServiceImpl extends ServiceImpl<SysLoginLogMapper, SysLo
             return;
         }
         this.removeByIds(ids);
+    }
+
+    @Override
+    public long countTodaySuccess() {
+        LocalDateTime startOfDay = LocalDateTime.of(LocalDate.now(), LocalTime.MIN);
+        return this.lambdaQuery()
+                .ge(SysLoginLog::getLoginTime, startOfDay)
+                .eq(SysLoginLog::getStatus, 1)
+                .count();
     }
 
     /** 简单UA解析，生产环境建议使用 UserAgentUtils 等专业库 */
