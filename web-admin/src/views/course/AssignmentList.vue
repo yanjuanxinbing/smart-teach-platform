@@ -22,9 +22,17 @@
       </div>
 
       <el-table :data="list" v-loading="loading" border>
-        <el-table-column prop="title" label="作业标题" min-width="200" show-overflow-tooltip />
-        <el-table-column label="所属章节" min-width="160" show-overflow-tooltip>
+        <el-table-column prop="title" label="作业标题" min-width="180" show-overflow-tooltip />
+        <el-table-column label="所属章节" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">{{ chapterMap[row.chapterId] || ('#' + row.chapterId) }}</template>
+        </el-table-column>
+        <el-table-column label="目标班级" min-width="160" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="row.classIds && row.classIds.length">
+              {{ row.classIds.map(id => classMap[id] || ('#'+id)).join('、') }}
+            </span>
+            <span v-else style="color:#bbb">未指定</span>
+          </template>
         </el-table-column>
         <el-table-column prop="deadline" label="截止时间" width="170" />
         <el-table-column prop="totalScore" label="总分" width="80" />
@@ -34,7 +42,7 @@
           </template>
         </el-table-column>
         <el-table-column prop="createTime" label="创建时间" width="170" />
-        <el-table-column label="操作" width="320" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button size="small" link v-if="userStore.hasAuthority('assignment:edit')" @click="openForm(row)">编辑</el-button>
             <el-button size="small" link v-if="userStore.hasAuthority('assignment:publish') && row.status === 0" @click="changeStatus(row, 'publish')">发布</el-button>
@@ -48,7 +56,7 @@
     </el-card>
 
     <!-- 新增/编辑作业 -->
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑作业' : '新增作业'" width="640px">
+    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑作业' : '新增作业'" width="680px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="关联课程" prop="courseId">
           <el-select v-model="form.courseId" filterable style="width:100%" @change="onFormCourseChange">
@@ -60,9 +68,25 @@
             <el-option v-for="ch in formChapterOptions" :key="ch.id" :label="ch.chapterTitle" :value="ch.id" />
           </el-select>
         </el-form-item>
+        <el-row :gutter="16">
+          <el-col :span="12">
+            <el-form-item label="院系">
+              <el-tree-select v-model="form.deptId" :data="deptOptions" :props="{ value: 'id', label: 'deptName', children: 'children' }"
+                check-strictly clearable placeholder="选择院系（可选，用于过滤班级）" style="width:100%" @change="onFormDeptChange" />
+            </el-form-item>
+          </el-col>
+          <el-col :span="12">
+            <el-form-item label="目标班级">
+              <el-select v-model="form.classIds" multiple filterable collapse-tags collapse-tags-tooltip
+                :disabled="!form.deptId" placeholder="多选班级" style="width:100%">
+                <el-option v-for="c in formClassOptions" :key="c.id" :label="c.className" :value="c.id" />
+              </el-select>
+            </el-form-item>
+          </el-col>
+        </el-row>
         <el-form-item label="作业标题" prop="title"><el-input v-model="form.title" /></el-form-item>
         <el-form-item label="作业说明">
-          <el-input v-model="form.description" type="textarea" :rows="4" placeholder="作业要求、提交方式等" />
+          <el-input v-model="form.description" type="textarea" :rows="3" placeholder="作业要求、提交方式等" />
         </el-form-item>
         <el-row :gutter="16">
           <el-col :span="12">
@@ -95,20 +119,26 @@ import { myCourses, chapterList } from '@/api/course'
 import {
   assignPage, assignAdd, assignEdit, assignRemove, assignPublish, assignClose
 } from '@/api/assignment'
+import { classListByDept, classListAll } from '@/api/system'
+import { deptTree } from '@/api/system'
 
 const userStore = useUserStore()
 
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
-const query = reactive({ pageNum: 1, pageSize: 10, courseId: null, chapterId: null, keyword: '', status: null })
+const query = reactive({ pageNum: 1, pageSize: 10, courseId: null, chapterId: null, keyword: '', status: null, classId: null })
 
 const courseOptions = ref([])
 const chapterOptions = ref([])
 const chapterMap = reactive({})
+const classMap = reactive({})
 
 // 表单内联动
 const formChapterOptions = ref([])
+const formClassOptions = ref([])
+const deptOptions = ref([])
+const deptTreeAll = ref([])
 
 // 表单 & dialog 状态
 const dialogVisible = ref(false)
@@ -116,6 +146,7 @@ const submitting = ref(false)
 const formRef = ref()
 const form = reactive({
   id: null, courseId: null, chapterId: null,
+  deptId: null, classIds: [],
   title: '', description: '', deadline: null, totalScore: 100, status: 0
 })
 const rules = {
@@ -131,15 +162,18 @@ const load = async () => {
     const res = await assignPage(query)
     list.value = res.list
     total.value = res.total
-    // 把作业列表里出现的章节标题缓存进 chapterMap（id → title），列表"所属章节"列直接查
-    const missingIds = [...new Set(res.list.map(r => r.chapterId).filter(id => id && !chapterMap[id]))]
-    if (missingIds.length) {
-      // 对每个未命中的 chapterId，反查它所在课程 → 拉该课全部章节补齐
-      // 简单做法：对每个课程拉一次 chapterList
+    // 收集缺失的章节标题 / 班级名
+    const missingChapterIds = [...new Set(res.list.map(r => r.chapterId).filter(id => id && !chapterMap[id]))]
+    if (missingChapterIds.length) {
       for (const c of courseOptions.value) {
         const chs = await chapterList(c.id)
         chs.forEach(ch => { if (!chapterMap[ch.id]) chapterMap[ch.id] = ch.chapterTitle })
       }
+    }
+    const missingClassIds = [...new Set(res.list.flatMap(r => r.classIds || []).filter(id => !classMap[id]))]
+    if (missingClassIds.length) {
+      const all = await classListAll()
+      all.forEach(c => { classMap[c.id] = c.className })
     }
   } finally { loading.value = false }
 }
@@ -149,6 +183,7 @@ const reset = () => {
   query.status = null
   query.courseId = null
   query.chapterId = null
+  query.classId = null
   chapterOptions.value = []
   load()
 }
@@ -163,24 +198,46 @@ const onFormCourseChange = async (courseId) => {
   formChapterOptions.value = courseId ? await chapterList(courseId) : []
 }
 
+const onFormDeptChange = async (deptId) => {
+  form.classIds = []
+  formClassOptions.value = deptId ? await classListByDept(deptId) : []
+}
+
 const openForm = (row) => {
   dialogVisible.value = true
   if (row) {
     Object.assign(form, {
       id: row.id, courseId: row.courseId, chapterId: row.chapterId,
+      deptId: null, classIds: Array.isArray(row.classIds) ? [...row.classIds] : [],
       title: row.title, description: row.description, deadline: row.deadline,
       totalScore: row.totalScore, status: row.status
     })
-    // 回填联动：先加载该课程的章节，再把 form.chapterId 设回去
     onFormCourseChange(row.courseId).then(() => {
       form.chapterId = row.chapterId
+      // 编辑回填：班级可能跨多个系，这里从全量班级里反查所属 deptId，再加载该 dept 下拉
+      if (form.classIds && form.classIds.length) {
+        const allClasses = Object.values(classMap).length ? [] : null // 占位，下面异步查询
+        // 简单做法：直接从 classListAll 里找 classIds[0] 对应的 deptId
+        classListAll().then(all => {
+          const first = all.find(c => c.id === form.classIds[0])
+          if (first) {
+            form.deptId = first.deptId
+            return classListByDept(first.deptId)
+          }
+          return []
+        }).then(list => {
+          formClassOptions.value = list
+        })
+      }
     })
   } else {
     Object.assign(form, {
       id: null, courseId: null, chapterId: null,
+      deptId: null, classIds: [],
       title: '', description: '', deadline: null, totalScore: 100, status: 0
     })
     formChapterOptions.value = []
+    formClassOptions.value = []
   }
 }
 
@@ -188,7 +245,8 @@ const submit = async () => {
   await formRef.value.validate()
   submitting.value = true
   try {
-    if (form.id) await assignEdit(form); else await assignAdd(form)
+    const payload = { ...form, classIds: form.classIds || [] }
+    if (form.id) await assignEdit(payload); else await assignAdd(payload)
     ElMessage.success('保存成功')
     dialogVisible.value = false
     load()
@@ -212,6 +270,20 @@ const changeStatus = async (row, action) => {
 
 onMounted(async () => {
   courseOptions.value = await myCourses()
+  deptTreeAll.value = await deptTree()
+  // 仅展示二级部门（系）作为院系下拉
+  const flatten = (nodes, depth = 0) => {
+    let out = []
+    for (const n of nodes) {
+      if (depth === 1) out.push({ ...n, children: [] })
+      else if (n.children && n.children.length) out = out.concat(flatten(n.children, depth + 1))
+    }
+    return out
+  }
+  deptOptions.value = flatten(deptTreeAll.value)
+  // 顺手预热 classMap
+  const allClasses = await classListAll()
+  allClasses.forEach(c => { classMap[c.id] = c.className })
   load()
 })
 </script>

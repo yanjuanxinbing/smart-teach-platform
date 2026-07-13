@@ -13,6 +13,8 @@ export const assignClose = (id) => request.put(`/assignment/${id}/close`)
 // ===== 作业提交（教师批改 + 学生提交） =====
 // 教师批改端
 export const submissionPage = (params) => request.get('/assignment/submission/page', { params })
+// 学生本人的作业列表（按所在班级自动过滤）
+export const assignMyPage = (params) => request.get('/assignment/my-page', { params })
 // 学生本人
 export const submissionMyPage = (params) => request.get('/assignment/submission/my-page', { params })
 export const submissionLatest = (assignmentId) => request.get('/assignment/submission/latest', { params: { assignmentId } })

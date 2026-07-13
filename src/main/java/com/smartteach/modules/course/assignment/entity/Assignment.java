@@ -1,5 +1,6 @@
 package com.smartteach.modules.course.assignment.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.smartteach.common.base.BaseEntity;
 import lombok.Data;
@@ -7,6 +8,7 @@ import lombok.EqualsAndHashCode;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * 作业（教师在章节内容下发布）
@@ -32,4 +34,8 @@ public class Assignment extends BaseEntity {
 
     /** 状态：0草稿 / 1已发布 / 2已截止 */
     private Integer status;
+
+    /** 目标班级ID列表（非持久化字段，详情/编辑回填用） */
+    @TableField(exist = false)
+    private List<Long> classIds;
 }

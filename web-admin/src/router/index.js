@@ -147,6 +147,12 @@ const routes = [
         component: () => import('@/views/system/ConfigList.vue'),
         meta: { title: '参数设置', icon: 'Tools' }
       },
+      {
+        path: 'system/class',
+        name: 'SystemClass',
+        component: () => import('@/views/system/ClassList.vue'),
+        meta: { title: '班级管理', icon: 'User' }
+      },
       // 系统监控
       {
         path: 'monitor/server',

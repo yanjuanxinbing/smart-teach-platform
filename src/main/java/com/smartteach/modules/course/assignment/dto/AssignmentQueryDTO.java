@@ -22,4 +22,7 @@ public class AssignmentQueryDTO extends PageQuery {
 
     /** 学生端我的作业：排除草稿（status=0）作业 */
     private Boolean excludeDraft;
+
+    /** 教师端按目标班级筛选 */
+    private Long classId;
 }
