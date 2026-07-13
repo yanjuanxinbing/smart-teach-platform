@@ -5,6 +5,8 @@ import com.smartteach.common.result.Result;
 import com.smartteach.modules.portal.dto.PortalArticleQueryDTO;
 import com.smartteach.modules.portal.entity.PortalArticle;
 import com.smartteach.modules.portal.service.PortalArticleService;
+import com.smartteach.modules.portal.service.PortalStatsService;
+import com.smartteach.modules.portal.vo.PortalStatsVO;
 import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -18,7 +20,7 @@ import java.util.List;
 /**
  * 网站门户模块：
  * - /portal/manage/** 后台管理接口，需要登录鉴权
- * - /portal/site/**    前台门户展示接口，公开访问（已在 SecurityConfig 放行）
+ * - /portal/site/** 前台门户展示接口，公开访问（已在 SecurityConfig 放行）
  */
 @Api(tags = "网站门户")
 @RestController
@@ -26,6 +28,16 @@ import java.util.List;
 public class PortalArticleController {
 
     private final PortalArticleService articleService;
+
+    // 1) 顶部新增依赖注入
+    private final PortalStatsService statsService;
+
+    // 2) 在“前台门户展示（公开）”区块新增
+    @ApiOperation("门户首页-统计图表数据（公开）")
+    @GetMapping("/portal/site/stats")
+    public Result<PortalStatsVO> stats() {
+        return Result.success(statsService.getStats());
+    }
 
     // ------------------- 后台管理 -------------------
 
@@ -86,7 +98,7 @@ public class PortalArticleController {
     @ApiOperation("门户首页-按栏目获取已发布内容列表")
     @GetMapping("/portal/site/list")
     public Result<List<PortalArticle>> siteList(@RequestParam Integer type,
-                                                 @RequestParam(required = false) Integer limit) {
+            @RequestParam(required = false) Integer limit) {
         return Result.success(articleService.listPublished(type, limit));
     }
 

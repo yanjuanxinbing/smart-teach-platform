@@ -71,7 +71,8 @@ const scrolled = ref(false)
 const nav = [
   { to: '/',       index: '01', label: '首页' },
   { to: '/notice', index: '02', label: '通告' },
-  { to: '/news',   index: '03', label: '资讯' }
+  { to: '/news',   index: '03', label: '资讯' },
+  { to: '/stats',  index: '04', label: '数据' }
 ]
 
 const closeMenu = () => { menuOpen.value = false }
