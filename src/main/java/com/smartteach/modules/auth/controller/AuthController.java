@@ -4,6 +4,7 @@ import com.smartteach.common.exception.BusinessException;
 import com.smartteach.common.result.Result;
 import com.smartteach.common.utils.UserContext;
 import com.smartteach.modules.auth.dto.LoginDTO;
+import com.smartteach.modules.auth.dto.RegisterDTO;
 import com.smartteach.modules.auth.service.AuthService;
 import com.smartteach.modules.auth.vo.LoginVO;
 import com.smartteach.modules.systemmonitor.service.SysLoginLogService;
@@ -40,6 +41,21 @@ public class AuthController {
         try {
             LoginVO vo = authService.login(dto);
             loginLogService.record(dto.getUsername(), ip, ua, 1, "登录成功");
+            return Result.success(vo);
+        } catch (BusinessException e) {
+            loginLogService.record(dto.getUsername(), ip, ua, 0, e.getMessage());
+            throw e;
+        }
+    }
+
+    @ApiOperation("自助注册（教师/学生）")
+    @PostMapping("/register")
+    public Result<LoginVO> register(@Valid @RequestBody RegisterDTO dto, HttpServletRequest request) {
+        String ip = getClientIp(request);
+        String ua = request.getHeader("User-Agent");
+        try {
+            LoginVO vo = authService.register(dto);
+            loginLogService.record(dto.getUsername(), ip, ua, 1, "注册并登录");
             return Result.success(vo);
         } catch (BusinessException e) {
             loginLogService.record(dto.getUsername(), ip, ua, 0, e.getMessage());

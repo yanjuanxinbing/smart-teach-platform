@@ -10,6 +10,12 @@ const routes = [
     meta: { title: '登录', public: true }
   },
   {
+    path: '/register',
+    name: 'Register',
+    component: () => import('@/views/Register.vue'),
+    meta: { title: '注册账号', public: true }
+  },
+  {
     path: '/',
     component: () => import('@/layout/Index.vue'),
     redirect: '/dashboard',
