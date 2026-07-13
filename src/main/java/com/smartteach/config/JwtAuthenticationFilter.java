@@ -46,7 +46,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String[] WHITE_LIST = {
             "/auth/login", "/auth/register", "/auth/captcha",
             "/doc.html", "/webjars/**", "/swagger-resources/**", "/v2/api-docs", "/v3/api-docs/**",
-            "/files/**", "/portal/site/**"
+            "/files/**",
+            "/portal/site/**", "/portal/course/**", "/portal/codex/**"
     };
 
     public JwtAuthenticationFilter(JwtUtil jwtUtil, SysUserMapper sysUserMapper) {

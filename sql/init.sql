@@ -1004,6 +1004,71 @@ INSERT INTO `sys_operation_log`(`id`, `module`, `action`, `method`, `request_uri
 (9502, '教学计划', '新增计划明细', 'com.smartteach.controller.CoursePlanController.addItem()', '/api/course/plan/item', 'POST', '{"planId":10001, "weekNo":1, "chapterTitle":"绪论"}', '{"code":200, "msg":"success"}', '10.22.45.18', 1001, 'teacher1', 1, 112, DATE_SUB(NOW(), INTERVAL 45 MINUTE));
 
 -- =====================================================================
+-- 8. 前台门户扩展：代码库(codex_snippet) + 站内消息(message_notify)
+-- =====================================================================
+
+-- 代码库（CodeX）—— 公开访问的代码片段表
+DROP TABLE IF EXISTS `codex_snippet`;
+CREATE TABLE `codex_snippet` (
+    `id`          BIGINT        NOT NULL,
+    `title`       VARCHAR(200)  NOT NULL                COMMENT '片段标题',
+    `language`    VARCHAR(20)   NOT NULL DEFAULT 'text'  COMMENT '语言（java/python/js/...）',
+    `code`        MEDIUMTEXT                            COMMENT '完整代码',
+    `preview`     VARCHAR(500)                          COMMENT '列表中展示的预览行',
+    `description` VARCHAR(500)                          COMMENT '说明',
+    `tags`        VARCHAR(255)                          COMMENT '逗号分隔的标签',
+    `author`      VARCHAR(50)                           COMMENT '作者',
+    `views`       INT           NOT NULL DEFAULT 0      COMMENT '浏览次数',
+    `is_public`   TINYINT       NOT NULL DEFAULT 1      COMMENT '是否公开：0仅自己可见 1公开',
+    `create_by`   BIGINT                                DEFAULT NULL,
+    `update_by`   BIGINT                                DEFAULT NULL,
+    `create_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted`     TINYINT       NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_language` (`language`),
+    KEY `idx_create_time` (`create_time`)
+) ENGINE = InnoDB COMMENT ='前台代码片段库';
+
+INSERT INTO `codex_snippet`(`id`, `title`, `language`, `code`, `preview`, `description`, `tags`, `author`, `views`, `is_public`) VALUES
+(1, 'Java 通用分页响应封装', 'java', 'public class PageResult<T> {\n    private long total;\n    private long pageNum;\n    private long pageSize;\n    private List<T> list;\n}', 'public class PageResult<T> {\n    private long total;\n    private long pageNum;\n    private long pageSize;\n    private List<T> list;\n}', 'MyBatis-Plus 分页响应统一封装', 'java,mybatis-plus,page', 'Methōdus', 86, 1),
+(2, 'Python 二分查找模板', 'python', 'def bsearch(nums, target):\n    lo, hi = 0, len(nums) - 1\n    while lo <= hi:\n        mid = (lo + hi) // 2\n        if nums[mid] == target:\n            return mid\n        elif nums[mid] < target:\n            lo = mid + 1\n        else:\n            hi = mid - 1\n    return -1', 'def bsearch(nums, target):\n    lo, hi = 0, len(nums) - 1\n    while lo <= hi:', '标准二分查找闭区间写法', 'python,algorithm,binary-search', 'Methōdus', 132, 1),
+(3, 'JS 防抖与节流', 'js', 'export const debounce = (fn, wait = 300) => {\n  let timer = null;\n  return function (...args) {\n    if (timer) clearTimeout(timer);\n    timer = setTimeout(() => fn.apply(this, args), wait);\n  };\n};', 'export const debounce = (fn, wait = 300) => {\n  let timer = null;', 'Web 开发高频工具函数', 'js,frontend,utils', 'Methōdus', 204, 1),
+(4, 'SpringBoot 统一返回体', 'java', '@Data\npublic class Result<T> {\n    private int code;\n    private String message;\n    private T data;\n    public static <T> Result<T> success(T data) { return new Result<>(200, "OK", data); }\n}', '@Data\npublic class Result<T> {\n    private int code;\n    private String message;\n    private T data;', '后端 Result 响应封装样例', 'java,springboot,result', 'Methōdus', 95, 1),
+(5, 'MySQL 慢查询排查 SQL', 'sql', '-- 查看最近 100 条慢 SQL\nSELECT * FROM mysql.slow_log ORDER BY start_time DESC LIMIT 100;\n-- 按出现频次聚合\nSELECT digest_text, COUNT(*) cnt FROM performance_schema.events_statements_summary_by_digest\nWHERE schema_name = DATABASE() GROUP BY digest_text ORDER BY cnt DESC LIMIT 20;', '-- 查看最近 100 条慢 SQL\nSELECT * FROM mysql.slow_log ORDER BY start_time DESC LIMIT 100;', 'DBA 常用的慢查询定位 SQL', 'sql,mysql,dba', 'Methōdus', 41, 1);
+
+-- 站内消息中心
+DROP TABLE IF EXISTS `message_notify`;
+CREATE TABLE `message_notify` (
+    `id`          BIGINT       NOT NULL,
+    `user_id`     BIGINT       NOT NULL                COMMENT '接收人用户ID',
+    `type`        VARCHAR(20)  NOT NULL DEFAULT 'system' COMMENT '类型：system/system-audit/course/assignment/private/code',
+    `level`       VARCHAR(10)           DEFAULT 'info'  COMMENT '级别：info/warn/danger/success',
+    `title`       VARCHAR(200) NOT NULL                COMMENT '标题',
+    `content`     TEXT                                  COMMENT '正文',
+    `brief`       VARCHAR(500)                          COMMENT '列表中显示的摘要（可由 content 截取）',
+    `target_url`  VARCHAR(255)                          COMMENT '点击跳转地址',
+    `read_flag`   TINYINT      NOT NULL DEFAULT 0      COMMENT '0未读 1已读',
+    `read_time`   DATETIME                              DEFAULT NULL,
+    `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `deleted`     TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_user_unread` (`user_id`, `read_flag`),
+    KEY `idx_user_create` (`user_id`, `create_time`)
+) ENGINE = InnoDB COMMENT ='站内消息中心';
+
+-- 给示例账号 1 (admin) / 1001 (teacher1) / 2001 (student1) 各塞几条种子数据
+INSERT INTO `message_notify`(`id`, `user_id`, `type`, `level`, `title`, `content`, `brief`, `target_url`, `read_flag`) VALUES
+(1, 1, 'system',     'info',    '系统升级通知',     '平台将于本周日凌晨 02:00-04:00 进行例行维护升级，请合理安排作业提交时间。', '平台将于本周日凌晨 02:00-04:00 进行例行维护升级。', '/message/notice', 0),
+(2, 1, 'system',     'success', '课程资源审核通过', '您提交的《Java 并发编程》课程已通过审核并发布到门户。',                 '您提交的《Java 并发编程》课程已通过审核。',     '/portal/notice',  0),
+(3, 1, 'system',     'warn',    '异常登录提醒',       '检测到您的账号在新设备登录，如非本人操作请及时修改密码。',               '检测到您的账号在新设备登录。',                  '/profile/security',1),
+(4, 1001, 'course',  'info',    '新学生加入《Web应用开发》', '学生 王小明 已加入您的课程。', '学生 王小明 已加入您的课程。', '/course/manage', 0),
+(5, 1001, 'assignment', 'success', '《期中作业》有 24 份新提交', '24 份新提交等待批改，请尽快处理。', '24 份新提交等待批改。', '/assignment/submission-list', 0),
+(6, 1001, 'system',  'info',    '本周教研会议提醒',           '本周五下午 14:00 在会议室 A-301 召开教研会议。', '本周五下午 14:00 召开教研会议。', NULL, 1),
+(7, 2001, 'course',  'info',    '新课程已发布：《Java 程序设计基础》', '主讲：李副教授 · 开课学期：2025-2026-1', '新课程已发布。', '/course/2', 0),
+(8, 2001, 'assignment','warn',  '《实验三》剩余 3 天截止',     '请尽快提交，否则将影响平时成绩。', '剩余 3 天截止。', '/student/assignment/list', 0),
+(9, 2001, 'private', 'success', '辅导员已通过你的请假申请',   '系统已更新你的请假状态。', '系统已更新你的请假状态。', '/profile/message', 1);
 -- 既存库的迁移：把 sys_user 上的旧简单 UK 替换为"仅作用于未删除行"的函数式 UK
 -- 新装库（fresh init.sql）不会重复执行，因为 DROP/CREATE 已经重建了 sys_user。
 -- MySQL 8.0.16+ 才有 DROP INDEX IF EXISTS；8.0 整系列都支持函数式索引。

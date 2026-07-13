@@ -99,8 +99,8 @@ const submit = async () => {
   loading.value = true
   try {
     await userStore.registerAction(form)
-    ElMessage.success('注册成功，正在进入...')
-    router.push('/')
+    ElMessage.success('注册成功，正在进入…')
+    router.push('/dashboard')
   } finally {
     loading.value = false
   }
