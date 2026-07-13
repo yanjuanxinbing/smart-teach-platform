@@ -61,9 +61,6 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
         if (a.getTotalScore() == null) {
             a.setTotalScore(new BigDecimal("100"));
         }
-        if (a.getAllowLate() == null) {
-            a.setAllowLate(1);
-        }
         if (a.getStatus() == null) {
             a.setStatus(0);
         }
@@ -79,12 +76,25 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
         if (existing == null) {
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
-        if (existing.getStatus() != null && existing.getStatus() == 2) {
-            throw new BusinessException("已截止的作业不允许编辑");
-        }
+        // 已截止的作业仍允许编辑（主要用于调整截止时间或转回已发布）
         Assignment a = new Assignment();
         BeanUtils.copyProperties(dto, a);
         this.updateById(a);
+    }
+
+    @Override
+    public void republish(Long id) {
+        Assignment a = this.getById(id);
+        if (a == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        }
+        if (a.getStatus() == null || a.getStatus() != 2) {
+            throw new BusinessException("只有已截止状态的作业可以重新发布");
+        }
+        Assignment update = new Assignment();
+        update.setId(id);
+        update.setStatus(1);
+        this.updateById(update);
     }
 
     @Override

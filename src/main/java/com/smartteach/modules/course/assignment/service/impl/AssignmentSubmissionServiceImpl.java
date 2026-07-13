@@ -152,8 +152,8 @@ public class AssignmentSubmissionServiceImpl extends ServiceImpl<AssignmentSubmi
 
         LocalDateTime now = LocalDateTime.now();
         boolean late = assignment.getDeadline() != null && now.isAfter(assignment.getDeadline());
-        if (late && (assignment.getAllowLate() == null || assignment.getAllowLate() == 0)) {
-            throw new BusinessException("已超过截止时间且不允许迟交");
+        if (late) {
+            throw new BusinessException("已超过截止时间，不允许迟交");
         }
 
         // 若前端提交时带了已有草稿的 id，则先把该草稿删掉，避免脏数据。

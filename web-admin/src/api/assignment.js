@@ -9,6 +9,8 @@ export const assignEdit = (data) => request.put('/assignment', data)
 export const assignRemove = (ids) => request.delete('/assignment', { data: ids })
 export const assignPublish = (id) => request.put(`/assignment/${id}/publish`)
 export const assignClose = (id) => request.put(`/assignment/${id}/close`)
+// 已截止 → 重新发布为已发布（仅修改状态，截止时间由编辑表单调整）
+export const assignRepublish = (id) => request.put(`/assignment/${id}/republish`)
 
 // ===== 作业提交（教师批改 + 学生提交） =====
 // 教师批改端

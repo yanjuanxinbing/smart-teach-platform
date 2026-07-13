@@ -85,4 +85,13 @@ public class AssignmentController {
         assignmentService.close(id);
         return Result.success();
     }
+
+    @ApiOperation("重新发布作业（已截止→已发布）")
+    @PutMapping("/{id}/republish")
+    @PreAuthorize("hasAuthority('assignment:republish')")
+    @OperationLog(module = "作业管理", action = "重新发布作业", saveParams = false)
+    public Result<Void> republish(@PathVariable Long id) {
+        assignmentService.republish(id);
+        return Result.success();
+    }
 }

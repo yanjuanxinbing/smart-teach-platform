@@ -30,9 +30,6 @@ public class Assignment extends BaseEntity {
     /** 总分（默认 100） */
     private BigDecimal totalScore;
 
-    /** 是否允许迟交：0否 1是 */
-    private Integer allowLate;
-
     /** 状态：0草稿 / 1已发布 / 2已截止 */
     private Integer status;
 }

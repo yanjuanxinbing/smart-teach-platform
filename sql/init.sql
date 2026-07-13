@@ -722,9 +722,10 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (760, 751, '新增作业',     3, NULL, NULL, NULL, 'assignment:add',     1, 1, 1),
 (761, 751, '编辑作业',     3, NULL, NULL, NULL, 'assignment:edit',     2, 1, 1),
 (762, 751, '删除作业',     3, NULL, NULL, NULL, 'assignment:remove',   3, 1, 1),
-(763, 751, '发布作业',     3, NULL, NULL, NULL, 'assignment:publish',  4, 1, 1),
-(764, 751, '关闭作业',     3, NULL, NULL, NULL, 'assignment:close',    5, 1, 1),
-(765, 751, '查看详情',     3, NULL, NULL, NULL, 'assignment:query',    6, 1, 1),
+(763, 751, '发布作业',     3, NULL, NULL, NULL, 'assignment:publish',     4, 1, 1),
+(764, 751, '关闭作业',     3, NULL, NULL, NULL, 'assignment:close',       5, 1, 1),
+(766, 751, '重新发布',     3, NULL, NULL, NULL, 'assignment:republish',   6, 1, 1),
+(765, 751, '查看详情',     3, NULL, NULL, NULL, 'assignment:query',       7, 1, 1),
 (770, 752, '批改评分',     3, NULL, NULL, NULL, 'assignment:grade',    1, 1, 1),
 -- 学生侧
 (753, 750, '我的作业',     2, '/student/assignment/list',        'student/MyAssignmentList',  NULL, 'assignment:my:list',   3, 1, 1),

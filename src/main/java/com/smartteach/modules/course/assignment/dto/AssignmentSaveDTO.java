@@ -39,9 +39,6 @@ public class AssignmentSaveDTO {
     @DecimalMax(value = "100.00", message = "总分不能大于 100")
     private BigDecimal totalScore;
 
-    /** 0 不允许迟交 / 1 允许迟交；默认 1 */
-    private Integer allowLate;
-
     /** 状态：0草稿 / 1已发布 / 2已截止 */
     private Integer status;
 }
