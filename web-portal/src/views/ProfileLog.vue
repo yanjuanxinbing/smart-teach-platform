@@ -12,7 +12,7 @@
         <el-option label="修改资料" value="profile" />
         <el-option label="课程" value="course" />
         <el-option label="作业" value="assignment" />
-        <el-option label="代码库" value="code" />
+        <el-option label="笔记" value="code" />
       </el-select>
       <el-date-picker v-model="filters.range" type="daterange" range-separator="→" start-placeholder="起" end-placeholder="止" class="bar__range" />
       <el-input v-model="filters.q" placeholder="搜索动作 / IP / 设备" clearable class="bar__search" />
@@ -75,8 +75,8 @@ const fetch = async () => {
   } catch (e) {
     list.value = Array.from({ length: 8 }, (_, i) => seed(i,
       ['login', 'profile', 'course', 'assignment', 'code'][i % 5],
-      ['登录系统', '更新个人资料', '加入课程', '提交作业', '收藏代码片段', '退出登录'][i % 6],
-      ['个人空间', 'Java EE 课程', 'Spring Boot 实验', 'CodeX 数据库工具', 'Python 数据分析'][i % 5],
+      ['登录系统', '更新个人资料', '加入课程', '提交作业', '收藏笔记', '退出登录'][i % 6],
+      ['个人空间', 'Java EE 课程', 'Spring Boot 实验', '笔记', 'Python 数据分析'][i % 5],
       '10.0.0.' + (10 + i),
       ['Chrome / macOS', 'Safari / iOS', 'Edge / Windows'][i % 3]
     ))

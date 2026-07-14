@@ -14,11 +14,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 /**
- * 前台门户 - CodeX 代码库（公开）。
+ * 前台门户 - 笔记分享优秀作品展示（公开）。
  * <p>
- * 仅返回 isPublic=1 的片段；详情接口会顺带 +1 浏览量。
+ * 仅返回 isPublic=1 的优秀作品；详情接口会顺带 +1 浏览量。
  */
-@Api(tags = "门户-代码库")
+@Api(tags = "门户-笔记分享优秀作品展示")
 @RestController
 @RequestMapping("/portal/codex")
 @RequiredArgsConstructor
@@ -26,14 +26,14 @@ public class PortalCodexController {
 
     private final CodexSnippetService codexService;
 
-    @ApiOperation("代码片段分页（公开）")
+    @ApiOperation("笔记分享优秀作品分页（公开）")
     @GetMapping("/page")
     public Result<PageResult<CodexSnippet>> page(PortalCodexQueryDTO query) {
         return Result.success(codexService.sitePage(
                 query.getLang(), query.getQ(), query.getCurrent(), query.getSize()));
     }
 
-    @ApiOperation("代码片段详情（公开，访问一次浏览量+1）")
+    @ApiOperation("笔记分享优秀作品详情（公开，访问一次浏览量+1）")
     @GetMapping("/{id}")
     public Result<CodexSnippet> detail(@PathVariable Long id) {
         return Result.success(codexService.siteDetail(id));

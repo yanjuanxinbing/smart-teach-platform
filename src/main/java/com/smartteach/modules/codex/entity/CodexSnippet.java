@@ -6,20 +6,20 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * 代码库（CodeX）片段
+ * 笔记分享优秀作品展示 笔记
  */
 @Data
 @EqualsAndHashCode(callSuper = true)
 @TableName("codex_snippet")
 public class CodexSnippet extends BaseEntity {
 
-    /** 片段标题 */
+    /** 作品标题 */
     private String title;
 
-    /** 语言（java/python/js/...） */
+    /** 分类（如 学习笔记/读书笔记/...） */
     private String language;
 
-    /** 完整代码（可能很长） */
+    /** 完整笔记内容（可能很长） */
     private String code;
 
     /** 列表中展示的预览（前 ~240 字） */

@@ -68,7 +68,7 @@ const scrolled = ref(false)
 const nav = [
   { to: '/',         index: '01', label: '首页' },
   { to: '/course',   index: '02', label: '课程' },
-  { to: '/codex',    index: '03', label: '代码库' },
+  { to: '/codex',    index: '03', label: '笔记' },
   { to: '/notice',   index: '04', label: '通告' },
   { to: '/news',     index: '05', label: '资讯' },
   { to: '/stats',    index: '06', label: '数据' }
