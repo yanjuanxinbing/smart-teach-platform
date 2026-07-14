@@ -59,8 +59,8 @@
     <el-dialog v-model="formDialog" title="新增报名" width="500px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="实训计划" prop="planId">
-          <el-select v-model="form.planId" filterable style="width:100%">
-            <el-option v-for="p in planList" :key="p.id" :label="p.projectName" :value="p.id" />
+          <el-select v-model="form.planId" filterable style="width:100%" :no-data-text="availablePlans.length === 0 ? '暂无可报名的实训计划（仅进行中的计划可报名）' : '无匹配数据'">
+            <el-option v-for="p in availablePlans" :key="p.id" :label="p.projectName" :value="p.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="学生姓名" prop="studentName"><el-input v-model="form.studentName" /></el-form-item>
@@ -141,6 +141,8 @@ const planMap = computed(() => {
   planList.value.forEach(p => { if (p && p.id != null) m[p.id] = p.projectName })
   return m
 })
+// 仅 status === 3（进行中）的计划允许出现在"新增报名"下拉中
+const availablePlans = computed(() => (planList.value || []).filter(p => p && p.status === 3))
 
 const formDialog = ref(false)
 const formRef = ref()
