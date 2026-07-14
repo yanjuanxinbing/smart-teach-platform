@@ -607,7 +607,10 @@ CREATE TABLE `sys_class` (
     `deleted`     TINYINT      NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
     KEY `idx_dept` (`dept_id`),
-    KEY `idx_name` (`class_name`)
+    KEY `idx_name` (`class_name`),
+    -- 同一部门下不允许重名；含 deleted 是为了与"逻辑删除"配合：
+    -- 同一 (dept_id, class_name) 可有 deleted=0 与 deleted=1 各 1 条，确保同名重建可走通
+    UNIQUE KEY `uk_dept_class` (`dept_id`, `class_name`, `deleted`)
 ) ENGINE = InnoDB COMMENT ='班级';
 
 DROP TABLE IF EXISTS `sys_user_class`;
