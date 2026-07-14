@@ -3,6 +3,7 @@ package com.smartteach.common.exception;
 import com.smartteach.common.result.Result;
 import com.smartteach.common.result.ResultCode;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.validation.BindException;
 import org.springframework.validation.FieldError;
@@ -50,6 +51,16 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AccessDeniedException.class)
     public Result<Void> handleAccessDeniedException(AccessDeniedException e) {
         return Result.fail(ResultCode.FORBIDDEN);
+    }
+
+    /**
+     * DB 唯一约束冲突兜底：并发场景下应用层 count 已放行，但 INSERT/UPDATE
+     * 提交时 DB 抛 DuplicateKey，将原始异常翻译成"数据重复"友好提示。
+     */
+    @ExceptionHandler(DuplicateKeyException.class)
+    public Result<Void> handleDuplicateKeyException(DuplicateKeyException e) {
+        log.warn("唯一约束冲突: {}", e.getMostSpecificCause().getMessage());
+        return Result.fail(ResultCode.FAIL.getCode(), "数据已存在，请勿重复提交");
     }
 
     @ExceptionHandler(Exception.class)

@@ -97,22 +97,47 @@ public class SysClassServiceImpl extends ServiceImpl<SysClassMapper, SysClass> i
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void save(SysClassSaveDTO dto) {
         SysClass c = new SysClass();
         BeanUtils.copyProperties(dto, c);
+        assertNameUnique(c.getDeptId(), c.getClassName(), null);
         if (c.getStatus() == null) c.setStatus(1);
         if (c.getSort() == null) c.setSort(0);
         this.save(c);
     }
 
     @Override
+    @Transactional(rollbackFor = Exception.class)
     public void update(SysClassSaveDTO dto) {
         if (dto.getId() == null) throw new BusinessException("id 不能为空");
         SysClass exists = this.getById(dto.getId());
         if (exists == null) throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        Long deptId = dto.getDeptId() != null ? dto.getDeptId() : exists.getDeptId();
+        String newName = dto.getClassName() != null ? dto.getClassName() : exists.getClassName();
+        assertNameUnique(deptId, newName, dto.getId());
         SysClass c = new SysClass();
         BeanUtils.copyProperties(dto, c);
         this.updateById(c);
+    }
+
+    /**
+     * 同一部门（dept_id）下班级名称不允许重复。@TableLogic 自动过滤 deleted=1，
+     * 所以"软删后用同名重建"是被允许的——这是预期行为。
+     */
+    private void assertNameUnique(Long deptId, String className, Long excludeId) {
+        if (deptId == null || !StringUtils.hasText(className)) {
+            return;
+        }
+        LambdaQueryWrapper<SysClass> wrapper = new LambdaQueryWrapper<SysClass>()
+                .eq(SysClass::getDeptId, deptId)
+                .eq(SysClass::getClassName, className);
+        if (excludeId != null) {
+            wrapper.ne(SysClass::getId, excludeId);
+        }
+        if (this.count(wrapper) > 0) {
+            throw new BusinessException("该部门下已存在同名班级「" + className + "」");
+        }
     }
 
     @Override
