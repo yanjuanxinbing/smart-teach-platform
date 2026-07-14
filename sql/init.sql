@@ -918,8 +918,8 @@ INSERT INTO `sys_user_role`(`id`, `user_id`, `role_id`) VALUES
 
 -- 班级（隶属现有部门：计算机科学系 id=2、软件工程系 id=3）
 INSERT INTO `sys_class`(`id`, `class_name`, `grade`, `dept_id`, `sort`, `status`) VALUES
-(1, '计科2201班', '2022级', 2, 1, 1),
-(2, '软工2202班', '2022级', 3, 2, 1);
+(1, '计科2201班', '2022', 2, 1, 1),
+(2, '软工2202班', '2022', 3, 2, 1);
 
 -- 用户-班级关系（学生归属本班；教师按"任课"维度挂到对应班）
 INSERT INTO `sys_user_class`(`id`, `user_id`, `class_id`) VALUES
