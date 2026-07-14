@@ -120,7 +120,7 @@ import {
   assignPage, assignAdd, assignEdit, assignRemove, assignPublish, assignClose
 } from '@/api/assignment'
 import { classListByDept, classListAll } from '@/api/system'
-import { deptTree } from '@/api/system'
+import { deptTreeOptions } from '@/api/system'
 
 const userStore = useUserStore()
 
@@ -270,7 +270,8 @@ const changeStatus = async (row, action) => {
 
 onMounted(async () => {
   courseOptions.value = await myCourses()
-  deptTreeAll.value = await deptTree()
+  // 用轻量版部门树（不含 PII），避免非管理员账号 403
+  deptTreeAll.value = await deptTreeOptions()
   // 仅展示二级部门（系）作为院系下拉
   const flatten = (nodes, depth = 0) => {
     let out = []

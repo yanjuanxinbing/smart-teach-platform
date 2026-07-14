@@ -3,6 +3,7 @@ package com.smartteach.modules.system.controller;
 import com.smartteach.common.result.Result;
 import com.smartteach.modules.system.dto.SysDeptSaveDTO;
 import com.smartteach.modules.system.service.SysDeptService;
+import com.smartteach.modules.system.vo.SysDeptOptionVO;
 import com.smartteach.modules.system.vo.SysDeptTreeVO;
 import com.smartteach.modules.systemmonitor.annotation.OperationLog;
 import io.swagger.annotations.Api;
@@ -25,11 +26,22 @@ public class SysDeptController {
 
     private final SysDeptService deptService;
 
-    @ApiOperation("获取部门树")
+    @ApiOperation("获取部门树（含 PII，仅部门管理页使用）")
     @GetMapping("/tree")
     @PreAuthorize("hasAuthority('system:dept:list')")
     public Result<List<SysDeptTreeVO>> tree() {
         return Result.success(deptService.tree());
+    }
+
+    /**
+     * 部门树下拉专用（不含 leader/phone/email 等 PII），任何登录用户可读。
+     * 给作业表单之类"参考数据"接口使用——这些页面只需要选部门/系，不需要联系人信息。
+     */
+    @ApiOperation("获取部门树下拉（轻量版，任意登录用户可读）")
+    @GetMapping("/options")
+    @PreAuthorize("isAuthenticated()")
+    public Result<List<SysDeptOptionVO>> treeOptions() {
+        return Result.success(deptService.treeOptions());
     }
 
     @ApiOperation("新增部门")
