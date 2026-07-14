@@ -9,7 +9,7 @@
           <span class="rubric__dot"></span>
           <span>{{ activeLangLabel }}</span>
         </div>
-        <h1 class="page__title">笔记库</h1>
+        <h1 class="page__title">笔记<em>库</em></h1>
         <p class="page__lead">
           笔记、模板——按语言和主题筛选，可一键复制或查阅上下文。
         </p>

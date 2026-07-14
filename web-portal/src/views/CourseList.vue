@@ -54,7 +54,7 @@
             @click="goDetail(c)"
           >
             <div class="course__cover" :style="coverOf(c)">
-              <span class="course__code">{{ c.code }}</span>
+              <span class="course__code">{{ c.courseCode }}</span>
               <span class="course__level">{{ levelOf(c.level) }}</span>
               <div class="course__plate">
                 <span class="course__plate-num">{{ String(idx + 1).padStart(2, '0') }}</span>
@@ -63,20 +63,28 @@
             </div>
             <div class="course__body">
               <div class="course__meta">
-                <span class="course__tag">{{ tagOf(c.category) }}</span>
-                <span class="course__hours">{{ c.hours || 48 }}h</span>
+                <span class="course__tag">{{ tagOf(c.courseType) || c.categoryName || '课程' }}</span>
+                <span class="course__hours">{{ c.totalHours || 48 }}h</span>
               </div>
-              <h3 class="course__title">{{ c.title || c.name }}</h3>
-              <p class="course__excerpt">{{ c.summary || c.description || '本课程从基础原理到综合应用，循序渐进带您掌握核心知识。' }}</p>
+              <h3 class="course__title">{{ c.courseName }}</h3>
+              <p class="course__excerpt">{{ c.description || '本课程从基础原理到综合应用，循序渐进带您掌握核心知识。' }}</p>
               <div class="course__foot">
                 <span class="course__teacher">
                   <span class="dot"></span>
                   {{ c.teacherName || '主讲教师' }}
                 </span>
-                <span class="course__more">
-                  查看详情
-                  <el-icon :size="12"><ArrowRight /></el-icon>
-                </span>
+                <div class="course__actions">
+                  <button
+                    v-if="!userStore.isLogin && Number(c.courseType) === 2"
+                    class="course__enroll"
+                    type="button"
+                    @click.stop="goEnroll(c)"
+                  >登录后选课</button>
+                  <span class="course__more">
+                    查看详情
+                    <el-icon :size="12"><ArrowRight /></el-icon>
+                  </span>
+                </div>
               </div>
             </div>
           </article>
@@ -100,27 +108,35 @@
 <script setup>
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { Search, Notebook, Reading, ArrowRight } from '@element-plus/icons-vue'
 import { listCourses } from '@/api/course'
+import { useUserStore } from '@/store/user'
 
 const router = useRouter()
+const userStore = useUserStore()
 const loading = ref(true)
 const list = ref([])
 const total = ref(0)
 const page = reactive({ current: 1, size: 12 })
 
+// 后端 course_type: 1必修 2选修 3通识 —— 与字典 sys_dict_type.course_type 对应
+const TAG_TYPE_MAP = { 1: 'required', 2: 'elective', 3: 'elective' }
+const TYPE_LABEL = { required: '必修', elective: '选修', lab: '实验', training: '实训' }
+
 const tagOptions = [
   { value: '', label: '全部' },
   { value: 'required', label: '必修' },
-  { value: 'elective', label: '选修' },
-  { value: 'lab', label: '实验' },
-  { value: 'training', label: '实训' }
+  { value: 'elective', label: '选修' }
 ]
 const filters = reactive({ q: '', tag: '', level: '' })
 const activeTagLabel = computed(() => tagOptions.find(t => t.value === filters.tag)?.label || '全部')
 
 const setTag = (v) => { filters.tag = v; page.current = 1; fetch() }
-const tagOf = (v) => tagOptions.find(t => t.value === v)?.label || '课程'
+// 将后端 courseType 渲染为中文角标
+const tagOf = (courseType) => TYPE_LABEL[TAG_TYPE_MAP[courseType] || ''] || ''
+// 将前端 tag 值映射到后端约定的过滤值
+const tagForApi = (v) => (v === 'required' || v === 'elective') ? v : ''
 const levelOf = (v) => ({ easy: '初级', medium: '中级', hard: '高级' }[v] || v || '入门')
 const coverOf = (c) => {
   const palette = ['#F4F7FF', '#DEE6FF', '#A9C2FF', '#E8EDF7', '#ECF0FA']
@@ -128,13 +144,61 @@ const coverOf = (c) => {
   return { background: `linear-gradient(135deg, ${palette[i]} 0%, #A9C2FF 100%)` }
 }
 const goDetail = (c) => router.push(`/course/${c.id}`)
+// 选课入口：目前选课界面尚未明确，先跳到详情页并以提示告知
+const goEnroll = (c) => {
+  ElMessage.info(`《${c.courseName}》为选修课程，请登录后前往选课界面`)
+  router.push({ path: '/login', query: { redirect: `/course/${c.id}` } })
+}
+
+// 关键词命中打分：值越高相关性越强 —— 用于搜索结果重排
+const scoreOf = (c, kw) => {
+  if (!kw) return 0
+  const needle = kw.toLowerCase()
+  // 字段权重：名称 > 编号 > 教师 > 分类 > 简介
+  const fields = [
+    { text: String(c.courseName || ''), weight: 8 },
+    { text: String(c.courseCode || ''), weight: 5 },
+    { text: String(c.teacherName || ''), weight: 3 },
+    { text: String(c.categoryName || ''), weight: 2 },
+    { text: String(c.description || ''), weight: 1 }
+  ]
+  let score = 0
+  for (const f of fields) {
+    const t = f.text.toLowerCase()
+    if (!t) continue
+    // 命中 + 加成（命中长度越接近总长，加成越高，体现高"占比"）
+    const idx = t.indexOf(needle)
+    if (idx >= 0) {
+      const occ = t.split(needle).length - 1
+      const density = needle.length / Math.max(t.length, 1) // 关键词占比
+      score += occ * f.weight + density * f.weight
+    }
+  }
+  return score
+}
 
 const fetch = async () => {
   loading.value = true
   try {
-    const res = await listCourses({ current: page.current, size: page.size, q: filters.q, tag: filters.tag, level: filters.level })
-    list.value = res?.records || res?.list || []
-    total.value = Number(res?.total || list.value.length)
+    const res = await listCourses({
+      current: page.current,
+      size: page.size,
+      q: filters.q,
+      tag: tagForApi(filters.tag),
+      level: filters.level
+    })
+    let records = res?.records || res?.list || []
+    // 搜索时按关键词命中占比重排：占比高的排在前面
+    if (filters.q && filters.q.trim()) {
+      const kw = filters.q.trim()
+      records = [...records]
+        .map((c) => ({ c, s: scoreOf(c, kw) }))
+        .filter((x) => x.s > 0)
+        .sort((a, b) => b.s - a.s)
+        .map((x) => x.c)
+    }
+    list.value = records
+    total.value = Number(res?.total || records.length)
   } catch (e) {
     list.value = []; total.value = 0
   } finally { loading.value = false }
@@ -226,6 +290,13 @@ onMounted(fetch)
 .course__teacher .dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; }
 .course__more { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--accent); transition: gap var(--t-base) var(--ease); }
 .course:hover .course__more { gap: 12px; }
+.course__actions { display: inline-flex; align-items: center; gap: 12px; }
+.course__enroll {
+  font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase;
+  padding: 6px 10px; background: var(--accent); color: #fff; border: 1px solid var(--accent);
+  cursor: pointer; transition: background-color var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease);
+}
+.course__enroll:hover { background: #2a4ee0; border-color: #2a4ee0; }
 
 .pager { display: flex; justify-content: center; margin-top: var(--s-9); }
 .pager :deep(.el-pager li), .pager :deep(.btn-prev), .pager :deep(.btn-next) { background: var(--surface) !important; color: var(--ink) !important; font-family: var(--font-mono) !important; }

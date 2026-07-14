@@ -1,0 +1,85 @@
+package com.smartteach.modules.portal.controller;
+
+import com.baomidou.mybatisplus.core.metadata.IPage;
+import com.smartteach.common.base.PageResult;
+import com.smartteach.common.exception.BusinessException;
+import com.smartteach.common.result.Result;
+import com.smartteach.common.result.ResultCode;
+import com.smartteach.common.utils.UserContext;
+import com.smartteach.modules.portal.service.PortalMyLearningService;
+import com.smartteach.modules.portal.vo.PortalMyAssignmentVO;
+import com.smartteach.modules.portal.vo.PortalMyCourseVO;
+import com.smartteach.modules.portal.vo.PortalMyTrainingVO;
+import io.swagger.annotations.Api;
+import io.swagger.annotations.ApiOperation;
+import lombok.RequiredArgsConstructor;
+import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+
+/**
+ * 「我的学习中心」门户侧接口 —— 学生专属
+ *
+ * <p>反 IDOR：studentId 一律从 UserContext.getUserId() 取，**绝不**接受查询参数</p>
+ * <p>对接前端契约见 web-portal/src/api/my.js</p>
+ */
+@Api(tags = "门户-我的学习中心")
+@RestController
+@RequestMapping("/portal/my")
+@RequiredArgsConstructor
+public class PortalMyLearningController {
+
+    private final PortalMyLearningService myLearningService;
+
+    @ApiOperation("我的课程（已选课程分页）")
+    @GetMapping("/courses")
+    @PreAuthorize("hasAuthority('course:my:list')")
+    public Result<PageResult<PortalMyCourseVO>> myCourses(
+            @RequestParam(defaultValue = "1") long current,
+            @RequestParam(defaultValue = "12") long size,
+            @RequestParam(required = false) String q) {
+        Long studentId = requireStudent();
+        IPage<PortalMyCourseVO> page = myLearningService.myCourses(studentId, current, size, q);
+        return Result.success(PageResult.of(page));
+    }
+
+    @ApiOperation("我的作业（按状态过滤：pending/submitted/graded）")
+    @GetMapping("/assignments")
+    @PreAuthorize("hasAuthority('assignment:my:list')")
+    public Result<PageResult<PortalMyAssignmentVO>> myAssignments(
+            @RequestParam(defaultValue = "1") long current,
+            @RequestParam(defaultValue = "12") long size,
+            @RequestParam(required = false) String status) {
+        Long studentId = requireStudent();
+        IPage<PortalMyAssignmentVO> page = myLearningService.myAssignments(studentId, current, size, status);
+        return Result.success(PageResult.of(page));
+    }
+
+    @ApiOperation("我的实训（按状态过滤：not_started/in_progress/done）")
+    @GetMapping("/trainings")
+    @PreAuthorize("hasAuthority('training:my:list')")
+    public Result<PageResult<PortalMyTrainingVO>> myTrainings(
+            @RequestParam(defaultValue = "1") long current,
+            @RequestParam(defaultValue = "12") long size,
+            @RequestParam(required = false) String status) {
+        Long studentId = requireStudent();
+        IPage<PortalMyTrainingVO> page = myLearningService.myTrainings(studentId, current, size, status);
+        return Result.success(PageResult.of(page));
+    }
+
+    // --- 工具 ---
+
+    /**
+     * 1) 校验当前 thread 是否携带已认证的用户;否则视为未登录。
+     * 2) 以 JWT 过滤器注入的 UserContext.userId 为唯一 studentId 来源,**拒绝任何 query/body 中的同名字段**。
+     */
+    private Long requireStudent() {
+        Long studentId = UserContext.getUserId();
+        if (studentId == null) {
+            throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+        return studentId;
+    }
+}
