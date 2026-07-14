@@ -39,11 +39,16 @@
           </div>
           <h3 class="arow__title">{{ a.title || '未命名作业' }}</h3>
           <div class="arow__meta">
-            <span class="arow__due">截止：{{ fmtDate(a.dueAt) }}</span>
+            <span class="arow__due">截止：{{ fmtDate(a.deadline) }}</span>
             <span v-if="a.status === 'graded'" class="arow__score">得分：{{ a.score ?? '--' }}</span>
             <span v-else-if="a.submittedAt" class="arow__score">提交于：{{ fmtDate(a.submittedAt) }}</span>
           </div>
         </div>
+        <!-- TODO: [作业动作按钮路由] [P0] "去提交 / 查看提交 / 查看批改" 三个按钮目前没有真实路由跳转:
+               - 去提交 -> /portal/assignment/${a.assignmentId}/submit (待实现)
+               - 查看提交 -> /portal/assignment/${a.assignmentId}/submission (待实现)
+               - 查看批改 -> /portal/assignment/${a.assignmentId}/grade (待实现)
+             等提交/批改详情页完成后,在 @click 上分别 router.push。 -->
         <el-button v-if="a.status === 'pending'" type="primary" plain size="small">去提交</el-button>
         <el-button v-else-if="a.status === 'submitted'" plain size="small">查看提交</el-button>
         <el-button v-else plain size="small">查看批改</el-button>

@@ -47,6 +47,8 @@ const showErrorOnce = (msg) => {
 }
 
 // ============ 401 单点闸门 ============
+// 触发后除了 clearToken,还要主动清 Pinia store.userInfo,
+// 否则头部 / 个人中心仍会展示一个"已过期但头像未刷新"的僵尸用户态。
 const UNAUTH_WINDOW = 2000
 let lastUnauthTime = 0
 const triggerUnauth = () => {
@@ -55,8 +57,11 @@ const triggerUnauth = () => {
   lastUnauthTime = now
   // 401 直接用统一的"登录已失效"文案，不暴露后端的"缺少登录凭证"等内部术语
   showErrorOnce('登录已失效，请重新登录')
-  // 静默清理本地 token，避免后续请求仍然带过期 token
+  // 清理 token
   try { clearToken() } catch (e) {}
+  // 同步清理 Pinia store.userInfo / roles / permissions —— 必须走 store action
+  // 因为我们在这里不能直接 import store (循环依赖风险),所以通过事件总线通知 app
+  window.dispatchEvent(new CustomEvent('portal:auth-expired'))
 }
 
 service.interceptors.response.use(response => {

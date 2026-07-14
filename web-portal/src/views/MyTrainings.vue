@@ -31,22 +31,29 @@
     <div v-else class="train-grid">
       <article
         v-for="(t, idx) in list"
-        :key="t.id"
+        :key="t.registrationId || t.id"
         class="train"
         :style="{ transitionDelay: `${Math.min(idx, 8) * 50}ms` }"
+        role="button"
+        tabindex="0"
+        @click="goDetail(t)"
+        @keyup.enter="goDetail(t)"
       >
         <header class="train__head">
-          <el-tag :type="progressType(t.progress)" effect="dark" size="small">{{ progressLabel(t.progress) }}</el-tag>
+          <!-- TODO: [trainings 数据契约] [P1] 当前 `t.progress` 既是状态枚举又是 0-100 数字;
+                 已通过 t.status 优先 + 仅当 progress 是数值时显示百分比来缓解;
+                 后端应拆分明确字段 t.status(状态枚举) + t.progress(0-100 数字) -->
+          <el-tag :type="progressType(t.status || t.progress)" effect="dark" size="small">{{ progressLabel(t.status || t.progress) }}</el-tag>
           <span class="train__plan">{{ t.planName || '—' }}</span>
         </header>
-        <h3 class="train__title">{{ t.title || '未命名计划' }}</h3>
-        <p class="train__stage">{{ t.stage || '—' }}</p>
+        <h3 class="train__title">{{ t.title || t.planName || '未命名计划' }}</h3>
+        <p class="train__stage">{{ t.stage || t.projectName || '—' }}</p>
         <div class="train__progress">
-          <el-progress :percentage="clamp(t.progress)" :stroke-width="6" />
+          <el-progress :percentage="percentOf(t)" :stroke-width="6" />
         </div>
         <footer class="train__foot">
-          <span>起 {{ fmtDate(t.startAt) }}</span>
-          <span>止 {{ fmtDate(t.endAt) }}</span>
+          <span>起 {{ fmtDate(t.startDate) }}</span>
+          <span>止 {{ fmtDate(t.endDate) }}</span>
           <span class="train__pct">{{ progressText(t) }}</span>
         </footer>
       </article>
@@ -67,8 +74,12 @@
 
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
+import { ElMessage } from 'element-plus'
 import { Search, Promotion, Warning } from '@element-plus/icons-vue'
 import { myTrainings } from '@/api/my'
+
+const router = useRouter()
 
 const PROGRESS_MAP = {
   not_started: { label: '未开始', type: 'info' },
@@ -85,7 +96,15 @@ const progressOptions = [
   { value: 'done',        label: '已完成' }
 ]
 
-const clamp = (p) => Math.max(0, Math.min(100, Number(p?.progress ?? p?.progressPercent ?? p) || 0))
+// 从后端取到的 progress 字段可能是:
+//   1) status 枚举字符串(not_started/in_progress/done) —— 来自 t.status 或历史 t.progress
+//   2) 0-100 数字百分比 —— 用于 el-progress
+// 我们把两者分两个 getter 处理,具体语义被注释在模板的 TODO 标注里
+const percentOf = (t) => {
+  if (t?.progress != null && typeof t.progress === 'number') return clamp(t.progress)
+  return 0
+}
+const clamp = (n) => Math.max(0, Math.min(100, Number(n) || 0))
 const fmtDate = (iso) => {
   if (!iso) return '—'
   const d = new Date(iso)
@@ -93,7 +112,7 @@ const fmtDate = (iso) => {
   const pad = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
-const progressText = (t) => t.progressText || `${Math.round(clamp(t))}%`
+const progressText = (t) => `${Math.round(percentOf(t))}%`
 
 const state = ref('loading')
 const list = ref([])
@@ -103,10 +122,18 @@ const filters = reactive({ q: '', progress: '' })
 
 const setProgress = (v) => { filters.progress = v; page.current = 1; fetch() }
 
+// TODO: [实训详情页] [P0] 详情页路由 /training/:id 尚不存在;接入后在此处 router.push(`/training/${t.trainingId}`)
+// 暂时提示"详情开发中"避免悬空
+const goDetail = (t) => {
+  if (!t?.trainingId) return
+  // 暂未实现详情页 —— 临时提示,留个出口
+  ElMessage.info(`《${t.planName || '实训计划'}》详情页开发中`)
+}
+
 const fetch = async () => {
   state.value = 'loading'
   try {
-    const res = await myTrainings({ current: page.current, size: page.size, q: filters.q, progress: filters.progress })
+    const res = await myTrainings({ current: page.current, size: page.size, q: filters.q, status: filters.progress })
     const records = res?.records || res?.list || []
     list.value = records
     total.value = Number(res?.total ?? records.length)

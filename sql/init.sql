@@ -817,16 +817,20 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (781, 753, '保存草稿',     3, NULL, NULL, NULL, 'assignment:save',     2, 1, 1),
 (782, 753, '提交作业',     3, NULL, NULL, NULL, 'assignment:submit',   3, 1, 1),
 (783, 753, '删除草稿',     3, NULL, NULL, NULL, 'assignment:my:remove', 4, 1, 1),
--- 「我的学习中心」门户侧 (学生专属) -- 顶级菜单,仅学生角色需要
--- 由父菜单 999 挂载其他门户学习菜单项,parentId=0 表示顶级
-(900, 0,   '我的课程',     2, '/student/portal/courses',         NULL,                       'Notebook', 'course:my:list',     1, 1, 1),
-(901, 0,   '我的实训',     2, '/student/portal/trainings',       NULL,                       'Promotion', 'training:my:list',   2, 1, 1),
-(902, 900, '查看',         3, NULL, NULL, NULL, 'course:my:query',     1, 1, 1),
-(903, 900, '选课',         3, NULL, NULL, NULL, 'course:my:add',       2, 1, 1),
-(904, 900, '退课',         3, NULL, NULL, NULL, 'course:my:remove',    3, 1, 1),
-(905, 901, '查看',         3, NULL, NULL, NULL, 'training:my:query',   1, 1, 1),
-(906, 901, '报名',         3, NULL, NULL, NULL, 'training:my:add',     2, 1, 1),
-(907, 901, '取消报名',     3, NULL, NULL, NULL, 'training:my:remove',  3, 1, 1),
+-- 「我的学习中心」门户侧权限占位（不显示在 admin 后台侧栏）
+-- parent=753 把这些权限行挂到现有菜单「我的作业」下面,parent_id=0 的顶级导航被移除;
+-- type=3(按钮)按 admin 端 MenuItem.vue:12 的 menuType === 2 渲染分支直接跳过,
+-- 因此 /student/portal/courses 与 /student/portal/trainings 不再出现在 8081 侧栏;
+-- 而 permission 字段(course:my:list / training:my:list)仍加载到 student 角色 authorities,
+-- 保证 web-portal 的 /portal/my/* 端点 @PreAuthorize 不被击穿.
+(910, 753, '我的课程',     3, NULL, NULL, NULL, 'course:my:list',     8, 1, 1),
+(911, 753, '查看课程',     3, NULL, NULL, NULL, 'course:my:query',    9, 1, 1),
+(912, 753, '选课',         3, NULL, NULL, NULL, 'course:my:add',     10, 1, 1),
+(913, 753, '退课',         3, NULL, NULL, NULL, 'course:my:remove',  11, 1, 1),
+(914, 753, '我的实训',     3, NULL, NULL, NULL, 'training:my:list',  12, 1, 1),
+(915, 753, '查看实训',     3, NULL, NULL, NULL, 'training:my:query', 13, 1, 1),
+(916, 753, '报名',         3, NULL, NULL, NULL, 'training:my:add',   14, 1, 1),
+(917, 753, '取消报名',     3, NULL, NULL, NULL, 'training:my:remove',15, 1, 1),
 -- 9. 班级管理（系统管理下的子菜单 507；按钮 540-544）
 (507, 500, '班级管理',  2, '/system/class', 'system/ClassList', 'User', 'class:list',          7, 1, 1),
 (540, 507, '新增',      3, NULL, NULL, NULL, 'class:add',             1, 1, 1),
@@ -849,8 +853,8 @@ WHERE id IN (507, 540, 541, 542, 543, 544)
 INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY id) + 8000, 4, id FROM sys_menu
 WHERE id IN (753, 780, 781, 782, 783,         -- 我的作业（含按钮）已存在的 student 端
-             900, 902, 903, 904,             -- 我的课程（顶级 + 查看/选课/退课）
-             901, 905, 906, 907)             -- 我的实训（顶级 + 查看/报名/取消报名）
+             910, 911, 912, 913,             -- 我的课程 (挂在 753 下,仅取权限串)
+             914, 915, 916, 917)             -- 我的实训 (挂在 753 下,仅取权限串)
   AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 4);
 
 -- 字典类型

@@ -120,6 +120,8 @@ const list = ref([])
 const total = ref(0)
 const page = reactive({ current: 1, size: 12 })
 
+// TODO: [constants 模块] [P2] TAG_TYPE_MAP / TYPE_LABEL 与 MyCourses.vue 完全重复;
+//       应提取为 web-portal/src/constants/course.js,导入后保证前后台、公开/学生两套页面同源.
 // 后端 course_type: 1必修 2选修 3通识 —— 与字典 sys_dict_type.course_type 对应
 const TAG_TYPE_MAP = { 1: 'required', 2: 'elective', 3: 'elective' }
 const TYPE_LABEL = { required: '必修', elective: '选修', lab: '实验', training: '实训' }

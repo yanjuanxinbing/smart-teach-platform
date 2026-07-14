@@ -33,8 +33,12 @@
       <article
         v-for="(c, idx) in list"
         :key="c.id"
-        class="mycourse"
+        class="mycourse mycourse--clickable"
+        role="button"
+        tabindex="0"
         :style="{ transitionDelay: `${Math.min(idx, 8) * 50}ms` }"
+        @click="goDetail(c)"
+        @keyup.enter="goDetail(c)"
       >
         <div class="mycourse__cover" :style="coverOf(c)">
           <span class="mycourse__code">{{ c.courseCode }}</span>
@@ -72,8 +76,18 @@
 
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Search, Notebook, Reading, Warning } from '@element-plus/icons-vue'
 import { myCourses } from '@/api/my'
+
+const router = useRouter()
+
+// TODO: [我的课程 → 详情页] [P1] 目前复用公开 /course/:id 详情页;若有差异(进度回写、学习轨迹),
+//       应另起 /my/course/:id 路由.
+const goDetail = (c) => {
+  if (!c?.courseId) return
+  router.push(`/course/${c.courseId}`)
+}
 
 const TAG_TYPE_MAP = { 1: 'required', 2: 'elective', 3: 'elective' }
 const TYPE_LABEL = { required: '必修', elective: '选修' }
@@ -158,6 +172,7 @@ onMounted(fetch)
   border: 1px solid var(--line); overflow: hidden;
   transition: transform var(--t-base) var(--ease), border-color var(--t-base) var(--ease), box-shadow var(--t-base) var(--ease);
 }
+.mycourse--clickable { cursor: pointer; }
 .mycourse:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: var(--shadow-blue); }
 
 .mycourse__cover {

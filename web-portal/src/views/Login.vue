@@ -49,6 +49,14 @@ const rules = {
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]
 }
 
+// 仅接受与当前 origin 同源的相对路径,避免 ?redirect=https://evil.com 这种开放重定向
+const sanitizeRedirect = (raw) => {
+  const v = String(raw || '').trim()
+  if (!v) return '/'
+  if (!v.startsWith('/') || v.startsWith('//')) return '/'
+  return v
+}
+
 const onSubmit = async () => {
   await formRef.value.validate()
   submitting.value = true
@@ -58,7 +66,7 @@ const onSubmit = async () => {
     try { await userStore.fetchUserInfo() } catch (e) { /* swallow */ }
 
     const intent = String(route.query.intent || '')
-    const redirect = String(route.query.redirect || '')
+    const redirect = sanitizeRedirect(route.query.redirect)
 
     // 从「管理中心」触发的登录：教师/管理员 -> 后台；学生 -> 拒绝
     if (intent === 'admin') {
