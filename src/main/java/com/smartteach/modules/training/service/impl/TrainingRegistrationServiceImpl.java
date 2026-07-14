@@ -57,10 +57,10 @@ public class TrainingRegistrationServiceImpl extends ServiceImpl<TrainingRegistr
         if (plan == null) {
             throw new BusinessException("实训计划不存在");
         }
-        // b) 计划状态检查：status 必须在 [1,2,3]
+        // b) 计划状态检查：只有"进行中"(status=3) 的计划才允许报名
         Integer planStatus = plan.getStatus();
-        if (planStatus == null || (planStatus != 1 && planStatus != 2 && planStatus != 3)) {
-            throw new BusinessException("该计划当前不允许报名");
+        if (planStatus == null || planStatus != 3) {
+            throw new BusinessException("只有进行中的实训计划才能报名");
         }
         // c) 重复报名检查
         long dupCount = this.count(new LambdaQueryWrapper<TrainingRegistration>()

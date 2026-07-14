@@ -6,17 +6,19 @@
         <span v-if="!isCollapse">智能教学平台</span>
         <span v-else>智</span>
       </div>
-      <el-menu
-        :default-active="activeMenu"
-        :collapse="isCollapse"
-        background-color="#001529"
-        text-color="#ffffffcc"
-        active-text-color="#ffffff"
-        router
-        unique-opened
-      >
-        <MenuItem :menu-list="menuList" />
-      </el-menu>
+      <div class="layout-menu-wrapper">
+        <el-menu
+          :default-active="activeMenu"
+          :collapse="isCollapse"
+          background-color="#001529"
+          text-color="#ffffffcc"
+          active-text-color="#ffffff"
+          router
+          unique-opened
+        >
+          <MenuItem :menu-list="menuList" />
+        </el-menu>
+      </div>
     </el-aside>
     <el-container>
       <el-header class="layout-header">
@@ -178,13 +180,27 @@ onBeforeUnmount(() => { if (timer) clearInterval(timer) })
   background: #001529;
   transition: width 0.28s;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 .layout-logo {
   height: 60px;
+  flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-size: 18px; font-weight: bold;
   background: #002140; white-space: nowrap;
 }
+.layout-menu-wrapper {
+  flex: 1;
+  min-height: 0;          /* flex 子项允许收缩，配合 overflow 才生效 */
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+/* 折叠（64px）下隐藏滚动条更简洁：只露图标，不需要滚动条但留余地 */
+.layout-menu-wrapper::-webkit-scrollbar { width: 6px; }
+.layout-menu-wrapper::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.18); border-radius: 3px; }
+.layout-menu-wrapper::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.32); }
+.layout-menu-wrapper::-webkit-scrollbar-track { background: transparent; }
 .layout-header {
   display: flex; align-items: center; justify-content: space-between;
   background: #fff; box-shadow: 0 1px 4px rgba(0,21,41,0.08);

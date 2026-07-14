@@ -50,7 +50,7 @@
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑班级' : '新增班级'" width="500px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="班级名称" prop="className"><el-input v-model="form.className" placeholder="如 计科2201班" /></el-form-item>
-        <el-form-item label="年级"><el-input v-model="form.grade" placeholder="如 2022级" /></el-form-item>
+        <el-form-item label="年级"><el-date-picker v-model="form.grade" type="year" placeholder="选择入学年份" value-format="YYYY" style="width:100%" /></el-form-item>
         <el-form-item label="所属部门" prop="deptId">
           <el-tree-select v-model="form.deptId" :data="deptOptions" :props="{ value: 'id', label: 'deptName', children: 'children' }"
             check-strictly clearable placeholder="选择院系" style="width:100%" />
