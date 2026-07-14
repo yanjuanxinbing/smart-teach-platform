@@ -63,7 +63,6 @@
         <li><span>最近登录时间</span><b>{{ userStore.userInfo?.lastLoginTime || '—' }}</b></li>
         <li><span>最近登录地址</span><b>{{ userStore.userInfo?.lastLoginIp || '—' }}</b></li>
         <li><span>当前会话数</span><b>1</b></li>
-        <li><span>两步验证</span><b class="warn">未开启</b></li>
       </ul>
     </article>
   </section>
