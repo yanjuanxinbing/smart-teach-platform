@@ -30,7 +30,7 @@
     <el-dialog v-model="dialogVisible" :title="form.id ? '编辑章节' : '新增章节'" width="500px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="90px">
         <el-form-item label="所属课程">
-          <el-input :value="courseId" disabled />
+          <el-input :value="currentCourseName" disabled />
         </el-form-item>
         <el-form-item label="父章节" prop="parentId">
           <el-tree-select v-model="form.parentId" :data="chapterOptions" :props="{ value: 'id', label: 'chapterTitle' }"
@@ -168,6 +168,12 @@ const contentRules = {
 }
 
 const chapterOptions = computed(() => [{ id: 0, chapterTitle: '顶级章节' }, ...chapters.value])
+
+// 当前选中课程的展示名称，与顶部课程下拉保持一致（"课程编号 课程名称"）
+const currentCourseName = computed(() => {
+  const c = courseList.value.find(x => x.id === courseId.value)
+  return c ? `${c.courseCode || ''} ${c.courseName || ''}`.trim() : ''
+})
 
 const load = async () => {
   if (!courseId.value) return
