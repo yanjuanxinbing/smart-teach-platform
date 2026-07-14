@@ -10,8 +10,8 @@
           <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px">
             <el-option label="草稿" :value="0" />
             <el-option label="已发布" :value="1" />
-            <el-option label="已完成" :value="2" />
             <el-option label="驳回" :value="3" />
+            <el-option label="待审核" :value="4" />
           </el-select>
           <el-button type="primary" @click="load">搜索</el-button>
         </div>
@@ -27,16 +27,16 @@
         <el-table-column prop="totalWeeks" label="周次" width="80" />
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
-            <el-tag :type="['info','success','primary','danger'][row.status]">{{ ['草稿','已发布','已完成','驳回'][row.status] }}</el-tag>
+            <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="操作" width="240" fixed="right">
           <template #default="{ row }">
             <el-button size="small" link @click="openForm(row)">编辑</el-button>
             <el-button size="small" link @click="showDetail(row)">详情</el-button>
-            <el-button size="small" link v-if="row.status === 0" @click="submit(row)">提交</el-button>
-            <el-button size="small" link v-if="row.status === 1" @click="approve(row)">通过</el-button>
-            <el-button size="small" link type="danger" v-if="row.status === 1" @click="reject(row)">驳回</el-button>
+            <el-button size="small" link v-if="row.status === 0 || row.status === 3" @click="submit(row)">提交</el-button>
+            <el-button size="small" link v-if="row.status === 4" @click="approve(row)">通过</el-button>
+            <el-button size="small" link type="danger" v-if="row.status === 4" @click="reject(row)">驳回</el-button>
             <el-button size="small" link type="danger" @click="remove(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -100,7 +100,7 @@
           <el-descriptions-item label="班级">{{ detail.plan.className }}</el-descriptions-item>
           <el-descriptions-item label="教师">{{ detail.plan.teacherName }}</el-descriptions-item>
           <el-descriptions-item label="周次">{{ detail.plan.totalWeeks }}</el-descriptions-item>
-          <el-descriptions-item label="状态">{{ ['草稿','已发布','已完成','驳回'][detail.plan.status] }}</el-descriptions-item>
+          <el-descriptions-item label="状态">{{ statusLabel(detail.plan.status) }}</el-descriptions-item>
         </el-descriptions>
         <h3 style="margin-top: 16px">周次明细</h3>
         <el-table :data="detail.items" border>
@@ -189,6 +189,16 @@ const openForm = async (row) => {
 }
 
 const addItem = () => form.items.push({ weekNo: form.items.length + 1, chapterTitle: '', content: '', objective: '', method: '', hours: 2, remark: '' })
+
+// 与后端 PlanStatus 枚举保持一致：0草稿 1已发布 3驳回 4待审核
+const PLAN_STATUS = [
+  { code: 0, label: '草稿', tag: 'info' },
+  { code: 1, label: '已发布', tag: 'success' },
+  { code: 3, label: '驳回', tag: 'danger' },
+  { code: 4, label: '待审核', tag: 'warning' }
+]
+const statusLabel = (code) => (PLAN_STATUS.find(s => s.code === code)?.label) ?? '未知'
+const statusTagType = (code) => (PLAN_STATUS.find(s => s.code === code)?.tag) ?? 'info'
 
 const submitPlan = async () => {
   await formRef.value.validate()

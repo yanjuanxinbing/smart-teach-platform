@@ -43,7 +43,7 @@ public class CoursePlan extends BaseEntity {
     /** 计划说明 */
     private String description;
 
-    /** 状态 0草稿 1已发布 2已完成 */
+    /** 状态 0草稿 1已发布 3驳回 4待审核 */
     private Integer status;
 
     /** 审核人ID */
