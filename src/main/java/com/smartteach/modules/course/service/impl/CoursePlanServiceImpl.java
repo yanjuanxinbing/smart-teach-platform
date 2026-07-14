@@ -91,8 +91,7 @@ public class CoursePlanServiceImpl extends ServiceImpl<CoursePlanMapper, CourseP
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
         Integer cur = plan.getStatus();
-        if (cur != null && (cur == PlanStatus.COMPLETED.getCode()
-                || cur == PlanStatus.PUBLISHED.getCode()
+        if (cur != null && (cur == PlanStatus.PUBLISHED.getCode()
                 || cur == PlanStatus.PENDING.getCode())) {
             throw new BusinessException("当前状态（" + PlanStatus.labelOf(cur) + "）不允许编辑");
         }
@@ -120,15 +119,6 @@ public class CoursePlanServiceImpl extends ServiceImpl<CoursePlanMapper, CourseP
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void remove(List<Long> ids) {
-        long locked = this.lambdaQuery()
-                .in(CoursePlan::getId, ids)
-                .in(CoursePlan::getStatus, PlanStatus.PENDING.getCode(),
-                        PlanStatus.PUBLISHED.getCode(),
-                        PlanStatus.COMPLETED.getCode())
-                .count();
-        if (locked > 0) {
-            throw new BusinessException("存在 待审核/已发布/已完成 的计划，无法删除");
-        }
         this.removeByIds(ids);
         itemMapper.delete(new LambdaUpdateWrapper<CoursePlanItem>().in(CoursePlanItem::getPlanId, ids));
     }

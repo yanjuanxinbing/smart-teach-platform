@@ -7,7 +7,6 @@ public enum PlanStatus {
 
     DRAFT(0, "草稿"),
     PUBLISHED(1, "已发布"),
-    COMPLETED(2, "已完成"),
     REJECTED(3, "驳回"),
     PENDING(4, "待审核");
 
