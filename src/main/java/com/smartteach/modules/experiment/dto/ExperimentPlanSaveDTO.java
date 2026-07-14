@@ -3,6 +3,7 @@ package com.smartteach.modules.experiment.dto;
 import lombok.Data;
 
 import javax.validation.Valid;
+import javax.validation.constraints.AssertTrue;
 import javax.validation.constraints.NotBlank;
 import javax.validation.constraints.NotNull;
 import java.time.LocalDate;
@@ -33,4 +34,17 @@ public class ExperimentPlanSaveDTO {
 
     @Valid
     private List<ExperimentPlanItemDTO> items;
+
+    /**
+     * 结束日期必须晚于开始日期。
+     * 字段级别的 @NotNull 仅校验"非空"，无法表达两个字段之间的关系，
+     * 因此在校验链上补充一个类级别的 @AssertTrue 兜底，避免前端绕过。
+     */
+    @AssertTrue(message = "结束日期必须晚于开始日期")
+    public boolean isEndDateAfterStartDate() {
+        if (startDate == null || endDate == null) {
+            return true;
+        }
+        return endDate.isAfter(startDate);
+    }
 }
