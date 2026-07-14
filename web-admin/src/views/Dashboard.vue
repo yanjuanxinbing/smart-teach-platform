@@ -66,12 +66,17 @@ onMounted(async () => {
     console.error('获取首页统计失败', e)
   }
 
-  // 服务器 CPU
-  try {
-    const data = await serverInfo()
-    cards.value[3].value = 'CPU ' + (data.cpu?.userUsage ?? 0).toFixed(0) + '%'
-  } catch (e) {
-    console.error('获取服务器信息失败', e)
+  // 服务器 CPU：仅管理员可见（@PreAuthorize('monitor:server:list')）。
+  // 非管理员账号不发这个请求，否则会被 403 拦截弹 toast。
+  if (userStore.hasAuthority('monitor:server:list')) {
+    try {
+      const data = await serverInfo()
+      cards.value[3].value = 'CPU ' + (data.cpu?.userUsage ?? 0).toFixed(0) + '%'
+    } catch (e) {
+      console.error('获取服务器信息失败', e)
+    }
+  } else {
+    cards.value[3].value = '—'
   }
 
   cpuOption.value = {

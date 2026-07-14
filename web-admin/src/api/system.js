@@ -26,7 +26,8 @@ export const menuEdit = (data) => request.put('/system/menu', data)
 export const menuRemove = (id) => request.delete(`/system/menu/${id}`)
 
 // 部门
-export const deptTree = () => request.get('/system/dept/tree')
+export const deptTree = () => request.get('/system/dept/tree')           // 含 PII，仅部门管理页用
+export const deptTreeOptions = () => request.get('/system/dept/options') // 轻量版，任意登录用户可读
 export const deptAdd = (data) => request.post('/system/dept', data)
 export const deptEdit = (data) => request.put('/system/dept', data)
 export const deptRemove = (id) => request.delete(`/system/dept/${id}`)
