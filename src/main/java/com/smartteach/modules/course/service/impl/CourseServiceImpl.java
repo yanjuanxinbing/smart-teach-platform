@@ -13,9 +13,11 @@ import com.smartteach.modules.course.dto.CourseSaveDTO;
 import com.smartteach.modules.course.entity.Course;
 import com.smartteach.modules.course.entity.CourseChapter;
 import com.smartteach.modules.course.entity.CourseContent;
+import com.smartteach.modules.course.entity.CourseTeacher;
 import com.smartteach.modules.course.mapper.CourseChapterMapper;
 import com.smartteach.modules.course.mapper.CourseContentMapper;
 import com.smartteach.modules.course.mapper.CourseMapper;
+import com.smartteach.modules.course.mapper.CourseTeacherMapper;
 import com.smartteach.modules.course.service.CourseService;
 import com.smartteach.modules.course.vo.CourseDetailVO;
 import org.apache.commons.lang3.StringUtils;
@@ -34,10 +36,13 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
 
     private final CourseChapterMapper chapterMapper;
     private final CourseContentMapper contentMapper;
+    private final CourseTeacherMapper courseTeacherMapper;
 
-    public CourseServiceImpl(CourseChapterMapper chapterMapper, CourseContentMapper contentMapper) {
+    public CourseServiceImpl(CourseChapterMapper chapterMapper, CourseContentMapper contentMapper,
+                             CourseTeacherMapper courseTeacherMapper) {
         this.chapterMapper = chapterMapper;
         this.contentMapper = contentMapper;
+        this.courseTeacherMapper = courseTeacherMapper;
     }
 
     @Override
@@ -136,6 +141,8 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
         // 同步删除章节与内容
         chapterMapper.delete(new LambdaUpdateWrapper<CourseChapter>().in(CourseChapter::getCourseId, ids));
         contentMapper.delete(new LambdaUpdateWrapper<CourseContent>().in(CourseContent::getCourseId, ids));
+        // 同步软删授课关系（教师端 /myCourses 立即不再看到该课程）
+        courseTeacherMapper.delete(new LambdaUpdateWrapper<CourseTeacher>().in(CourseTeacher::getCourseId, ids));
     }
 
     @Override
@@ -149,10 +156,9 @@ public class CourseServiceImpl extends ServiceImpl<CourseMapper, Course> impleme
 
     @Override
     public List<Course> listByTeacher(Long teacherId) {
-        return this.lambdaQuery().eq(Course::getTeacherId, teacherId)
-                .in(Course::getStatus, 0, 1)
-                .orderByDesc(Course::getCreateTime)
-                .list();
+        if (teacherId == null) return new ArrayList<>();
+        // 授课管理上线后：走 course_teacher JOIN，让"被分配"成为唯一标准
+        return baseMapper.selectCoursesByTeacherId(teacherId);
     }
 
     @Override
