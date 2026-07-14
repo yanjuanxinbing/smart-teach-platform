@@ -67,8 +67,8 @@
           <el-col :span="8"><el-form-item label="教师"><el-input v-model="form.teacherName" disabled /></el-form-item></el-col>
         </el-row>
         <el-row :gutter="16">
-          <el-col :span="8"><el-form-item label="开始日期"><el-date-picker v-model="form.startDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="结束日期"><el-date-picker v-model="form.endDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="开始日期" prop="startDate"><el-date-picker v-model="form.startDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="结束日期" prop="endDate"><el-date-picker v-model="form.endDate" type="date" value-format="YYYY-MM-DD" style="width:100%" :disabled-date="disabledEndDate" /></el-form-item></el-col>
           <el-col :span="8"><el-form-item label="总周次"><el-input-number v-model="form.totalWeeks" :min="0" disabled /></el-form-item></el-col>
         </el-row>
         <el-form-item label="计划说明"><el-input v-model="form.description" type="textarea" :rows="2" /></el-form-item>
@@ -134,7 +134,7 @@ const dialogVisible = ref(false)
 const submitting = ref(false)
 const formRef = ref()
 const form = reactive({ id: null, planTitle: '', courseId: null, courseName: '', semester: '', className: '', teacherName: '', startDate: '', endDate: '', totalWeeks: 0, description: '', items: [] })
-const rules = { planTitle: [{ required: true, message: '请输入计划标题' }], courseId: [{ required: true, message: '请选择课程' }], semester: [{ required: true, message: '请选择学期' }], className: [{ required: true, message: '请输入班级', trigger: 'blur' }] }
+const rules = { planTitle: [{ required: true, message: '请输入计划标题' }], courseId: [{ required: true, message: '请选择课程' }], semester: [{ required: true, message: '请选择学期' }], className: [{ required: true, message: '请输入班级', trigger: 'blur' }], endDate: [{ validator: (rule, value, callback) => { if (value && form.startDate && new Date(value) <= new Date(form.startDate)) { callback(new Error('结束日期必须晚于开始日期')) } else { callback() } }, trigger: 'change' }] }
 
 const detailDrawer = ref(false)
 const detail = ref({ plan: null, items: [] })
@@ -176,6 +176,17 @@ const recomputeWeeks = () => {
   form.totalWeeks = diffDays <= 0 ? 0 : Math.ceil(diffDays / 7)
 }
 watch(() => [form.startDate, form.endDate], recomputeWeeks)
+
+// 结束日期必须晚于开始日期：禁用开始日期及之前的日期
+const disabledEndDate = (time) => {
+  if (!form.startDate) return false
+  return time.getTime() <= new Date(form.startDate).getTime()
+}
+
+// 开始日期变化时重新校验结束日期，避免选了晚于结束日期的开始日期后看不到错误提示
+watch(() => form.startDate, () => {
+  if (form.endDate && formRef.value) formRef.value.validateField('endDate')
+})
 
 const openForm = async (row) => {
   if (!courseList.value.length) courseList.value = await myCourses()
