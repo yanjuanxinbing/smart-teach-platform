@@ -14,7 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 /**
- * CodeX 代码片段 service
+ * 笔记分享优秀作品展示 service
  */
 @Service
 public class CodexSnippetService extends ServiceImpl<CodexSnippetMapper, CodexSnippet> {

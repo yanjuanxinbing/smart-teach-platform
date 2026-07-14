@@ -9,9 +9,9 @@
           <span class="rubric__dot"></span>
           <span>{{ activeLangLabel }}</span>
         </div>
-        <h1 class="page__title">Code<em>X · 代码库</em></h1>
+        <h1 class="page__title">笔记库</h1>
         <p class="page__lead">
-          教研沉淀、算法笔记、实验模板——按语言和主题筛选，可一键复制或查阅上下文。
+          笔记、模板——按语言和主题筛选，可一键复制或查阅上下文。
         </p>
       </div>
     </header>
@@ -37,7 +37,7 @@
           </el-input>
         </header>
 
-        <div v-if="loading" class="loading-tip">代码片段加载中…</div>
+        <div v-if="loading" class="loading-tip">笔记加载中…</div>
         <div v-else-if="!list.length" class="empty"><el-icon :size="32"><DocumentCopy /></el-icon><p>暂无符合条件的代码片段</p></div>
 
         <div v-else class="cards">
