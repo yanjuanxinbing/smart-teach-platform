@@ -644,6 +644,35 @@ CREATE TABLE `assignment_target_class` (
 ) ENGINE = InnoDB COMMENT ='作业-班级关系';
 
 -- =====================================================================
+-- 学生-课程 选课关系（学生侧「我的课程」数据隔离的来源表）
+--   不要从请求参数中读取 student_id —— 必须用 UserContext.getUserId()
+-- =====================================================================
+DROP TABLE IF EXISTS `course_enrollment`;
+CREATE TABLE `course_enrollment` (
+    `id`            BIGINT       NOT NULL,
+    `student_id`    BIGINT       NOT NULL                COMMENT '学生ID (= sys_user.id 与 UserContext 一致)',
+    `course_id`     BIGINT       NOT NULL                COMMENT '课程ID (= course.id)',
+    `course_name`   VARCHAR(100)          DEFAULT NULL   COMMENT '冗余课程名,列表展示',
+    `course_code`   VARCHAR(50)           DEFAULT NULL   COMMENT '冗余课程编号',
+    `teacher_name`  VARCHAR(50)           DEFAULT NULL   COMMENT '冗余教师名',
+    `cover_image`   VARCHAR(255)          DEFAULT NULL   COMMENT '冗余封面',
+    `total_hours`   INT                   DEFAULT NULL   COMMENT '冗余学时',
+    `course_type`   TINYINT               DEFAULT 1       COMMENT '冗余性质 1必修 2选修 3通识',
+    `progress`      INT          NOT NULL DEFAULT 0       COMMENT '学习进度 0-100',
+    `enrolled_at`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '选课时间',
+    `status`        TINYINT      NOT NULL DEFAULT 1       COMMENT '0已退课 1进行中 2已结课',
+    `create_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_by`     BIGINT                DEFAULT NULL,
+    `update_by`     BIGINT                DEFAULT NULL,
+    `deleted`       TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_student_course` (`student_id`, `course_id`),
+    KEY `idx_student`                (`student_id`),
+    KEY `idx_course`                 (`course_id`)
+) ENGINE = InnoDB COMMENT ='学生-课程选课关系';
+
+-- =====================================================================
 -- 初始化数据
 -- =====================================================================
 
@@ -788,6 +817,16 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (781, 753, '保存草稿',     3, NULL, NULL, NULL, 'assignment:save',     2, 1, 1),
 (782, 753, '提交作业',     3, NULL, NULL, NULL, 'assignment:submit',   3, 1, 1),
 (783, 753, '删除草稿',     3, NULL, NULL, NULL, 'assignment:my:remove', 4, 1, 1),
+-- 「我的学习中心」门户侧 (学生专属) -- 顶级菜单,仅学生角色需要
+-- 由父菜单 999 挂载其他门户学习菜单项,parentId=0 表示顶级
+(900, 0,   '我的课程',     2, '/student/portal/courses',         NULL,                       'Notebook', 'course:my:list',     1, 1, 1),
+(901, 0,   '我的实训',     2, '/student/portal/trainings',       NULL,                       'Promotion', 'training:my:list',   2, 1, 1),
+(902, 900, '查看',         3, NULL, NULL, NULL, 'course:my:query',     1, 1, 1),
+(903, 900, '选课',         3, NULL, NULL, NULL, 'course:my:add',       2, 1, 1),
+(904, 900, '退课',         3, NULL, NULL, NULL, 'course:my:remove',    3, 1, 1),
+(905, 901, '查看',         3, NULL, NULL, NULL, 'training:my:query',   1, 1, 1),
+(906, 901, '报名',         3, NULL, NULL, NULL, 'training:my:add',     2, 1, 1),
+(907, 901, '取消报名',     3, NULL, NULL, NULL, 'training:my:remove',  3, 1, 1),
 -- 9. 班级管理（系统管理下的子菜单 507；按钮 540-544）
 (507, 500, '班级管理',  2, '/system/class', 'system/ClassList', 'User', 'class:list',          7, 1, 1),
 (540, 507, '新增',      3, NULL, NULL, NULL, 'class:add',             1, 1, 1),
@@ -805,6 +844,14 @@ INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY id) + 5000, 2, id FROM sys_menu
 WHERE id IN (507, 540, 541, 542, 543, 544)
   AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 2);
+
+-- 学生(role=4)获得「我的学习中心」门户侧专属权限
+INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
+SELECT ROW_NUMBER() OVER (ORDER BY id) + 8000, 4, id FROM sys_menu
+WHERE id IN (753, 780, 781, 782, 783,         -- 我的作业（含按钮）已存在的 student 端
+             900, 902, 903, 904,             -- 我的课程（顶级 + 查看/选课/退课）
+             901, 905, 906, 907)             -- 我的实训（顶级 + 查看/报名/取消报名）
+  AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 4);
 
 -- 字典类型
 INSERT INTO `sys_dict_type`(`id`, `dict_name`, `dict_type`, `description`, `status`) VALUES

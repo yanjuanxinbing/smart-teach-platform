@@ -48,6 +48,9 @@ public class SecurityConfig {
                                 "/portal/course/**",
                                 "/portal/codex/**"
                         ).permitAll()
+                        // 后台管理类接口：仅允许 教师 / 管理员 角色访问
+                        // （hasRole 自动加 ROLE_ 前缀，等价于 "ROLE_TEACHER" 或 "ROLE_ADMIN"）
+                        .antMatchers("/admin/**").hasAnyRole("TEACHER", "ADMIN")
                         .anyRequest().authenticated()
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)

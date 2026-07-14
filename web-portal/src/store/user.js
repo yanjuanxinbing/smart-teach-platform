@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { login, getUserInfo, logout } from '@/api/auth'
+import { login, register, getUserInfo, logout } from '@/api/auth'
 import { getToken, setToken, clearToken } from '@/utils/request'
 
 /**
@@ -39,12 +39,33 @@ export const useUserStore = defineStore('user', {
   },
   actions: {
     async loginAction(form) {
-      const { token, roles, permissions, userInfo } = await login(form)
-      setToken(token)
-      this.token = token
-      this.roles = roles || []
-      this.permissions = permissions || []
-      this.userInfo = userInfo || null
+      const vo = await login(form)
+      // 后端 LoginVO 直接平铺字段 (token / userId / username / realName / avatar / roles / permissions)
+      setToken(vo.token)
+      this.token = vo.token
+      this.roles = vo.roles || []
+      this.permissions = vo.permissions || []
+      this.userInfo = {
+        userId: vo.userId,
+        username: vo.username,
+        realName: vo.realName,
+        avatar: vo.avatar
+      }
+      return vo
+    },
+    async registerAction(form) {
+      const vo = await register(form)
+      setToken(vo.token)
+      this.token = vo.token
+      this.roles = vo.roles || []
+      this.permissions = vo.permissions || []
+      this.userInfo = {
+        userId: vo.userId,
+        username: vo.username,
+        realName: vo.realName,
+        avatar: vo.avatar
+      }
+      return vo
     },
     async fetchUserInfo() {
       const data = await getUserInfo()
@@ -54,8 +75,14 @@ export const useUserStore = defineStore('user', {
       return data
     },
     async logout() {
+      // 即便后端 /auth/logout 因为 token 过期返回 401，由 silentError 跳过 toast
       try { await logout() } catch (e) { /* swallow */ }
-      clearToken()
+      this._clearLocal()
+    },
+    // 强制清理本地凭据与状态（含 LocalStorage / SessionStorage 中残留的 portal_token）
+    _clearLocal() {
+      try { clearToken() } catch (e) {}
+      try { sessionStorage.removeItem('portal_token') } catch (e) {}
       this.token = ''
       this.userInfo = null
       this.roles = []
