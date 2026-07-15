@@ -12,12 +12,12 @@
           </div>
           <div class="pf__brand-text">
             <div class="pf__brand-name">Methōdus</div>
-            <div class="pf__brand-desc">智能教学 · 教研支持平台</div>
+            <div class="pf__brand-desc">智能教学平台</div>
           </div>
         </div>
         <p class="pf__statement">
-          一座安静而严谨的教研工作台<br />
-          面向高校与培训机构 · 致力于可被监管的教学协作
+          一座教研工作台<br />
+           致力于可被监管的教学协作
         </p>
       </div>
 
@@ -53,7 +53,7 @@
       <div class="pf__bottom">
         <div class="pf__copy">
           <span class="pf__copy-mark">&copy;</span>
-          <span>{{ year }} Methōdus · 智能教学支持服务平台</span>
+          <span>{{ year }}  智能教学支持服务平台</span>
         </div>
         <div class="pf__legal">
           <span class="pf__legal-text">Crafted for higher education.</span>

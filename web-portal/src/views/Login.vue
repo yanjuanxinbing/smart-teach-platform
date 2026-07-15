@@ -12,8 +12,8 @@
       </header>
 
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="auth__form" @submit.prevent="onSubmit">
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" placeholder="请输入用户名" :prefix-icon="User" autofocus />
+        <el-form-item label="学工号" prop="username">
+          <el-input v-model="form.username" placeholder="请输入学工号" :prefix-icon="User" autofocus />
         </el-form-item>
         <el-form-item label="密码" prop="password">
           <el-input v-model="form.password" type="password" show-password placeholder="请输入密码" @keyup.enter="onSubmit" />

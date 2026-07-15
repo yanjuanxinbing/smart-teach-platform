@@ -58,3 +58,37 @@ export const myAssignments = (params = {}) =>
 
 export const myTrainings   = (params = {}) =>
   request.get('/portal/my/trainings',   { params, ...SILENT })
+
+/* ============================================================================
+ *  详情/提交/批改 子页接口
+ * ----------------------------------------------------------------------------
+ *  下面这些接口**后端尚未实现**，先按契约留好 stub；
+ *  等后端 PortalMyLearningController 扩展对应端点后，移除 SILENT 标记并切换 URL。
+ *  前端页面在不依赖这些接口的情况下能跑：详情页会回退到「list + 本地过滤」，
+ *  提交/批改页面在保存时给出明确提示「后端未就绪」。
+ *
+ *  期望契约（与训练计划的「我的」端点共用反 IDOR：studentId 从 JWT 拿）：
+ *    GET    /api/portal/my/trainings/{id}                 -> PortalMyTrainingVO (含 description / objective / content / assessment)
+ *    GET    /api/portal/my/assignments/{id}                -> PortalMyAssignmentVO + description
+ *    GET    /api/portal/my/assignments/{id}/submission     -> { submitText, fileUrl, originalName, fileSize, submitTime, isLate, status }
+ *    POST   /api/portal/my/assignments/{id}/draft          -> FormData { text, file }   保存草稿
+ *    POST   /api/portal/my/assignments/{id}/submit         -> FormData { text, file }   正式提交
+ *    GET    /api/portal/my/assignments/{id}/grade          -> { score, comment, graderName, gradeTime, ... }
+ * ========================================================================== */
+export const myTrainingDetail = (id) =>
+  request.get(`/portal/my/trainings/${id}`, { silentError: true })
+
+export const myAssignmentDetail = (id) =>
+  request.get(`/portal/my/assignments/${id}`, { silentError: true })
+
+export const myLatestSubmission = (assignmentId) =>
+  request.get(`/portal/my/assignments/${assignmentId}/submission`, { silentError: true })
+
+export const myAssignmentGrade = (assignmentId) =>
+  request.get(`/portal/my/assignments/${assignmentId}/grade`, { silentError: true })
+
+export const saveAssignmentDraft = (assignmentId, payload) =>
+  request.post(`/portal/my/assignments/${assignmentId}/draft`, payload, { silentError: true })
+
+export const submitAssignment = (assignmentId, payload) =>
+  request.post(`/portal/my/assignments/${assignmentId}/submit`, payload, { silentError: true })
