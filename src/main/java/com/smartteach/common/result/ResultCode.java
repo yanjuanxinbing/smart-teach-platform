@@ -23,7 +23,13 @@ public enum ResultCode {
     DATA_NOT_EXIST(2001, "数据不存在"),
     DATA_EXIST(2002, "数据已存在"),
     FILE_UPLOAD_ERROR(2003, "文件上传失败"),
-    FILE_NOT_EXIST(2004, "文件不存在");
+    FILE_NOT_EXIST(2004, "文件不存在"),
+
+    // AI 解题相关 5000+
+    AI_SERVICE_UNAVAILABLE(5001, "AI 服务暂不可用"),
+    AI_RESPONSE_EMPTY(5002, "AI 返回为空"),
+    AI_PROMPT_TOO_LONG(5003, "问题超出长度限制"),
+    AI_RATE_LIMITED(5004, "当前请求过多，请稍后再试");
 
     private final int code;
     private final String message;

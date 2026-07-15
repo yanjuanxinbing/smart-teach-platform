@@ -170,7 +170,8 @@ const nav = [
   { to: '/codex',    index: '03', label: '笔记' },
   { to: '/notice',   index: '04', label: '通告' },
   { to: '/news',     index: '05', label: '资讯' },
-  { to: '/stats',    index: '06', label: '数据' }
+  { to: '/stats',    index: '06', label: '数据' },
+  { to: '/aiassistant', index: '07', label: 'AI 解题' }
 ]
 
 // 个人中心：游客跳登录（带 redirect= /profile），已登录走下拉
