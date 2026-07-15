@@ -14,15 +14,19 @@
       <el-form ref="formRef" :model="form" :rules="rules" label-position="top" class="auth__form" @submit.prevent="onSubmit">
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="用户名" prop="username">
-              <el-input v-model="form.username" placeholder="3-20 位字母/数字" />
+            <el-form-item label="学工号" prop="username">
+              <el-input v-model="form.username" placeholder="数字" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="角色">
               <el-select v-model="form.roleCode" placeholder="选择身份">
-                <el-option label="教师" value="TEACHER" />
-                <el-option label="学生" value="STUDENT" />
+                <!-- 后端 @Pattern(regexp = "^ROLE_(TEACHER|STUDENT)$") 要求带 ROLE_ 前缀;
+                     中文 label 保留可见文案,实际提交值必须是 ROLE_TEACHER / ROLE_STUDENT,
+                     否则注册接口返回 400 「角色仅限教师或学生」。
+                     校验源:src/main/java/com/smartteach/modules/auth/dto/RegisterDTO.java:40 -->
+                <el-option label="教师" value="ROLE_TEACHER" />
+                <el-option label="学生" value="ROLE_STUDENT" />
               </el-select>
             </el-form-item>
           </el-col>
@@ -34,7 +38,7 @@
           <el-input v-model="form.email" placeholder="name@example.com" />
         </el-form-item>
         <el-form-item label="手机号" prop="phone">
-          <el-input v-model="form.phone" placeholder="11 位手机号（选填）" maxlength="11" />
+          <el-input v-model="form.phone" placeholder="11 位手机号" maxlength="11" />
         </el-form-item>
         <el-form-item label="密码" prop="password">
           <el-input v-model="form.password" type="password" show-password placeholder="6 位以上" />
@@ -68,7 +72,7 @@ const formRef = ref()
 const submitting = ref(false)
 const form = reactive({
   username: '',
-  roleCode: 'TEACHER',
+  roleCode: 'ROLE_TEACHER',
   realName: '',
   email: '',
   phone: '',
@@ -81,8 +85,16 @@ const rules = {
     { pattern: /^[A-Za-z0-9_]{3,20}$/, message: '3-20 位字母/数字/下划线', trigger: 'blur' }
   ],
   realName: [{ required: true, message: '请输入真实姓名', trigger: 'blur' }],
-  email: [{ type: 'email', message: '邮箱格式不正确', trigger: 'blur' }],
-  phone: [{ pattern: /^$|^1\d{10}$/, message: '请输入 11 位手机号', trigger: 'blur' }],
+  // 邮箱:required + 邮箱格式组合校验;required:true 会让 el-form-item 在 label 前自动渲染 * 号
+  email: [
+    { required: true, message: '请输入邮箱', trigger: 'blur' },
+    { type: 'email', message: '邮箱格式不正确', trigger: 'blur' }
+  ],
+  // 手机号:required + 11 位 1 开头校验;原 regex /^\$|^1\\d{10}\$/ 允许空串,已收紧
+  phone: [
+    { required: true, message: '请输入手机号', trigger: 'blur' },
+    { pattern: /^1\d{10}$/, message: '请输入 11 位手机号', trigger: 'blur' }
+  ],
   password: [{ required: true, min: 6, message: '至少 6 位', trigger: 'blur' }],
   confirmPassword: [
     { required: true, message: '请确认密码', trigger: 'blur' },

@@ -33,7 +33,10 @@ const router = useRouter()
 const userStore = useUserStore()
 const formRef = ref()
 const loading = ref(false)
-const form = reactive({ username: 'admin', password: 'admin' })
+// TODO: [admin 默认账号] [P1] 原表单默认填充 `admin/admin` 方便本地开发,但生产环境暴露
+//       默认凭据是严重问题.已清空;开发期如需预填,可改为只在 import.meta.env.DEV
+//       且 localStorage.dev_autofill === '1' 才回填.
+const form = reactive({ username: '', password: '' })
 const rules = {
   username: [{ required: true, message: '请输入账号', trigger: 'blur' }],
   password: [{ required: true, message: '请输入密码', trigger: 'blur' }]

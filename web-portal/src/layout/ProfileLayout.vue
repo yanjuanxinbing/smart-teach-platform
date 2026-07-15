@@ -62,7 +62,9 @@ import { unreadCount } from '@/api/profile'
 const router = useRouter()
 const userStore = useUserStore()
 
-const stat = ref({ courses: 6, assignments: 3, snippets: 12 })
+// TODO: [个人中心统计卡片] [P1] 当前位挂的是 /portal/my/* 三个端点的 total 数字,
+// 后端就绪后会真实呈现；目前为 null 表示"暂未加载"，避免之前写死 6/3/12 的演示数据误导上线用户。
+const stat = ref({ courses: null, assignments: null, snippets: null })
 const unread = ref(0)
 
 const nav = computed(() => [

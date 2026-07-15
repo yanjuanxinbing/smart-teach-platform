@@ -78,7 +78,7 @@ const refreshStats = async () => {
   const results = await Promise.allSettled([
     myCourses(),
     myAssignments({ status: 'pending' }),
-    myTrainings({ progress: 'in_progress' })
+    myTrainings({ status: 'in_progress' })
   ])
   stats.value = {
     courses:    Number(results[0].status === 'fulfilled' ? (results[0].value?.total ?? results[0].value?.records?.length ?? 0) : 0),
@@ -87,7 +87,15 @@ const refreshStats = async () => {
   }
 }
 
-onMounted(refreshStats)
+onMounted(async () => {
+  // 安全网:store.userInfo 由 localStorage 同步 hydration,但若被外部清空 /
+  // 多端登录不一致导致 userId 缺失,这里再拉一次 /auth/me 把 userInfo 装回 store,
+  // 保证后续子页面 fetch 时拿到的 userId 是真实的(而不是默认 -1)。
+  if (userStore.isLogin && !userStore.userInfo?.userId) {
+    try { await userStore.fetchUserInfo() } catch (e) { /* swallow: 401/403 由响应拦截器统一处理 */ }
+  }
+  refreshStats()
+})
 </script>
 
 <style scoped>

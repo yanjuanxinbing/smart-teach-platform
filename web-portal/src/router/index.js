@@ -31,7 +31,12 @@ const routes = [
         ]
       },
 
-      // 学生学习中心：受保护 (router.beforeEach 中 startsWith('/my') 拦截, 仅 STUDENT 角色可入)
+      // 学生学习中心:受保护 (router.beforeEach 中 startsWith('/my') 拦截, 仅 STUDENT 角色可入)
+      // TODO: [实训详情页] [P0] /training/:id 详情页路由缺失;现 MyTrainings.vue 的卡片点击仅 ElMessage 提示"开发中". 建议新增 views/TrainingDetail.vue 并在 MyTrainings.vue 的 goDetail() 中 router.push('/training/' + t.trainingId).
+      // TODO: [作业提交 / 提交查看 / 批改查看页] [P0] MyAssignments.vue 三个按钮"去提交 / 查看提交 / 查看批改"目前没有对应路由. 需要:
+      //       /portal/assignment/:id/submit     -> 学生提交表单 (含富文本/附件上传)
+      //       /portal/assignment/:id/submission -> 已提交内容展示
+      //       /portal/assignment/:id/grade      -> 老师批改结果展示 (学生视角)
       // 后端契约见 web-portal/src/api/my.js
       {
         path: 'my',
