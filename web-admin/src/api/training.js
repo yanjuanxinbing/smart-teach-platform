@@ -16,6 +16,8 @@ export const trainingClasses = () => request.get('/training/plan/classes')
 // 实训报名
 export const regPage = (params) => request.get('/training/registration/page', { params })
 export const regAdd = (data) => request.post('/training/registration', data)
+// 管理员代报名（直接已通过，无需审核）；区别于 regAdd —— 那个走 status=0 待审核
+export const regAdminAdd = (data) => request.post('/training/registration/admin-add', data)
 export const regReview = (id, data) => request.put(`/training/registration/${id}/review`, data)
 export const regSignIn = (id) => request.put(`/training/registration/${id}/sign-in`)
 export const regSignOut = (id) => request.put(`/training/registration/${id}/sign-out`)

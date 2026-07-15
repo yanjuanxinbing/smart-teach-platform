@@ -316,7 +316,7 @@ CREATE TABLE `course_plan_item` (
 ) ENGINE = InnoDB COMMENT ='课程计划明细';
 
 -- ---------------------------------------------------------------------
--- 4. 课程实验计划模块 2张表
+-- 4. 课程实验计划模块 3张表
 -- ---------------------------------------------------------------------
 DROP TABLE IF EXISTS `experiment_plan`;
 CREATE TABLE `experiment_plan` (
@@ -370,6 +370,28 @@ CREATE TABLE `experiment_plan_item` (
     PRIMARY KEY (`id`),
     KEY `idx_plan` (`plan_id`)
 ) ENGINE = InnoDB COMMENT ='实验计划明细';
+
+DROP TABLE IF EXISTS `experiment_assignment`;
+CREATE TABLE `experiment_assignment` (
+    `id`            BIGINT       NOT NULL AUTO_INCREMENT,
+    `plan_id`       BIGINT       NOT NULL COMMENT '实验计划ID',
+    `plan_title`    VARCHAR(255)          DEFAULT NULL COMMENT '冗余:计划标题',
+    `student_id`    BIGINT       NOT NULL COMMENT '学生ID',
+    `student_name`  VARCHAR(64)           DEFAULT NULL,
+    `class_name`    VARCHAR(128)          DEFAULT NULL,
+    `phone`         VARCHAR(20)           DEFAULT NULL,
+    `status`        TINYINT      NOT NULL DEFAULT 1 COMMENT '1已分配 3已完成',
+    `score`         DECIMAL(5,2)          DEFAULT NULL COMMENT '实验成绩',
+    `comment`       TEXT,
+    `create_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_by`     BIGINT                DEFAULT NULL,
+    `update_by`     BIGINT                DEFAULT NULL,
+    `deleted`       TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_plan_student` (`plan_id`, `student_id`, `deleted`),
+    KEY `idx_student_status` (`student_id`, `status`)
+) ENGINE = InnoDB COMMENT ='实验分配';
 
 -- ---------------------------------------------------------------------
 -- 5. 实训计划模块 2张表
@@ -752,6 +774,13 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (212, 201, '删除', 3, NULL, NULL, NULL, 'experiment:plan:remove', 3, 1, 1),
 (213, 201, '审核', 3, NULL, NULL, NULL, 'experiment:plan:approve', 4, 1, 1),
 (214, 201, '查看详情', 3, NULL, NULL, NULL, 'experiment:plan:query', 5, 1, 1),
+-- 实验分配(220/230/231/232)：菜单 + 按钮,挂在课程实验计划管理(200)目录下,与实验计划(201)平级
+(220, 200, '分配管理',   2, '/experiment/assignment', 'experiment/AssignmentList', NULL, 'experiment:assignment:list',     2, 1, 1),
+(230, 220, '新增分配',   3, NULL, NULL, NULL, 'experiment:assignment:add',     1, 1, 1),
+(231, 220, '标记完成',   3, NULL, NULL, NULL, 'experiment:assignment:complete', 2, 1, 1),
+(232, 220, '撤销分配',   3, NULL, NULL, NULL, 'experiment:assignment:remove',  3, 1, 1),
+-- 学生门户侧「我的实验」权限(918),挂在 753(我的作业)下与 910-917 并列
+(918, 753, '我的实验', 3, NULL, NULL, NULL, 'experiment:my:list', 16, 1, 1),
 -- 实训计划管理
 (301, 300, '实训计划', 2, '/training/plan', 'training/PlanList', NULL, 'training:plan:list', 1, 1, 1),
 (302, 300, '报名管理', 2, '/training/registration', 'training/RegistrationList', NULL, 'training:registration:list', 2, 1, 1),
@@ -902,9 +931,10 @@ WHERE id IN (
     100, 101, 102, 103,
     110, 111, 112,
     120, 121, 122, 123, 124,
-    -- 课程实验计划管理
-    200, 201,
+    -- 课程实验计划管理(含分配)
+    200, 201, 220,
     210, 211, 212, 213, 214, 730,
+    230, 231, 232,
     -- 实训计划管理
     300, 301, 302,
     310, 311, 312, 313,
@@ -925,6 +955,8 @@ WHERE id IN (
     100, 101, 102, 103, 124,
     -- 课程实验计划管理（只读 + 详情）
     200, 201, 214, 730,
+    -- 我的实验(门户侧)
+    918,
     -- 实训计划管理（看 + 报名/取消报名；不含审核/登记成绩）
     300, 301, 302,
     731, 732, 733,
@@ -1138,6 +1170,14 @@ INSERT INTO `experiment_plan_item`(`id`, `plan_id`, `exp_no`, `exp_name`, `exp_t
 (20011, 20001, 1, '约瑟夫环问题的链表实现', 2, '掌握循环链表的创建、遍历和节点删除。', '用循环单链表模拟约瑟夫出列问题，输出出列顺序。', '独立编写C/C++代码，处理好头尾节点衔接与内存释放。', '2025-09-20', '周四 3-4节', 4, '张教授'),
 (20012, 20001, 2, '二叉树的建立与遍历算法', 3, '深入理解二叉树的递归与非递归周游。', '实现二叉树的前序、中序、后序遍历及层次遍历。', '需支持从前序+中序序列逆向重构二叉树。', '2025-10-15', '周四 3-4节', 4, '张教授');
 
+-- 实验分配种子数据：
+--   把 plan 20001(数据结构实验)直接分配给计科2201班的王小明(student1, id=2001)
+--   这样同事跑完 init.sql 后,student1 登录「我的实验」能立刻看到 2 条 item,
+--   无需走 admin「分配管理」手动分配.
+--   赵美美(student2, id=2002)刻意不分配,用于验证「未分配的学生看不到任何 item」的反 IDOR 隔离效果.
+INSERT INTO `experiment_assignment`(`id`, `plan_id`, `plan_title`, `student_id`, `student_name`, `class_name`, `phone`, `status`) VALUES
+(40001, 20001, '《数据结构》配套实验上机计划', 2001, '王小明', '计科2201班', '18611112222', 1);
+
 
 -- ---------------------------------------------------------------------
 -- 5. 实训计划与实训报名
@@ -1258,3 +1298,31 @@ PREPARE s FROM @stmt; EXECUTE s; DEALLOCATE PREPARE s;
 -- 结束
 -- =====================================================================
 SELECT '初始化完成' AS message;
+
+-- =====================================================================
+-- 实验分配权限验证段（运行 init.sql 完会自动打印）
+--   用于同事确认：1)菜单注册成功 2)admin/teacher/student 三类角色都拿到了正确权限
+--   在生产环境可注释掉;开发环境留作冒烟测试用
+-- =====================================================================
+SELECT '--- 管理员 experiment:* 权限 ---' AS info;
+SELECT m.id AS menu_id, m.menu_name, m.permission
+FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id = m.id
+WHERE rm.role_id = 1 AND m.permission LIKE 'experiment:%'
+ORDER BY m.id;
+
+SELECT '--- 教师 experiment:* 权限 ---' AS info;
+SELECT m.id AS menu_id, m.menu_name, m.permission
+FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id = m.id
+WHERE rm.role_id = 3 AND m.permission LIKE 'experiment:%'
+ORDER BY m.id;
+
+SELECT '--- 学生 experiment:* 权限 ---' AS info;
+SELECT m.id AS menu_id, m.menu_name, m.permission
+FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id = m.id
+WHERE rm.role_id = 4 AND m.permission LIKE 'experiment:%'
+ORDER BY m.id;
+
+SELECT '--- 实验分配种子数据 ---' AS info;
+SELECT a.id, a.plan_title, a.student_name, a.class_name,
+       CASE a.status WHEN 1 THEN '已分配' WHEN 3 THEN '已完成' ELSE a.status END AS status
+FROM experiment_assignment a WHERE a.deleted = 0 ORDER BY a.id;

@@ -154,4 +154,20 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
         plan.setApproveRemark(remark);
         this.updateById(plan);
     }
+
+    @Override
+    public List<String> listDistinctClasses() {
+        // 仅从未逻辑删除的计划里取 class_name，去重 + 过滤 null/空
+        LambdaQueryWrapper<ExperimentPlan> wrapper = new LambdaQueryWrapper<>();
+        wrapper.isNotNull(ExperimentPlan::getClassName)
+                .ne(ExperimentPlan::getClassName, "")
+                .select(ExperimentPlan::getClassName)
+                .groupBy(ExperimentPlan::getClassName);
+        return this.list(wrapper).stream()
+                .map(ExperimentPlan::getClassName)
+                .filter(s -> s != null && !s.isEmpty())
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
+    }
 }

@@ -11,6 +11,10 @@
         >{{ t.label }}</button>
       </div>
       <div class="toolbar__right">
+        <router-link to="/training" class="browse-btn">
+          <el-icon><Plus /></el-icon>
+          <span>浏览可报名实训</span>
+        </router-link>
         <el-input v-model="filters.q" placeholder="搜索实训计划" clearable class="search">
           <template #prefix><el-icon><Search /></el-icon></template>
         </el-input>
@@ -21,6 +25,7 @@
     <div v-else-if="state === 'empty'" class="empty">
       <el-icon :size="32"><Promotion /></el-icon>
       <p>还没有分配给你的实训计划</p>
+      <router-link to="/training" class="empty__cta">去浏览可报名的实训 →</router-link>
     </div>
     <div v-else-if="state === 'error'" class="empty">
       <el-icon :size="32"><Warning /></el-icon>
@@ -43,7 +48,7 @@
           <!-- TODO: [trainings 数据契约] [P1] 当前 `t.progress` 既是状态枚举又是 0-100 数字;
                  已通过 t.status 优先 + 仅当 progress 是数值时显示百分比来缓解;
                  后端应拆分明确字段 t.status(状态枚举) + t.progress(0-100 数字) -->
-          <el-tag :type="progressType(t.status || t.progress)" effect="dark" size="small">{{ progressLabel(t.status || t.progress) }}</el-tag>
+          <el-tag :type="progressType(t.status)" effect="dark" size="small">{{ progressLabel(t.status) }}</el-tag>
           <span class="train__plan">{{ t.planName || '—' }}</span>
         </header>
         <h3 class="train__title">{{ t.title || t.planName || '未命名计划' }}</h3>
@@ -75,28 +80,37 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, Promotion, Warning } from '@element-plus/icons-vue'
+import { Search, Promotion, Warning, Plus } from '@element-plus/icons-vue'
 import { myTrainings } from '@/api/my'
 
 const router = useRouter()
 
+// status 枚举来自后端 toTrainingVO()
+//   pending_review —— 待审核（学生自报名后等待管理员审核）
+//   not_started   —— 未开始
+//   in_progress   —— 进行中
+//   done          —— 已完成
+//   rejected      —— 已驳回（防御：当前 SQL 已过滤，但万一扩展时打开也能渲染）
 const PROGRESS_MAP = {
-  not_started: { label: '未开始', type: 'info' },
-  in_progress: { label: '进行中', type: 'warning' },
-  done:        { label: '已完成', type: 'success' }
+  pending_review: { label: '待审核', type: 'info' },
+  not_started:    { label: '未开始', type: 'info' },
+  in_progress:    { label: '进行中', type: 'warning' },
+  done:           { label: '已完成', type: 'success' },
+  rejected:       { label: '已驳回', type: 'danger' }
 }
 const progressLabel = (p) => PROGRESS_MAP[p]?.label || '未知'
 const progressType  = (p) => PROGRESS_MAP[p]?.type  || 'info'
 
 const progressOptions = [
-  { value: '',          label: '全部' },
-  { value: 'not_started', label: '未开始' },
-  { value: 'in_progress', label: '进行中' },
-  { value: 'done',        label: '已完成' }
+  { value: '',             label: '全部' },
+  { value: 'pending_review', label: '待审核' },
+  { value: 'not_started',  label: '未开始' },
+  { value: 'in_progress',  label: '进行中' },
+  { value: 'done',         label: '已完成' }
 ]
 
 // 从后端取到的 progress 字段可能是:
-//   1) status 枚举字符串(not_started/in_progress/done) —— 来自 t.status 或历史 t.progress
+//   1) status 枚举字符串(pending_review/not_started/in_progress/done/rejected) —— 来自 t.status
 //   2) 0-100 数字百分比 —— 用于 el-progress
 // 我们把两者分两个 getter 处理,具体语义被注释在模板的 TODO 标注里
 const percentOf = (t) => {
@@ -164,9 +178,17 @@ onMounted(fetch)
 }
 .tag:hover { color: var(--ink); border-color: var(--ink); }
 .tag--active { background: var(--ink); color: #fff; border-color: var(--ink); }
-.toolbar__right { display: flex; gap: var(--s-3); }
+.toolbar__right { display: flex; gap: var(--s-3); align-items: center; }
 .search { width: 240px; }
 .search :deep(.el-input__wrapper) { border-radius: 0; }
+
+.browse-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 9px 14px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.16em; text-transform: uppercase;
+  color: var(--accent); border: 1px solid var(--accent); background: var(--surface);
+  text-decoration: none; transition: background-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.browse-btn:hover { background: var(--accent); color: #fff; }
 
 .loading-tip { color: var(--mute); font-size: 13px; letter-spacing: 0.06em; text-align: center; padding: 64px 0; }
 .empty { padding: 88px 0; text-align: center; color: var(--mute); display: flex; flex-direction: column; align-items: center; gap: 14px; }

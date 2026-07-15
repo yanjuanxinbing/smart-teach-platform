@@ -21,7 +21,8 @@ const routes = [
 
       // 实训详情 —— 顶部一级路由；不嵌进 /my/* 布局,沿用 PortalLayout 头部;
       // 但仍受 router.beforeEach 中 '/training/' 前缀拦截,仅 STUDENT 可入。
-      { path: 'training/:id', name: 'TrainingDetail', component: () => import('@/views/TrainingDetail.vue'), meta: { title: '实训详情' } },
+      { path: 'training',              name: 'TrainingList',  component: () => import('@/views/TrainingList.vue'),  meta: { title: '可报名实训' } },
+      { path: 'training/:id',          name: 'TrainingDetail', component: () => import('@/views/TrainingDetail.vue'), meta: { title: '实训详情' } },
 
       // 个人中心（嵌套布局，登录态由 store/user.js 内部判断）
       {
@@ -46,6 +47,8 @@ const routes = [
           { path: 'courses',     name: 'MyCourses',     component: () => import('@/views/MyCourses.vue'),     meta: { title: '我的课程' } },
           { path: 'assignments', name: 'MyAssignments', component: () => import('@/views/MyAssignments.vue'), meta: { title: '我的作业' } },
           { path: 'trainings',   name: 'MyTrainings',   component: () => import('@/views/MyTrainings.vue'),   meta: { title: '我的实训' } },
+          { path: 'experiments', name: 'MyExperiments', component: () => import('@/views/MyExperiments.vue'), meta: { title: '我的实验' } },
+          { path: 'experiments/:id', name: 'ExperimentDetail', component: () => import('@/views/ExperimentDetail.vue'), meta: { title: '实验详情' } },
           { path: 'resources',   name: 'MyResources',   component: () => import('@/views/MyResources.vue'),   meta: { title: '我的资源' } },
           // 作业三联 —— 详情/提交/批改(学生视角)
           { path: 'assignment/:id/submit',     name: 'AssignmentSubmit',     component: () => import('@/views/AssignmentSubmit.vue'),     meta: { title: '提交作业' } },
@@ -95,16 +98,16 @@ router.beforeEach((to, from, next) => {
   if (isNavigating) return next()
   isNavigating = true
 
-  // (3) 受保护路径：/profile/* 与 /my/* 与 /training/* 都需要登录
-  if (to.path.startsWith('/profile') || to.path.startsWith('/my') || to.path.startsWith('/training/')) {
+  // (3) 受保护路径：/profile/* 与 /my/* 与 /training* 都需要登录
+  if (to.path.startsWith('/profile') || to.path.startsWith('/my') || to.path === '/training' || to.path.startsWith('/training/')) {
     const token = localStorage.getItem('portal_token')
     if (!token) {
       return next({ path: '/login', query: { redirect: to.fullPath } })
     }
   }
 
-  // (3.5) /my/* 与 /training/* 仅 STUDENT 角色可入：教师/管理员进来直接回首页
-  if (to.path.startsWith('/my') || to.path.startsWith('/training/')) {
+  // (3.5) /my/* 与 /training* 仅 STUDENT 角色可入：教师/管理员进来直接回首页
+  if (to.path.startsWith('/my') || to.path === '/training' || to.path.startsWith('/training/')) {
     const userStore = useUserStore()
     if (userStore.roleCode !== 'STUDENT') {
       return next({ path: '/', query: { denied: 'student-only' } })

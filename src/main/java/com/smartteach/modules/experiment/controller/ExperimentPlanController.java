@@ -97,4 +97,10 @@ public class ExperimentPlanController {
         planService.reject(id, UserContext.getUserId(), UserContext.getUsername(), body.get("remark"));
         return Result.success();
     }
+
+    @ApiOperation("获取已发布计划中出现的班级（去重），用于分配管理下拉")
+    @GetMapping("/classes")
+    public Result<List<String>> listClasses() {
+        return Result.success(planService.listDistinctClasses());
+    }
 }

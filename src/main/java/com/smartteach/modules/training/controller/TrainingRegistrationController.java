@@ -39,11 +39,23 @@ public class TrainingRegistrationController {
         return Result.success(registrationService.page(keyword, className, status, query));
     }
 
-    @ApiOperation("新增报名")
+    @ApiOperation("新增报名（学生门户自报名，待审核）")
     @PostMapping
     @PreAuthorize("hasAuthority('training:registration:add')")
     @OperationLog(module = "实训报名", action = "新增报名", saveParams = false)
     public Result<Void> add(@Valid @RequestBody TrainingRegistrationSaveDTO dto) {
+        // 学生门户自报名入口：service 内部会对 null 兜底为 0(待审核)
+        registrationService.register(dto);
+        return Result.success();
+    }
+
+    @ApiOperation("管理员代报名（直接已通过，无需审核）")
+    @PostMapping("/admin-add")
+    @PreAuthorize("hasAuthority('training:registration:add')")
+    @OperationLog(module = "实训报名", action = "管理员代报名", saveParams = false)
+    public Result<Void> adminAdd(@Valid @RequestBody TrainingRegistrationSaveDTO dto) {
+        // 后台强制已通过：studentId 仍由 DTO 传入(管理员代指定),其他校验复用 register()
+        dto.setStatus(1);
         registrationService.register(dto);
         return Result.success();
     }
