@@ -31,15 +31,25 @@
         </div>
 
         <el-form-item label="提交内容" prop="submitText">
-          <el-input
+          <!--
+            富文本编辑器 —— 走 @wangeditor/editor-for-vue (封装的 RichEditor.vue 复用组件)
+            form.submitText 保存为 HTML 字符串（wangeditor 默认输出格式）。
+            后端期望字段：
+              - assignment_submission.submit_text  (MEDIUMTEXT) 接收 HTML
+              - 等同 submitText，payload { text } 已带此字段
+          -->
+          <RichEditor
             v-model="form.submitText"
-            type="textarea"
-            :rows="10"
-            placeholder="请输入作业正文（支持纯文本 / 简单 Markdown）；如需富文本编辑，请告知后端补齐富文本字段"
+            height="360px"
+            placeholder="请输入作业正文（支持富文本 / HTML，可粘贴 Word 内容）"
+            :disabled="submitting || savingDraft"
           />
-          <!-- TODO: [P1] 当前是 <textarea>，后端若希望接收富文本 / HTML，应切换为
-                 WYSIWYG 编辑器（如 @wangeditor/editor-for-vue / tiptap）。
-                 提交时把 form.submitText 走 HTML/Markdown 转换即可。 -->
+          <!--
+            TODO: [P1] 后端 /api/portal/my/assignments/{id}/submit 接口就绪后，
+            当前 buildPayload() 把 form.submitText 当 HTML 发送给后端即可，
+            后端需在 PortalMySubmissionVO.submitText 上落 MEDIUMTEXT。
+            若后端仅支持纯文本，可在 onSubmit 前加一步 html2text 转换。
+          -->
         </el-form-item>
 
         <el-form-item label="附件">
@@ -76,6 +86,7 @@ import { Back, Upload, Warning } from '@element-plus/icons-vue'
 import { myAssignmentDetail, myLatestSubmission, saveAssignmentDraft, submitAssignment } from '@/api/my'
 import { myAssignments } from '@/api/my'
 import { useUserStore } from '@/store/user'
+import RichEditor from '@/components/RichEditor.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -145,6 +156,11 @@ const load = async () => {
 
 const buildPayload = () => {
   // 后端若使用 multipart 接收，File 对象直接放；纯文本场景可走 JSON。
+  // form.submitText 当前是富文本 HTML（来自 RichEditor 的 v-model）。
+  // 后端接口期望字段：
+  //   POST /api/portal/my/assignments/{id}/submit
+  //     Body (multipart 或 JSON): { text: string(HTML), file?: Blob, draft?: boolean }
+  //   对应落库字段: assignment_submission.submit_text (MEDIUMTEXT)
   if (fileList.value.length) {
     const fd = new FormData()
     fd.append('text', form.submitText || '')
@@ -174,7 +190,9 @@ const onSaveDraft = async () => {
 }
 
 const onSubmit = async () => {
-  if (!form.submitText && !fileList.value.length) {
+  // 富文本提交，校验时先剥离 HTML 标签再判断空白
+  const stripped = (form.submitText || '').replace(/<[^>]*>/g, '').trim()
+  if (!stripped && !fileList.value.length) {
     ElMessage.warning('请填写提交内容或上传附件')
     return
   }
@@ -228,4 +246,8 @@ onMounted(() => {
 .empty { padding: 48px 0; text-align: center; color: var(--mute); display: flex; flex-direction: column; align-items: center; gap: 14px; }
 
 :deep(.el-textarea__inner) { border-radius: 0; font-family: var(--font-mono); font-size: 13px; line-height: 1.7; }
+
+/* 富文本编辑器外层贴合表单样式 —— 边角与边框对齐项目规范 */
+.form :deep(.rich-editor) { border-radius: 0; }
+.form :deep(.w-e-toolbar) { border-radius: 0; }
 </style>

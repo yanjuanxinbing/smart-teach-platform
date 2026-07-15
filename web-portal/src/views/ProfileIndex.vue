@@ -22,8 +22,17 @@
             <el-form-item label="头像">
               <div class="avatar-row">
                 <el-avatar :size="56" :src="form.avatar">{{ (form.realName || form.username || 'U').charAt(0) }}</el-avatar>
-                <el-button size="small" plain :disabled="!editing">更换头像</el-button>
+                <el-button size="small" plain :disabled="!editing" :loading="avatarUploading" @click="pickAvatar">更换头像</el-button>
+                <el-button v-if="editing && form.avatar" size="small" link type="danger" @click="resetAvatar">还原</el-button>
+                <input
+                  ref="avatarInputRef"
+                  type="file"
+                  accept="image/png,image/jpeg,image/jpg,image/webp,image/gif"
+                  style="display:none"
+                  @change="onAvatarSelected"
+                />
               </div>
+              <p class="avatar-hint">支持 JPG / PNG / WebP / GIF,单张不超过 2MB</p>
             </el-form-item>
           </el-col>
           <el-col :span="12"><el-form-item label="用户名" prop="username">
@@ -36,17 +45,16 @@
           <el-col :span="12"><el-form-item label="邮箱" prop="email">
             <el-input v-model="form.email" placeholder="name@example.com" />
           </el-form-item></el-col>
-          <!--
-            手机号 —— 关联 /auth/me 真实字段 (后端 UserInfoVO.phone);
-            若后端未下发则由 store/user.js 的 buildMockProfile() 占位 138****xxxx,
-            等后端落表后即覆盖,无需前端改动。
-          -->
           <el-col :span="12"><el-form-item label="手机号" prop="phone">
-            <el-input v-model="form.phone" placeholder="11 位手机号" maxlength="11" />
+            <el-input
+              v-model="form.phone"
+              :placeholder="form.phone ? '11 位手机号' : '待完善'"
+              maxlength="11"
+            />
           </el-form-item></el-col>
 
           <el-col :span="12"><el-form-item label="所属部门 / 学院">
-            <el-input v-model="form.deptName" disabled />
+            <el-input v-model="form.deptName" disabled placeholder="待完善" />
           </el-form-item></el-col>
           <el-col :span="12"><el-form-item label="个人简介" prop="bio">
             <el-input v-model="form.bio" type="textarea" :rows="3" placeholder="一句话介绍自己..." maxlength="160" show-word-limit />
@@ -73,7 +81,12 @@
 
       <!-- 显示态 -->
       <div v-if="!bioEditing" class="bio bio--display">
-        <p v-if="bio" class="bio__text">{{ bio }}</p>
+        <!--
+          bio 现在可能保存为富文本 HTML；用 v-html 渲染。
+          注意：后端应负责 XSS 过滤（白名单或转义），前端 v-html 仅做展示。
+          若后端存储纯文本，仍会按文本正常显示（HTML 解析为纯文本节点）。
+        -->
+        <div v-if="bio" class="bio__text bio__text--html" v-html="bio"></div>
         <p v-else class="bio__text bio__text--empty">还没有填写个人简介,点击右上角"编辑简介"补充一下吧~</p>
         <!--
           "查看文件"按钮 —— 当前项目内路由跳转到 /profile/document。
@@ -86,20 +99,15 @@
         </div>
       </div>
 
-      <!-- 编辑态 -->
+      <!-- 编辑态 —— 富文本编辑器（@wangeditor/editor-for-vue 5.x） -->
       <div v-else class="bio bio--edit">
-        <el-input
+        <RichEditor
           v-model="bioDraft"
-          type="textarea"
-          :rows="4"
-          :maxlength="300"
-          show-word-limit
-          placeholder="一句话介绍自己,比如研究方向、兴趣爱好、近期目标..."
+          height="220px"
+          placeholder="介绍自己,比如研究方向、兴趣爱好、近期目标..."
+          :exclude-keys="['uploadImage', 'uploadVideo', 'insertVideo', 'insertTable', 'codeBlock', 'todo']"
+          :readonly="bioSaving"
         />
-        <!--
-          TODO: [P1] 替换为富文本编辑器 (@wangeditor/editor-for-vue 或 @tiptap/vue-3),
-          当前包管理未引入 WYSIWYG,先用 textarea 占位;落地后再换并去掉 placeholder 限制。
-        -->
         <p class="bio__hint">简介会在课程页、消息签名、个人空间公开区域展示,建议 1-3 行。</p>
       </div>
     </article>
@@ -118,11 +126,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
-import { updateMyProfile } from '@/api/profile'
+import { updateMyProfile, uploadAvatar } from '@/api/profile'
+import RichEditor from '@/components/RichEditor.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -154,11 +163,83 @@ const rules = {
   phone: [{ pattern: /^1\d{10}$/, message: '请输入 11 位手机号', trigger: 'blur' }]
 }
 
+// ============================================================
+// 头像 —— 选文件 → 立即上传,后端失败时回退到本地 dataURL 预览
+// ============================================================
+const avatarInputRef = ref()
+const avatarUploading = ref(false)
+// 缓存上一次「干净」的 avatar URL,方便 cancel 时还原
+let avatarOriginal = ''
+
+const pickAvatar = () => {
+  if (!editing.value) return
+  avatarInputRef.value?.click()
+}
+
+const resetAvatar = () => {
+  // 仅在编辑态下可点击,把 avatar 还原到进入编辑态时的初值
+  if (!editing.value) return
+  form.avatar = avatarOriginal || ''
+}
+
+const readAsDataURL = (file) => new Promise((resolve, reject) => {
+  const fr = new FileReader()
+  fr.onload = () => resolve(fr.result)
+  fr.onerror = reject
+  fr.readAsDataURL(file)
+})
+
+const onAvatarSelected = async (e) => {
+  const file = e.target?.files?.[0]
+  // 每次选完重置 input.value,允许重复选同一张
+  if (avatarInputRef.value) avatarInputRef.value.value = ''
+  if (!file) return
+  // 前端基本校验
+  if (!/^image\//.test(file.type)) {
+    ElMessage.warning('请选择图片文件')
+    return
+  }
+  if (file.size > 2 * 1024 * 1024) {
+    ElMessage.warning('头像大小不能超过 2MB')
+    return
+  }
+
+  // 选完立刻本地预览(base64),保证 UI 不闪
+  const localPreview = await readAsDataURL(file).catch(() => '')
+  if (localPreview) form.avatar = localPreview
+
+  avatarUploading.value = true
+  try {
+    // request.js 响应拦截器已经把 { code, data } 解包,这里拿到的是内层 payload
+    const payload = await uploadAvatar(file)
+    const remoteUrl = payload?.url || payload?.avatar
+    if (remoteUrl) {
+      form.avatar = remoteUrl
+      userStore.userInfo = { ...(userStore.userInfo || {}), avatar: remoteUrl }
+      ElMessage.success('头像已更新')
+    } else {
+      // 接口返回了 200 但 body 里没 url —— 视为部分成功,保留本地预览
+      console.warn('功能开发中:头像上传接口未返回 url 字段,保留本地预览')
+      ElMessage.warning('头像已选择本地预览,服务器尚未保存')
+    }
+  } catch (err) {
+    // 接口不存在/失败 —— 保留本地 base64 预览,不报错不白屏
+    console.warn('功能开发中:头像上传接口未就绪,使用本地预览', err?.message)
+    ElMessage.warning('头像上传功能开发中,已使用本地预览')
+  } finally {
+    avatarUploading.value = false
+  }
+}
+
 const snapshot = () => JSON.parse(JSON.stringify(form))
 const restore = (s) => Object.assign(form, s)
 
 let initial = snapshot()
-const cancel = () => { restore(initial); editing.value = false }
+const cancel = () => {
+  restore(initial)
+  form.avatar = avatarOriginal
+  editing.value = false
+}
 const save = async () => {
   await formRef.value.validate()
   saving.value = true
@@ -169,6 +250,9 @@ const save = async () => {
     initial = snapshot()
     editing.value = false
     await userStore.fetchUserInfo()
+  } catch (e) {
+    console.warn('功能开发中:基础资料保存接口未就绪', e?.message)
+    ElMessage.warning('基础资料保存功能开发中,请稍后重试')
   } finally { saving.value = false }
 }
 
@@ -183,31 +267,36 @@ const bioSaving = ref(false)
 const startBioEdit = async () => {
   bioDraft.value = bio.value || ''
   bioEditing.value = true
-  // 让 textarea 自动获得焦点,UX 更顺畅
+  // RichEditor 会在 onMounted 后自动获得焦点，无需手动 focus textarea
   await nextTick()
-  const ta = document.querySelector('.bio--edit .el-textarea__inner')
-  if (ta) ta.focus()
 }
 const cancelBioEdit = () => {
   bioDraft.value = ''
   bioEditing.value = false
 }
 const saveBio = async () => {
-  const trimmed = (bioDraft.value || '').trim()
-  if (trimmed.length > 300) {
-    ElMessage.warning('简介不能超过 300 字')
+  // 富文本 bio 是 HTML 字符串；校验时剥离标签再判断字符长度
+  const html = bioDraft.value || ''
+  const textOnly = html.replace(/<[^>]*>/g, '').trim()
+  if (textOnly.length > 600) {
+    ElMessage.warning('简介不能超过 600 字（富文本按纯文本计算）')
+    return
+  }
+  if (!textOnly) {
+    ElMessage.warning('简介不能为空')
     return
   }
   bioSaving.value = true
   try {
-    await updateMyProfile({ bio: trimmed })
+    await updateMyProfile({ bio: html })
     ElMessage.success('简介已保存')
-    bio.value = trimmed
+    bio.value = html
     // 同步 store.userInfo.bio,刷新时不会丢
     await userStore.fetchUserInfo()
     bioEditing.value = false
   } catch (e) {
-    ElMessage.error('简介保存失败,请稍后重试')
+    console.warn('功能开发中:简介保存接口未就绪', e?.message)
+    ElMessage.warning('简介保存功能开发中,请稍后重试')
   } finally {
     bioSaving.value = false
   }
@@ -218,19 +307,26 @@ const saveBio = async () => {
 // ============================================================
 const fill = () => {
   const u = userStore.userInfo || {}
+  // 字段缺失时统一落到空串,UI 端通过 placeholder / '—' 展示待完善
   Object.assign(form, {
-    username: u.username || u.userName || '',
-    realName: u.realName || '',
-    email: u.email || '',
-    phone: u.phone || '',
-    bio: u.bio || '',
-    avatar: u.avatar || '',
-    deptName: u.deptName || u.dept?.name || '—',
+    username:  u.username || u.userName || '',
+    realName:  u.realName || '',
+    email:     u.email    || '',
+    phone:     u.phone    || '',
+    bio:       u.bio      || '',
+    avatar:    u.avatar   || '',
+    deptName:  u.deptName || u.dept?.name || '',
     className: u.className || ''
   })
   bio.value = u.bio || ''
   initial = snapshot()
+  avatarOriginal = form.avatar
 }
+
+// 进入编辑态时锁定原 avatar,方便 cancel 还原
+watch(editing, (val) => {
+  if (val) avatarOriginal = form.avatar
+})
 
 onMounted(async () => {
   try { await userStore.fetchUserInfo() } catch (e) {}
@@ -257,6 +353,7 @@ onMounted(async () => {
 .card__form :deep(.el-input__wrapper), .card__form :deep(.el-textarea__inner) { border-radius: 0; }
 
 .avatar-row { display: flex; align-items: center; gap: 12px; }
+.avatar-hint { margin: 6px 0 0; font-family: var(--font-mono); font-size: 11px; color: var(--mute); letter-spacing: 0.04em; }
 
 .quick { list-style: none; padding: 0; margin: 0; }
 .quick li { display: flex; justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--line-soft); font-family: var(--font-mono); font-size: 13px; }
@@ -264,4 +361,17 @@ onMounted(async () => {
 .quick span { color: var(--mute); letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; }
 .quick b { color: var(--ink); font-weight: 500; }
 .quick b.warn { color: var(--warn); }
+
+/* 富文本简介显示态 —— 复用展示样式并允许内嵌 a/img/code 等元素 */
+.bio__text--html { white-space: normal; line-height: 1.8; font-size: 14px; color: var(--ink); }
+.bio__text--html :deep(p) { margin: 0 0 8px; }
+.bio__text--html :deep(strong) { font-weight: 600; color: var(--ink); }
+.bio__text--html :deep(em) { font-style: italic; color: var(--accent); }
+.bio__text--html :deep(a) { color: var(--accent); text-decoration: underline; }
+.bio__text--html :deep(ul), .bio__text--html :deep(ol) { padding-left: 20px; margin: 6px 0; }
+.bio__text--html :deep(code) { background: var(--surface-soft); padding: 1px 6px; font-family: var(--font-mono); font-size: 12px; border: 1px solid var(--line-soft); }
+
+/* 富文本编辑态的 toolbar 容器 —— 边角对齐项目 button 风格 */
+.bio--edit :deep(.rich-editor) { border-radius: 0; }
+.bio--edit :deep(.w-e-toolbar) { border-radius: 0; }
 </style>

@@ -50,29 +50,17 @@ const clearPersistedUserInfo = () => {
 }
 
 // ---------------------------------------------------------------------
-//  /auth/me 暂未下发 phone / bio / deptName 时的占位数据。
-//  TODO: [profile 数据契约] [P1]
-//    当前 GET /auth/me 响应只包含 username / realName / avatar / roles / permissions,
-//    前端展示用的 phone / bio / deptName 在数据库层尚未落表;
-//    等后端在 SysUser / SysUserProfile 表加列并改 LoginVO / UserInfoVO 后,
-//    删除此函数并清理 fetchUserInfo 的 mock 回退分支。
+//  持久化前的字段归一化 —— 把 null/undefined 统一规整成空串
+//  避免 localStorage 里出现 "phone": null 后被下游 `||` 反复短路
+//  UI 层根据 '' / null 自行渲染占位（"待完善" / "—"）
 // ---------------------------------------------------------------------
-const buildMockProfile = (data, prev) => {
-  const seed = (() => {
-    // 用 userId 派生稳定但唯一的占位,避免不同用户之间数据碰撞
-    const uid = Number(data?.userId ?? prev?.userId) || 0
-    return uid
-  })()
-  // 不同用户得到不同的"看似真实"的手机号(末四位 = 1000 + (uid % 9000))
-  const tail = String(1000 + (seed % 9000)).padStart(4, '0')
-  return {
-    // 形如 138****1234 —— 前台肉眼可识别是 mock,后端真值一来即覆盖
-    phone:    prev?.phone    || `138****${tail}`,
-    // 简介给一段通用占位文案,UI 上有内容才看得出"可编辑"
-    bio:      prev?.bio      || '这个人很懒，还没有填写简介。',
-    // 部门硬编码为"待分配",管理员在 8081 后台改完后会覆盖
-    deptName: prev?.deptName || '待分配'
+const sanitizeProfile = (info) => {
+  if (!info || typeof info !== 'object') return info
+  const out = { ...info }
+  for (const k of ['phone', 'bio', 'deptName', 'email', 'className', 'realName', 'avatar']) {
+    out[k] = (info[k] == null) ? '' : info[k]
   }
+  return out
 }
 
 // 默认导出 store(同时被 request.js 通过事件总线触发;事件名 'portal:auth-expired')
@@ -165,30 +153,24 @@ export const useUserStore = defineStore('user', {
       if (Array.isArray(data?.roleNames)) this.roles = data.roleNames
       if (Array.isArray(data?.permissions)) this.permissions = data.permissions
 
-      // ---- Mock fallback -----------------------------------------------------
-      // 后端 GET /auth/me 暂未下发 phone / bio / deptName 字段时,
-      // 为了让 ProfileIndex 不显示空白,先用占位字符串填充并打 TODO。
-      // 等 SysUser / SysUserProfile 表加上对应列后,这一段可以直接删除。
-      // 触发条件:连续三层回退(本次响应 → 持久化 → mock)都拿不到值。
-      const mock = buildMockProfile(data, this.userInfo)
-
       // 只保留稳定可序列化的字段,避免把不可 JSON 化的脏数据写盘
+      // 字段缺失时统一落到空串,不构造假数据 —— ProfileIndex 会自行渲染「待完善」/「—」
       const safe = {
-        userId:   Number(data?.userId ?? data?.id ?? this.userInfo?.userId),
-        username: data?.username ?? data?.userName ?? this.userInfo?.username,
-        realName: data?.realName ?? this.userInfo?.realName,
-        avatar:   data?.avatar ?? this.userInfo?.avatar,
-        email:    data?.email    ?? this.userInfo?.email    ?? mock.email,
-        phone:    data?.phone    ?? this.userInfo?.phone    ?? mock.phone,
-        bio:      data?.bio ?? data?.introduction ?? this.userInfo?.bio ?? mock.bio,
-        deptName: data?.deptName ?? data?.dept?.name ?? this.userInfo?.deptName ?? mock.deptName,
-        className: data?.className ?? this.userInfo?.className,
+        userId:    Number(data?.userId ?? data?.id ?? this.userInfo?.userId),
+        username:  data?.username ?? data?.userName ?? this.userInfo?.username,
+        realName:  data?.realName ?? this.userInfo?.realName,
+        avatar:    data?.avatar   ?? this.userInfo?.avatar,
+        email:     data?.email    ?? this.userInfo?.email    ?? '',
+        phone:     data?.phone    ?? this.userInfo?.phone    ?? '',
+        bio:       data?.bio ?? data?.introduction ?? this.userInfo?.bio ?? '',
+        deptName:  data?.deptName ?? data?.dept?.name ?? this.userInfo?.deptName ?? '',
+        className: data?.className ?? this.userInfo?.className ?? '',
         roleNames: data?.roleNames ?? this.roles,
-        roles:    this.roles,
+        roles:     this.roles,
         permissions: this.permissions
       }
       this.userInfo = safe
-      savePersistedUserInfo(safe)
+      savePersistedUserInfo(sanitizeProfile(safe))
       return data
     },
     async logout() {

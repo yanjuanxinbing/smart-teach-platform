@@ -47,7 +47,17 @@
             <span>· {{ fmtDate(d.createdAt || d.updatedAt) }}</span>
           </p>
         </div>
-        <el-button size="small" plain @click.stop="download(d)">下载</el-button>
+        <el-button
+          size="small"
+          plain
+          :disabled="!hasAttachment(d)"
+          @click.stop="download(d)"
+        >
+          下载
+          <el-tooltip v-if="!hasAttachment(d)" content="暂无附件" placement="top">
+            <el-icon style="margin-left: 4px"><Warning /></el-icon>
+          </el-tooltip>
+        </el-button>
       </li>
     </ul>
 
@@ -59,27 +69,69 @@
         <p class="viewer__meta">
           <span>{{ typeLabel(current.docType) }}</span>
           <span v-if="current.size">· {{ humanSize(current.size) }}</span>
-          <span v-if="current.updatedAt">· 更新于 {{ fmtDate(current.updatedAt) }}</span>
+          <span v-if="current.updatedAt || current.createdAt">· 更新于 {{ fmtDate(current.updatedAt || current.createdAt) }}</span>
         </p>
       </header>
       <div class="viewer__body">
         <!--
-          TODO: [document 渲染] [P1]
-          当前为占位文案。
-          后端就绪后:
-            - pdf  -> <iframe :src="current.url" /> 或 pdf.js 渲染
-            - doc/docx -> mammoth.js / docx-preview
-            - image -> <img :src="current.url" />
-            - link  -> 跳外链
-            - 其他  -> 提示"暂不支持预览,请下载"
+          文档渲染 —— 按 docType 分发：
+            - pdf     -> <iframe :src="current.url" /> 或 pdf.js（占位）
+            - doc/docx-> mammoth.js / docx-preview（占位）
+            - image   -> <img :src="current.url" />
+            - link    -> 外链跳转 / 内嵌
+            - rich    -> v-html 渲染后端返回的富文本 HTML
+            - 其他    -> 提示"暂不支持预览，请下载"
+          后端接口契约（待落表）：
+            GET /api/document/{id} -> PortalDocumentVO {
+              id, title, summary, docType, url, content(HTML),
+              size, uploaderId, uploaderName, createdAt, updatedAt
+            }
         -->
-        <div class="placeholder">
-          <el-icon :size="48"><Document /></el-icon>
-          <p class="placeholder__t">文档预览待接入</p>
-          <p class="placeholder__d">
-            当前为前端占位。后端 <code>GET /api/document/{id}</code> 接口就绪后,
-            将按 <code>docType</code> 渲染对应预览器( PDF / DOCX / 图片 / 外链 )。
+        <div v-if="renderState === 'pdf'" class="viewer__pdf">
+          <iframe v-if="current.url" :src="current.url" frameborder="0" class="viewer__iframe" />
+          <div v-else class="placeholder">
+            <el-icon :size="48"><Document /></el-icon>
+            <p class="placeholder__t">PDF 渲染待接入</p>
+            <p class="placeholder__d">后端 <code>GET /api/document/{id}</code> 返回 url 后可内嵌 iframe。</p>
+          </div>
+        </div>
+
+        <div v-else-if="renderState === 'image'" class="viewer__image">
+          <img v-if="current.url" :src="current.url" :alt="current.title" class="viewer__img" />
+          <div v-else class="placeholder">
+            <el-icon :size="48"><Picture /></el-icon>
+            <p class="placeholder__t">图片渲染待接入</p>
+            <p class="placeholder__d">后端返回 url 后即可展示。</p>
+          </div>
+        </div>
+
+        <div v-else-if="renderState === 'link'" class="viewer__link">
+          <p>
+            <el-icon :size="18"><Link /></el-icon>
+            <a v-if="current.url" :href="current.url" target="_blank" rel="noopener">
+              {{ current.url }}
+            </a>
+            <span v-else>外链地址待后端下发</span>
           </p>
+        </div>
+
+        <div v-else-if="renderState === 'rich'" class="viewer__rich">
+          <!--
+            富文本内容渲染 —— 后端 PortalDocumentVO.content 是 HTML 字符串。
+            后端应负责 XSS 过滤，前端 v-html 仅做展示。
+          -->
+          <div v-if="current.content" class="rich-body" v-html="current.content"></div>
+          <div v-else class="placeholder">
+            <el-icon :size="48"><Document /></el-icon>
+            <p class="placeholder__t">文档待编辑</p>
+            <p class="placeholder__d">后端 <code>GET /api/document/{id}</code> 暂未返回内容,请联系管理员在 8081 后台补全。</p>
+          </div>
+        </div>
+
+        <div v-else class="placeholder">
+          <el-icon :size="48"><Document /></el-icon>
+          <p class="placeholder__t">文档待编辑</p>
+          <p class="placeholder__d">后端 <code>GET /api/document/{id}</code> 暂未返回内容,请联系管理员在 8081 后台补全。</p>
         </div>
       </div>
     </article>
@@ -87,7 +139,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+// 此文档内容由 8081 管理后台编辑，8082 前端仅做展示
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import {
@@ -119,15 +172,38 @@ const ICON_MAP = {
   jpg: Picture,
   jpeg: Picture,
   link: Link,
+  // 富文本 / 在线文档
+  rich: Document,
+  html: Document,
   other: Document
 }
 const TYPE_LABEL = {
   pdf: 'PDF', doc: 'DOC', docx: 'DOCX',
   image: '图片', png: '图片', jpg: '图片', jpeg: '图片',
-  link: '外链', other: '其他'
+  link: '外链', rich: '富文本', html: '富文本',
+  other: '其他'
 }
 const iconOf = (t) => ICON_MAP[t] || ICON_MAP.other
 const typeLabel = (t) => TYPE_LABEL[t] || TYPE_LABEL.other
+
+// ============================================================
+// 渲染分支：根据 docType 决定 viewer 渲染何种内容
+//   pdf  -> iframe 内嵌
+//   image-> <img> 直接展示
+//   link -> 外链跳转
+//   rich -> v-html 渲染后端 content(HTML)
+//   兜底:若 content 存在则按富文本,否则提示"待接入"
+// ============================================================
+const renderState = computed(() => {
+  const t = (current.value?.docType || '').toLowerCase()
+  if (['pdf'].includes(t)) return 'pdf'
+  if (['image', 'png', 'jpg', 'jpeg', 'gif', 'webp'].includes(t)) return 'image'
+  if (['link'].includes(t)) return 'link'
+  if (['rich', 'html'].includes(t)) return 'rich'
+  // 兜底：content 字段存在则按富文本渲染
+  if (current.value?.content) return 'rich'
+  return 'placeholder'
+})
 
 // ============================================================
 // 工具
@@ -148,43 +224,20 @@ const humanSize = (n) => {
 
 // ============================================================
 // 加载 —— 接口就绪时拉真数据,失败优雅降级到占位
+//   8081 后台尚未提供 /document/me 时,silentError 会吞掉错误,
+//   UI 自然落到「暂无内容」空态卡片,不报错、不白屏
 // ============================================================
-//
-// TODO: [document 接口契约] [P1]
-//   当前 GET /api/document/me 还没实现,document.js 已用 silentError:true
-//   让失败静默,UI 直接走"暂无内容"分支;
-//   后端补完后,这里会自动拉到数据。
-//
-const MOCK_DOC = {
-  // 让 UI 看上去"有内容",方便联调;真接口就绪后整段会被覆盖。
-  id: 'mock-1',
-  title: '示例文档 · 学生学习手册',
-  docType: 'pdf',
-  size: 0,
-  uploaderName: '管理员(占位)',
-  createdAt: new Date().toISOString(),
-  updatedAt: new Date().toISOString()
-}
-
 const load = async () => {
   loading.value = true
   loadError.value = false
   current.value = null
   try {
-    // 静默调用 —— 后端未实现不会触发红色 toast
     const res = await listMyDocuments({ current: 1, size: 50 })
     const records = res?.records || res?.list || res?.items || []
-    if (Array.isArray(records) && records.length) {
-      docs.value = records
-      current.value = records[0]
-    } else {
-      // 接口返回空数组 或 接口失败被 silentError 吞掉
-      // → 用 mock 占位,保证 UI 可视
-      docs.value = [MOCK_DOC]
-      current.value = MOCK_DOC
-    }
+    docs.value = Array.isArray(records) ? records : []
+    // 默认选中第一条(若有),并触发 open() 拉详情
+    if (docs.value.length) open(docs.value[0])
   } catch (e) {
-    // 理论不会到这里(silentError),但兜底
     loadError.value = true
     docs.value = []
   } finally {
@@ -195,27 +248,70 @@ const load = async () => {
 // ============================================================
 // 选中 / 下载
 // ============================================================
+const detailLoading = ref(false)
+const detailError = ref(false)
+
 const open = async (d) => {
   if (!d) return
   current.value = d
-  // 真实接口就绪后,可以在这里再拉一次详情拿到 url:
-  //   const detail = await getDocument(d.id)
-  //   current.value = { ...d, ...detail }
-  // TODO: [document 详情] [P1] 后端补 /api/document/{id} 后,改成上面那行;
-  //   当前 list 接口返回的字段已够展示,无需额外请求。
+  // 后端接口未上线时静默吞错,UI 走「文档待编辑」占位
+  if (!d.id || d.id === 'mock') return
+  detailLoading.value = true
+  detailError.value = false
+  try {
+    const detail = await getDocument(d.id)
+    // 仍选中同一篇文档时才合并 —— 避免用户切换文档后写入过期详情
+    if (detail && current.value && current.value.id === d.id) {
+      current.value = { ...current.value, ...detail }
+    }
+  } catch (e) {
+    if (current.value && current.value.id === d.id) detailError.value = true
+  } finally {
+    detailLoading.value = false
+  }
 }
 
+// 触发浏览器 Blob 下载 —— 把 blob 转临时 <a> 标签下载,后释放 URL 防内存泄漏
+const triggerBlobDownload = (blob, filename) => {
+  const url = window.URL.createObjectURL(blob)
+  const a = document.createElement('a')
+  a.href = url
+  a.download = filename || 'document'
+  document.body.appendChild(a)
+  a.click()
+  document.body.removeChild(a)
+  // 释放 Blob URL —— 防止内存泄漏
+  setTimeout(() => window.URL.revokeObjectURL(url), 100)
+}
+
+// 文档是否带可下载资源 —— 多种字段名都算,后端字段未定型时保持兼容
+const hasAttachment = (d) => !!(d?.fileUrl || d?.attachment || d?.url)
+
 const download = async (d) => {
-  if (!d) return
-  // 真接口就绪:
-  //   const blob = await downloadDocument(d.id)
-  //   const url = URL.createObjectURL(blob)
-  //   const a = document.createElement('a')
-  //   a.href = url; a.download = d.title || 'document'; a.click()
-  //   URL.revokeObjectURL(url)
-  // TODO: [document 下载] [P1] 取消上面这段注释即可启用;
-  //   当前接口未就绪,提示用户去 8081 后台。
-  ElMessage.info('下载接口尚未接入,请联系管理员在 8081 后台上传后查看')
+  if (!d || !hasAttachment(d)) {
+    ElMessage.warning('暂无附件')
+    return
+  }
+  try {
+    const blob = await downloadDocument(d.id)
+    triggerBlobDownload(blob, d.title || 'document')
+  } catch (e) {
+    // /download 接口未就绪时回退到直链下载；直链也不可用时再提示
+    const directUrl = d.fileUrl || d.attachment || d.url
+    if (directUrl) {
+      const link = document.createElement('a')
+      link.href = directUrl
+      link.download = d.title || 'document'
+      link.target = '_blank'
+      link.rel = 'noopener'
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+    } else {
+      console.warn('功能开发中:文档下载接口未就绪', e?.message)
+      ElMessage.warning('下载功能开发中,请稍后再试')
+    }
+  }
 }
 
 // ============================================================
@@ -274,10 +370,60 @@ onMounted(() => {
 .viewer__head { padding: clamp(20px, 2.4vw, 28px); border-bottom: 1px solid var(--line-soft); }
 .viewer__title { margin: 6px 0 6px; font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--ink); letter-spacing: -0.012em; }
 .viewer__meta { margin: 0; font-family: var(--font-mono); font-size: 12px; color: var(--mute); display: flex; gap: 10px; flex-wrap: wrap; }
-.viewer__body { padding: clamp(20px, 2.4vw, 28px); min-height: 240px; display: flex; align-items: center; justify-content: center; }
+.viewer__body { padding: clamp(20px, 2.4vw, 28px); min-height: 240px; display: flex; align-items: flex-start; justify-content: center; }
+.viewer__body > .placeholder { margin-top: 80px; }
 
 .placeholder { display: flex; flex-direction: column; align-items: center; gap: 10px; color: var(--mute); text-align: center; max-width: 480px; }
 .placeholder__t { margin: 0; font-family: var(--font-display); font-size: 16px; font-weight: 600; color: var(--ink); }
 .placeholder__d { margin: 0; font-size: 13px; line-height: 1.85; }
 .placeholder code { font-family: var(--font-mono); font-size: 12px; padding: 2px 6px; background: var(--surface-soft); border: 1px solid var(--line); color: var(--accent); }
+
+/* ---- 不同渲染分支的容器 ---- */
+.viewer__body > * { width: 100%; max-width: 880px; margin: 0 auto; }
+
+/* PDF iframe */
+.viewer__pdf { width: 100%; height: 70vh; min-height: 480px; }
+.viewer__iframe { width: 100%; height: 100%; border: 1px solid var(--line-soft); }
+
+/* 图片 */
+.viewer__image { width: 100%; text-align: center; }
+.viewer__img { max-width: 100%; max-height: 70vh; border: 1px solid var(--line-soft); }
+
+/* 外链 */
+.viewer__link { padding: 20px; background: var(--surface-soft); border: 1px solid var(--line-soft); display: flex; align-items: center; gap: 10px; }
+.viewer__link a { color: var(--accent); word-break: break-all; }
+
+/* 富文本渲染 */
+.viewer__rich { padding: 4px 12px 24px; background: var(--surface); border: 1px solid var(--line-soft); }
+.rich-body { font-family: var(--font-body); font-size: 14.5px; line-height: 1.85; color: var(--ink); word-break: break-word; }
+.rich-body :deep(h1), .rich-body :deep(h2), .rich-body :deep(h3) {
+  font-family: var(--font-display); color: var(--ink); margin: 24px 0 12px; line-height: 1.4;
+}
+.rich-body :deep(h1) { font-size: 22px; }
+.rich-body :deep(h2) { font-size: 18px; }
+.rich-body :deep(h3) { font-size: 16px; }
+.rich-body :deep(p) { margin: 0 0 12px; }
+.rich-body :deep(strong) { color: var(--ink); font-weight: 600; }
+.rich-body :deep(em) { color: var(--accent); font-style: italic; }
+.rich-body :deep(a) { color: var(--accent); text-decoration: underline; }
+.rich-body :deep(ul), .rich-body :deep(ol) { padding-left: 22px; margin: 8px 0 16px; }
+.rich-body :deep(li) { margin: 4px 0; }
+.rich-body :deep(code) {
+  background: var(--surface-soft); padding: 1px 6px; border: 1px solid var(--line-soft);
+  font-family: var(--font-mono); font-size: 12.5px; color: var(--accent);
+}
+.rich-body :deep(pre) {
+  background: #1f2329; color: #f1f2f3; padding: 14px 16px; overflow-x: auto; margin: 12px 0;
+  font-family: var(--font-mono); font-size: 12.5px; line-height: 1.6;
+}
+.rich-body :deep(blockquote) {
+  margin: 12px 0; padding: 8px 16px; border-left: 3px solid var(--accent); color: var(--ink-soft);
+  background: var(--surface-soft);
+}
+.rich-body :deep(img) { max-width: 100%; height: auto; }
+.rich-body :deep(table) { border-collapse: collapse; width: 100%; margin: 12px 0; }
+.rich-body :deep(th), .rich-body :deep(td) { border: 1px solid var(--line); padding: 6px 10px; }
+
+/* 当 viewer__body 渲染富文本时，让 placeholder 容器不再左右居中 */
+.viewer__rich .placeholder { margin: 40px auto; }
 </style>
