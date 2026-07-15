@@ -69,7 +69,13 @@
             </el-form-item>
           </el-col>
           <el-col :span="8"><el-form-item label="课程名称"><el-input v-model="form.courseName" disabled /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="班级" prop="className"><el-input v-model="form.className" /></el-form-item></el-col>
+          <el-col :span="8">
+            <el-form-item label="班级" prop="className">
+              <el-select v-model="form.className" filterable clearable style="width:100%" placeholder="请选择您所带班级">
+                <el-option v-for="c in classOptions" :key="c.id" :label="c.className" :value="c.className" />
+              </el-select>
+            </el-form-item>
+          </el-col>
         </el-row>
         <el-row :gutter="16">
           <el-col :span="8"><el-form-item label="教师"><el-input v-model="form.teacherName" disabled /></el-form-item></el-col>
@@ -136,10 +142,13 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
 import { useDict } from '@/hooks/useDict'
+import { useUserStore } from '@/store/user'
 import { expPage, expAdd, expEdit, expRemove, expSubmit, expApprove, expReject, expDetail } from '@/api/experiment'
 import { listAllCourses } from '@/api/course'
+import { classMyClasses } from '@/api/system'
 
 const dict = useDict('semester')
+const userStore = useUserStore()
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
@@ -150,7 +159,7 @@ const submitting = ref(false)
 const formRef = ref()
 const form = reactive({
   id: null, planTitle: '', courseId: null, courseName: '',
-  semester: '', className: '', teacherName: '', labRoom: '',
+  semester: '', className: '', teacherId: null, teacherName: '', labRoom: '',
   startDate: '', endDate: '', totalExperiments: 0, totalHours: 0,
   description: '', items: []
 })
@@ -163,19 +172,25 @@ const rules = {
 }
 
 const courseOptions = ref([])
+const classOptions = ref([])
 const loadCourses = async () => {
   try { courseOptions.value = await listAllCourses() } catch (e) { courseOptions.value = [] }
 }
+// 拉取当前教师（登录用户）所关联的班级，作为「班级」下拉的数据源
+const loadMyClasses = async () => {
+  try { classOptions.value = (await classMyClasses()) || [] } catch (e) { classOptions.value = [] }
+}
 const onCourseChange = (val) => {
   const c = courseOptions.value.find(x => x.id === val)
-  if (c) {
-    form.courseName = c.courseName
-    // 教师由所选课程自动带出
-    form.teacherName = c.teacherName || ''
-  } else {
-    form.courseName = ''
-    form.teacherName = ''
-  }
+  form.courseName = c ? c.courseName : ''
+  // 教师由当前登录用户带出，不再随课程变化
+}
+
+// 取当前登录用户信息作为教师；userInfo 在登录和布局挂载时已经填充过
+const fillCurrentTeacher = () => {
+  const u = userStore.userInfo || {}
+  form.teacherId = u.id || null
+  form.teacherName = u.realName || u.username || ''
 }
 
 // 结束日期必须晚于开始日期：禁用开始日期及之前的日期
@@ -227,16 +242,22 @@ const openForm = async (row) => {
     } else {
       Object.assign(form, {
         id: null, planTitle: '', courseId: null, courseName: '',
-        semester: '', className: '', teacherName: '', labRoom: '',
+        semester: '', className: '', teacherId: null, teacherName: '', labRoom: '',
         startDate: '', endDate: '', totalExperiments: 0, totalHours: 0,
         description: '', items: []
       })
+      // 新增时：教师取当前登录用户；用户信息若缺失则主动拉一次（应对刷新场景）
+      if (!userStore.userInfo) {
+        try { await userStore.fetchUserInfo() } catch (e) {}
+      }
+      fillCurrentTeacher()
     }
   } catch (e) {
     // ignore
   }
-  // 每次打开都刷新课程列表
+  // 每次打开都刷新课程列表与当前教师所带班级
   loadCourses()
+  loadMyClasses()
 }
 
 const addItem = () => {

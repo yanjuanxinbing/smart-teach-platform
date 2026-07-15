@@ -24,7 +24,7 @@
       <el-table :data="list" v-loading="loading" border>
         <el-table-column prop="title" label="作业标题" min-width="180" show-overflow-tooltip />
         <el-table-column label="所属章节" min-width="140" show-overflow-tooltip>
-          <template #default="{ row }">{{ chapterMap[row.chapterId] || ('#' + row.chapterId) }}</template>
+          <template #default="{ row }">{{ row.chapterTitle || chapterMap[row.chapterId] || ('#' + row.chapterId) }}</template>
         </el-table-column>
         <el-table-column label="目标班级" min-width="160" show-overflow-tooltip>
           <template #default="{ row }">

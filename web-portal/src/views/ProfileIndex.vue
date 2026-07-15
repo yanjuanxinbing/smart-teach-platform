@@ -26,10 +26,6 @@
               </div>
             </el-form-item>
           </el-col>
-          <el-col :span="12"><el-form-item label="角色">
-            <el-tag>{{ userStore.roleLabel }}</el-tag>
-          </el-form-item></el-col>
-
           <el-col :span="12"><el-form-item label="用户名" prop="username">
             <el-input v-model="form.username" disabled />
           </el-form-item></el-col>
@@ -44,8 +40,8 @@
             <el-input v-model="form.phone" placeholder="11 位手机号" maxlength="11" />
           </el-form-item></el-col>
 
-          <el-col :span="12"><el-form-item label="所属部门 / 学院">
-            <el-input v-model="form.deptName" disabled />
+          <el-col :span="12"><el-form-item :label="isStudent ? '班级' : '所属部门 / 学院'">
+            <el-input :model-value="isStudent ? (form.className || '—') : (form.deptName || '—')" disabled />
           </el-form-item></el-col>
           <el-col :span="12"><el-form-item label="个人简介" prop="bio">
             <el-input v-model="form.bio" type="textarea" :rows="3" placeholder="一句话介绍自己..." maxlength="160" show-word-limit />
@@ -60,8 +56,6 @@
         <el-button plain class="card__edit" @click="$router.push('/profile/security')">前往设置</el-button>
       </div>
       <ul class="quick">
-        <li><span>最近登录时间</span><b>{{ userStore.userInfo?.lastLoginTime || '—' }}</b></li>
-        <li><span>最近登录地址</span><b>{{ userStore.userInfo?.lastLoginIp || '—' }}</b></li>
         <li><span>当前会话数</span><b>1</b></li>
       </ul>
     </article>
@@ -69,7 +63,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import { updateMyProfile } from '@/api/profile'
@@ -78,8 +72,9 @@ const userStore = useUserStore()
 const formRef = ref()
 const editing = ref(false)
 const saving = ref(false)
+const isStudent = computed(() => userStore.roleCode === 'STUDENT')
 const form = reactive({
-  username: '', realName: '', email: '', phone: '', bio: '', avatar: '', deptName: ''
+  username: '', realName: '', email: '', phone: '', bio: '', avatar: '', deptName: '', className: ''
 })
 const rules = {
   realName: [{ required: true, message: '请输入昵称/真实姓名', trigger: 'blur' }],
@@ -113,7 +108,8 @@ const fill = () => {
     phone: u.phone || '',
     bio: u.bio || '',
     avatar: u.avatar || '',
-    deptName: u.deptName || u.dept?.name || '—'
+    deptName: u.deptName || u.dept?.name || '—',
+    className: u.className || ''
   })
   initial = snapshot()
 }

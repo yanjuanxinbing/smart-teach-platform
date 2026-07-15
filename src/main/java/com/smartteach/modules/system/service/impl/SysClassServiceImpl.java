@@ -9,6 +9,10 @@ import com.smartteach.common.base.PageResult;
 import com.smartteach.common.exception.BusinessException;
 import com.smartteach.common.result.ResultCode;
 import com.smartteach.common.utils.UserContext;
+import com.smartteach.modules.permission.entity.SysRole;
+import com.smartteach.modules.permission.entity.SysUserRole;
+import com.smartteach.modules.permission.mapper.SysRoleMapper;
+import com.smartteach.modules.permission.mapper.SysUserRoleMapper;
 import com.smartteach.modules.system.dto.SysClassBatchAddDTO;
 import com.smartteach.modules.system.dto.SysClassMemberDTO;
 import com.smartteach.modules.system.dto.SysClassQueryDTO;
@@ -48,15 +52,21 @@ public class SysClassServiceImpl extends ServiceImpl<SysClassMapper, SysClass> i
     private final SysAssignmentClassMapper assignmentClassMapper;
     private final SysDeptService deptService;
     private final SysUserService userService;
+    private final SysRoleMapper roleMapper;
+    private final SysUserRoleMapper userRoleMapper;
 
     public SysClassServiceImpl(SysUserClassMapper userClassMapper,
                                SysAssignmentClassMapper assignmentClassMapper,
                                SysDeptService deptService,
-                               SysUserService userService) {
+                               SysUserService userService,
+                               SysRoleMapper roleMapper,
+                               SysUserRoleMapper userRoleMapper) {
         this.userClassMapper = userClassMapper;
         this.assignmentClassMapper = assignmentClassMapper;
         this.deptService = deptService;
         this.userService = userService;
+        this.roleMapper = roleMapper;
+        this.userRoleMapper = userRoleMapper;
     }
 
     @Override
@@ -224,6 +234,74 @@ public class SysClassServiceImpl extends ServiceImpl<SysClassMapper, SysClass> i
                 .collect(Collectors.toList());
     }
 
+    /**
+     * 分配成员对话框的"可选用户"列表：
+     * <ul>
+     *   <li>角色 = 学生：排除已加入任何班级的学生（一个学生只能属于一个班级）</li>
+     *   <li>角色 = 教师 或 不传：只排除本班级已分配的用户（教师可同时带多个班级）</li>
+     * </ul>
+     */
+    @Override
+    public List<UserVO> listAvailableUsers(Long classId, String roleName, String keyword) {
+        if (classId == null) {
+            throw new BusinessException("班级ID不能为空");
+        }
+        if (!this.lambdaQuery().eq(SysClass::getId, classId).exists()) {
+            throw new BusinessException("班级不存在");
+        }
+
+        // 1) 已在「本班级」的用户——任何角色都要排除
+        Set<Long> inThisClass = userClassMapper.selectList(
+                new LambdaQueryWrapper<SysUserClass>().eq(SysUserClass::getClassId, classId))
+                .stream().map(SysUserClass::getUserId).collect(Collectors.toSet());
+
+        // 2) 学生场景下，进一步排除「已经在任意班级」的学生（一个学生只能属于一个班级）
+        Set<Long> inAnyClass = null;
+        if ("学生".equals(roleName)) {
+            inAnyClass = userClassMapper.selectList(null)
+                    .stream().map(SysUserClass::getUserId).collect(Collectors.toSet());
+        }
+
+        // 3) 角色 → 用户ID 集合（roleName 是中文名 "教师"/"学生"）
+        Set<Long> roleUserIds = null;
+        if (StringUtils.hasText(roleName)) {
+            SysRole role = roleMapper.selectList(
+                    new LambdaQueryWrapper<SysRole>()
+                            .eq(SysRole::getRoleName, roleName)
+                            .eq(SysRole::getStatus, 1))
+                    .stream().findFirst().orElse(null);
+            if (role == null) return Collections.emptyList();
+            roleUserIds = userRoleMapper.selectList(
+                    new LambdaQueryWrapper<SysUserRole>().eq(SysUserRole::getRoleId, role.getId()))
+                    .stream().map(SysUserRole::getUserId).collect(Collectors.toSet());
+            if (roleUserIds.isEmpty()) return Collections.emptyList();
+        }
+
+        // 4) 查用户：启用、按用户名升序；关键字匹配 username 或 realName
+        LambdaQueryWrapper<SysUser> userWrapper = new LambdaQueryWrapper<>();
+        userWrapper.eq(SysUser::getStatus, 1);
+        if (roleUserIds != null) {
+            userWrapper.in(SysUser::getId, roleUserIds);
+        }
+        if (StringUtils.hasText(keyword)) {
+            userWrapper.and(w -> w.like(SysUser::getUsername, keyword)
+                    .or().like(SysUser::getRealName, keyword));
+        }
+        userWrapper.orderByAsc(SysUser::getUsername);
+        List<SysUser> users = userService.list(userWrapper);
+        if (users.isEmpty()) return Collections.emptyList();
+
+        // 5) 过滤已分配用户并组装 VO
+        List<UserVO> result = new ArrayList<>();
+        for (SysUser u : users) {
+            if (inThisClass.contains(u.getId())) continue;
+            if (inAnyClass != null && inAnyClass.contains(u.getId())) continue;
+            UserVO vo = userService.getDetail(u.getId());
+            if (vo != null) result.add(vo);
+        }
+        return result;
+    }
+
     @Override
     @Transactional(rollbackFor = Exception.class)
     public void assignMembers(SysClassMemberDTO dto) {
@@ -231,6 +309,9 @@ public class SysClassServiceImpl extends ServiceImpl<SysClassMapper, SysClass> i
         if (!this.lambdaQuery().eq(SysClass::getId, dto.getClassId()).exists()) {
             throw new BusinessException("班级不存在");
         }
+        // 业务规则：一个学生只能属于一个班级；本次提交的学生若已属其他班级则拒绝
+        assertNoStudentConflict(dto.getClassId(), dto.getUserIds());
+
         // 全量替换：先把班级所有现有成员软删除
         userClassMapper.delete(
                 new LambdaQueryWrapper<SysUserClass>().eq(SysUserClass::getClassId, dto.getClassId()));
@@ -249,6 +330,37 @@ public class SysClassServiceImpl extends ServiceImpl<SysClassMapper, SysClass> i
             uc.setClassId(dto.getClassId());
             userClassMapper.insert(uc);
         }
+    }
+
+    /**
+     * 业务规则：一个学生只能属于一个班级。
+     * 检查 userIds 中的学生用户是否已在其他班级（除自身 classId 外），如有则抛出业务异常。
+     * 注意：本校验只防"分配时"漏检；已经存在脏数据不会主动清理。
+     */
+    private void assertNoStudentConflict(Long classId, List<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) return;
+        SysRole studentRole = roleMapper.selectList(
+                new LambdaQueryWrapper<SysRole>()
+                        .eq(SysRole::getRoleName, "学生")
+                        .eq(SysRole::getStatus, 1))
+                .stream().findFirst().orElse(null);
+        if (studentRole == null) return;
+        Set<Long> studentUserIds = userRoleMapper.selectList(
+                new LambdaQueryWrapper<SysUserRole>()
+                        .eq(SysUserRole::getRoleId, studentRole.getId())
+                        .in(SysUserRole::getUserId, userIds))
+                .stream().map(SysUserRole::getUserId).collect(Collectors.toSet());
+        if (studentUserIds.isEmpty()) return;
+        List<SysUserClass> existing = userClassMapper.selectList(
+                new LambdaQueryWrapper<SysUserClass>()
+                        .ne(SysUserClass::getClassId, classId)
+                        .in(SysUserClass::getUserId, studentUserIds));
+        if (existing.isEmpty()) return;
+        Set<Long> conflictIds = existing.stream().map(SysUserClass::getUserId).collect(Collectors.toSet());
+        String names = userService.listByIds(conflictIds).stream()
+                .map(u -> u.getRealName() != null && !u.getRealName().isEmpty() ? u.getRealName() : u.getUsername())
+                .collect(Collectors.joining("、"));
+        throw new BusinessException("以下学生已属于其他班级，无法重复分配：「" + names + "」");
     }
 
     @Override

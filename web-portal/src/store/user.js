@@ -127,6 +127,7 @@ export const useUserStore = defineStore('user', {
         avatar:   data?.avatar ?? this.userInfo?.avatar,
         email:    data?.email ?? this.userInfo?.email,
         deptName: data?.deptName ?? this.userInfo?.deptName,
+        className: data?.className ?? this.userInfo?.className,
         roleNames: data?.roleNames ?? this.roles,
         permissions: data?.permissions ?? this.permissions
       }
