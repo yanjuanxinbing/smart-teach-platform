@@ -116,7 +116,7 @@
         </a>
         <a
           v-else-if="isManager"
-          href="http://localhost:8081/"
+          :href="adminHref"
           target="_blank"
           rel="noopener"
           class="ph__link ph__link--cta"
@@ -157,6 +157,7 @@ import {
   Position, User, UserFilled, Key, ArrowDown, Notebook
 } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
+import { buildAdminHref } from '@/utils/adminHref'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -187,6 +188,10 @@ const displayName = computed(() => {
   const u = userStore.userInfo || {}
   return u.realName || u.username || '我'
 })
+
+// 跳管理中心(8081)的链接:带 portal token + 时间戳,避免被 8081 残留 cookie 串号
+// 用 computed 让 token 变化时链接实时刷新
+const adminHref = computed(() => buildAdminHref())
 
 const closeMenu = () => { menuOpen.value = false }
 const onScroll = () => { scrolled.value = window.scrollY > 8 }

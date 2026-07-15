@@ -44,12 +44,6 @@
             placeholder="请输入作业正文（支持富文本 / HTML，可粘贴 Word 内容）"
             :disabled="submitting || savingDraft"
           />
-          <!--
-            TODO: [P1] 后端 /api/portal/my/assignments/{id}/submit 接口就绪后，
-            当前 buildPayload() 把 form.submitText 当 HTML 发送给后端即可，
-            后端需在 PortalMySubmissionVO.submitText 上落 MEDIUMTEXT。
-            若后端仅支持纯文本，可在 onSubmit 前加一步 html2text 转换。
-          -->
         </el-form-item>
 
         <el-form-item label="附件">

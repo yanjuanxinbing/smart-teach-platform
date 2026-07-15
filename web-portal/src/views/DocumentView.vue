@@ -319,7 +319,7 @@ const download = async (d) => {
 // ============================================================
 onMounted(() => {
   if (!userStore.isLogin) {
-    router.replace({ path: '/login', query: { redirect: '/profile/document' } })
+    router.replace({ path: '/login', query: { redirect: '/profile' } })
     return
   }
   load()

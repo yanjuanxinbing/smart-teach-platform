@@ -3,7 +3,12 @@
 </template>
 
 <script setup>
-// 应用根组件
+import { useUserStore } from '@/store/user'
+
+// 启动时检查 URL query,接管 portal 端带过来的 access_token
+// 必须在 router 初始化之前调用,否则 beforeEach 会因为没 token 跳到 /login
+const userStore = useUserStore()
+userStore.bootFromQuery()
 </script>
 
 <style lang="scss">

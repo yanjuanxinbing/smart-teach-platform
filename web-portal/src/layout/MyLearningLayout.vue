@@ -57,9 +57,10 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Notebook, EditPen, Promotion } from '@element-plus/icons-vue'
+import { Notebook, EditPen, Promotion, Files } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { myCourses, myAssignments, myTrainings } from '@/api/my'
+import { listPortalResources } from '@/api/resource'
 
 const userStore = useUserStore()
 
@@ -68,22 +69,25 @@ const stats = ref({ courses: 0, pending: 0, inProgress: 0 })
 const nav = computed(() => [
   { to: '/my/courses',     label: '我的课程', icon: Notebook },
   { to: '/my/assignments', label: '我的作业', icon: EditPen },
-  { to: '/my/trainings',   label: '我的实训', icon: Promotion }
+  { to: '/my/trainings',   label: '我的实训', icon: Promotion },
+  { to: '/my/resources',   label: '我的资源', icon: Files }
 ])
 
 // 用 Promise.allSettled：任一接口未实现或失败也不会阻断其它统计数字；
-// 后端未实现时 api/my.js 的 silentError 抑制 toast,所以页面只是显示 0.
+// 后端未实现时 api/* 的 silentError 抑制 toast,所以页面只是显示 0.
 const refreshStats = async () => {
   if (!userStore.isLogin) return
   const results = await Promise.allSettled([
     myCourses(),
     myAssignments({ status: 'pending' }),
-    myTrainings({ status: 'in_progress' })
+    myTrainings({ status: 'in_progress' }),
+    listPortalResources({ current: 1, size: 1 })
   ])
+  const totalOf = (r) => Number(r.status === 'fulfilled' ? (r.value?.total ?? r.value?.records?.length ?? 0) : 0)
   stats.value = {
-    courses:    Number(results[0].status === 'fulfilled' ? (results[0].value?.total ?? results[0].value?.records?.length ?? 0) : 0),
-    pending:    Number(results[1].status === 'fulfilled' ? (results[1].value?.total ?? results[1].value?.records?.length ?? 0) : 0),
-    inProgress: Number(results[2].status === 'fulfilled' ? (results[2].value?.total ?? results[2].value?.records?.length ?? 0) : 0)
+    courses:    totalOf(results[0]),
+    pending:    totalOf(results[1]),
+    inProgress: totalOf(results[2])
   }
 }
 
