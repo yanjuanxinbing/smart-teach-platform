@@ -88,15 +88,6 @@
         -->
         <div v-if="bio" class="bio__text bio__text--html" v-html="bio"></div>
         <p v-else class="bio__text bio__text--empty">还没有填写个人简介,点击右上角"编辑简介"补充一下吧~</p>
-        <!--
-          "查看文件"按钮 —— 当前项目内路由跳转到 /profile/document。
-          与 ProfileLayout 侧栏的"查看文档"共用同一路由;
-          这里保留是让简介区也能独立触发(对应"个人文档/履历附件"场景)。
-          之前是 window.open 跨域跳 8081,已纠正为内部路由跳转。
-        -->
-        <div class="bio__foot">
-          <el-button size="small" plain @click="goDocuments">查看文件</el-button>
-        </div>
       </div>
 
       <!-- 编辑态 —— 富文本编辑器（@wangeditor/editor-for-vue 5.x） -->
@@ -135,17 +126,6 @@ import RichEditor from '@/components/RichEditor.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
-
-// ============================================================
-// 跳转"我的文档"页 —— 当前项目内路由跳转,不跨域
-// ============================================================
-// 与 ProfileLayout 侧栏的"查看文档"按钮共用 /profile/document;
-// 之前是 window.open 跨域跳 8081,已纠正为内部路由:
-//   8082 是内容展示端,8081 是内容生产端,前台不直接打开后台;
-//   文档内容通过 GET /api/document/me 拉到 8082 在 DocumentView 渲染。
-const goDocuments = () => {
-  router.push('/profile/document')
-}
 
 // ============================================================
 // 基础信息表单

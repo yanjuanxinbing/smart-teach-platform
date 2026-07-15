@@ -99,7 +99,7 @@ import { ref, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Back, ArrowDown, ArrowRight } from '@element-plus/icons-vue'
-import { courseDetail, courseChapters } from '@/api/course'
+import { courseDetail, courseChapters, joinCourse } from '@/api/course'
 import { useUserStore } from '@/store/user'
 
 const route = useRoute()
@@ -116,9 +116,23 @@ const gotoLogin = () => router.push('/login?redirect=/course/' + route.params.id
 
 const toggle = (ch) => { activeChapter.value = activeChapter.value === ch.id ? null : ch.id }
 const enroll = async () => {
+  if (!course.value?.id) return
   enrolling.value = true
-  try { await new Promise(r => setTimeout(r, 400)); enrolled.value = true; ElMessage.success('已加入我的学习') }
-  finally { enrolling.value = false }
+  try {
+    // 调后端 POST /portal/my/courses/add —— 后端从 JWT 取 userId 写入 course_enrollment
+    await joinCourse(course.value.id)
+    enrolled.value = true
+    ElMessage.success('已加入我的学习')
+    // 跳转 /my/courses: 路由不带 keep-alive,vue-router 默认 destroy → re-create,
+    // MyCourses.vue 的 onMounted(fetch) 会重跑一次列表,新加入的课程立即可见
+    router.push('/my/courses')
+  } catch (e) {
+    // 后端接口未上线时静默提示,避免白屏
+    console.warn('功能开发中:加入课程接口未就绪', e?.message)
+    ElMessage.warning('加入课程功能开发中,请稍后重试')
+  } finally {
+    enrolling.value = false
+  }
 }
 
 const load = async (id) => {

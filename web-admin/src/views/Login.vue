@@ -27,12 +27,28 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { User, Lock } from '@element-plus/icons-vue'
+import Cookies from 'js-cookie'
 import { useUserStore } from '@/store/user'
 
 const router = useRouter()
 const userStore = useUserStore()
 const formRef = ref()
 const loading = ref(false)
+
+// 强制重新登录:portal 端跳过来时若带 ?forceLogin=true,
+// 这里清掉残留 cookie + store 状态,确保看到登录表单(而不是被旧 token 自动放行)
+const sp = new URLSearchParams(window.location.search)
+if (sp.get('forceLogin') === 'true') {
+  userStore.token = ''
+  userStore.userInfo = null
+  userStore.permissions = []
+  userStore.roles = []
+  Cookies.remove('token')
+  // 清理 URL,避免 F5 / 分享时重复触发
+  const cleanUrl = window.location.pathname + window.location.hash
+  window.history.replaceState({}, '', cleanUrl)
+}
+
 // TODO: [admin 默认账号] [P1] 原表单默认填充 `admin/admin` 方便本地开发,但生产环境暴露
 //       默认凭据是严重问题.已清空;开发期如需预填,可改为只在 import.meta.env.DEV
 //       且 localStorage.dev_autofill === '1' 才回填.

@@ -76,11 +76,12 @@
 
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { Search, Notebook, Reading, Warning } from '@element-plus/icons-vue'
 import { myCourses } from '@/api/my'
 
 const router = useRouter()
+const route = useRoute()
 
 // TODO: [我的课程 → 详情页] [P1] 目前复用公开 /course/:id 详情页;若有差异(进度回写、学习轨迹),
 //       应另起 /my/course/:id 路由.
@@ -135,6 +136,11 @@ let timer
 watch(() => filters.q, () => {
   clearTimeout(timer); timer = setTimeout(() => { page.current = 1; fetch() }, 300)
 })
+
+// 兜底刷新：用户从 CourseDetail 加入课程 → router.push('/my/courses') 时,
+//   组件已重新挂载,onMounted 会触发 fetch;但如果存在 keep-alive / 缓存,
+//   这里监听 route.fullPath 变化做一次强制重查,避免漏显示
+watch(() => route.fullPath, () => { page.current = 1; fetch() })
 
 onMounted(fetch)
 </script>

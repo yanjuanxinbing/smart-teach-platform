@@ -27,21 +27,21 @@
           <router-link to="/" class="pf__link">首页</router-link>
           <router-link to="/notice" class="pf__link">通告公告</router-link>
           <router-link to="/news" class="pf__link">新闻资讯</router-link>
-          <a class="pf__link" href="http://localhost:8081" target="_blank" rel="noopener">管理中心</a>
+          <a class="pf__link" :href="adminHome" target="_blank" rel="noopener">管理中心</a>
         </div>
         <div class="pf__col">
           <div class="pf__col-title">教研模块</div>
-          <a class="pf__link" href="http://localhost:8081" target="_blank" rel="noopener">课程计划</a>
-          <a class="pf__link" href="http://localhost:8081" target="_blank" rel="noopener">课程实验</a>
-          <a class="pf__link" href="http://localhost:8081" target="_blank" rel="noopener">实训管理</a>
-          <a class="pf__link" href="http://localhost:8081" target="_blank" rel="noopener">资源中心</a>
+          <a class="pf__link" :href="adminCourse" target="_blank" rel="noopener">课程计划</a>
+          <a class="pf__link" :href="adminExperiment" target="_blank" rel="noopener">课程实验</a>
+          <a class="pf__link" :href="adminTraining" target="_blank" rel="noopener">实训管理</a>
+          <a class="pf__link" :href="adminResource" target="_blank" rel="noopener">资源中心</a>
         </div>
         <div class="pf__col">
           <div class="pf__col-title">系统</div>
-          <a class="pf__link" href="http://localhost:8081" target="_blank" rel="noopener">用户与权限</a>
-          <a class="pf__link" href="http://localhost:8081" target="_blank" rel="noopener">字典与参数</a>
-          <a class="pf__link" href="http://localhost:8081" target="_blank" rel="noopener">系统监控</a>
-          <a class="pf__link" href="http://localhost:8081" target="_blank" rel="noopener">登录与操作日志</a>
+          <a class="pf__link" :href="adminUser" target="_blank" rel="noopener">用户与权限</a>
+          <a class="pf__link" :href="adminDict" target="_blank" rel="noopener">字典与参数</a>
+          <a class="pf__link" :href="adminMonitor" target="_blank" rel="noopener">系统监控</a>
+          <a class="pf__link" :href="adminLog" target="_blank" rel="noopener">登录与操作日志</a>
         </div>
         <div class="pf__col">
           <div class="pf__col-title">联系</div>
@@ -64,7 +64,22 @@
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { buildAdminHref } from '@/utils/adminHref'
+
 const year = new Date().getFullYear()
+
+// 所有跳转 8081 的链接都走 buildAdminHref,统一带上 access_token + 时间戳,
+// 避免被 8081 残留的旧 cookie 串号
+const adminHome       = computed(() => buildAdminHref('/dashboard'))
+const adminCourse     = computed(() => buildAdminHref('/course/manage'))
+const adminExperiment = computed(() => buildAdminHref('/experiment/plan'))
+const adminTraining   = computed(() => buildAdminHref('/training/plan'))
+const adminResource   = computed(() => buildAdminHref('/resource/list'))
+const adminUser       = computed(() => buildAdminHref('/system/user'))
+const adminDict       = computed(() => buildAdminHref('/system/dict'))
+const adminMonitor    = computed(() => buildAdminHref('/monitor/server'))
+const adminLog        = computed(() => buildAdminHref('/monitor/login-log'))
 </script>
 
 <style scoped>

@@ -31,14 +31,7 @@ const routes = [
           { path: '',          name: 'ProfileIndex',    component: () => import('@/views/ProfileIndex.vue') },
           { path: 'security', name: 'ProfileSecurity', component: () => import('@/views/ProfileSecurity.vue') },
           { path: 'message',  name: 'ProfileMessage',  component: () => import('@/views/ProfileMessage.vue') },
-          { path: 'log',      name: 'ProfileLog',      component: () => import('@/views/ProfileLog.vue') },
-          // 我的文档 —— 8082 内容展示端;8081 是内容生产端。
-          // 路由跳转来源:
-          //  1) ProfileLayout 侧栏 CTA"查看文档"按钮;
-          //  2) ProfileIndex 个人简介卡片"查看文件"按钮;
-          //  3) ProfileLayout 侧栏导航"我的文档"。
-          // 路由本身不参与任何跨域跳转,文档内容由 src/api/document.js 拉取。
-          { path: 'document', name: 'ProfileDocument', component: () => import('@/views/DocumentView.vue'), meta: { title: '我的文档' } }
+          { path: 'log',      name: 'ProfileLog',      component: () => import('@/views/ProfileLog.vue') }
         ]
       },
 
@@ -53,6 +46,7 @@ const routes = [
           { path: 'courses',     name: 'MyCourses',     component: () => import('@/views/MyCourses.vue'),     meta: { title: '我的课程' } },
           { path: 'assignments', name: 'MyAssignments', component: () => import('@/views/MyAssignments.vue'), meta: { title: '我的作业' } },
           { path: 'trainings',   name: 'MyTrainings',   component: () => import('@/views/MyTrainings.vue'),   meta: { title: '我的实训' } },
+          { path: 'resources',   name: 'MyResources',   component: () => import('@/views/MyResources.vue'),   meta: { title: '我的资源' } },
           // 作业三联 —— 详情/提交/批改(学生视角)
           { path: 'assignment/:id/submit',     name: 'AssignmentSubmit',     component: () => import('@/views/AssignmentSubmit.vue'),     meta: { title: '提交作业' } },
           { path: 'assignment/:id/submission', name: 'AssignmentSubmission', component: () => import('@/views/AssignmentSubmission.vue'), meta: { title: '查看提交' } },
