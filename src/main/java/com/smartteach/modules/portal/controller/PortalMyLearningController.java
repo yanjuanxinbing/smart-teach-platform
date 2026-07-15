@@ -15,9 +15,13 @@ import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+
+import javax.validation.constraints.NotNull;
 
 /**
  * 「我的学习中心」门户侧接口 —— 学生专属
@@ -43,6 +47,18 @@ public class PortalMyLearningController {
         Long studentId = requireStudent();
         IPage<PortalMyCourseVO> page = myLearningService.myCourses(studentId, current, size, q);
         return Result.success(PageResult.of(page));
+    }
+
+    @ApiOperation("加入课程（幂等：已选直接返回现有记录）")
+    @PostMapping("/courses/add")
+    @PreAuthorize("hasAuthority('course:my:list')")
+    public Result<PortalMyCourseVO> joinCourse(@RequestBody JoinCourseRequest body) {
+        Long studentId = requireStudent();
+        if (body == null || body.getCourseId() == null) {
+            throw new BusinessException("课程ID不能为空");
+        }
+        PortalMyCourseVO vo = myLearningService.joinCourse(studentId, body.getCourseId());
+        return Result.success(vo);
     }
 
     @ApiOperation("我的作业（按状态过滤：pending/submitted/graded）")
@@ -81,5 +97,15 @@ public class PortalMyLearningController {
             throw new BusinessException(ResultCode.UNAUTHORIZED);
         }
         return studentId;
+    }
+
+    /**
+     * 加入课程请求体 —— 仅含 courseId(从 body 读,不从 URL 读,避免日志外泄);
+     * studentId 严格从 JWT 拿,绝不接受请求参数里的 studentId(反 IDOR)。
+     */
+    @lombok.Data
+    public static class JoinCourseRequest {
+        @NotNull
+        private Long courseId;
     }
 }

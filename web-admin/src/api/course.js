@@ -23,6 +23,7 @@ export const contentAdd = (data) => request.post('/course/content', data)
 export const contentEdit = (data) => request.put('/course/content', data)
 export const contentRemove = (ids) => request.delete('/course/content', { data: ids })
 
+0
 // 教学计划
 export const planPage = (params) => request.get('/course/plan/page', { params })
 export const planDetail = (id) => request.get(`/course/plan/${id}`)

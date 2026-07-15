@@ -9,6 +9,8 @@ import com.smartteach.modules.course.assignment.entity.Assignment;
 import com.smartteach.modules.course.assignment.entity.AssignmentSubmission;
 import com.smartteach.modules.course.assignment.mapper.AssignmentMapper;
 import com.smartteach.modules.course.assignment.mapper.AssignmentSubmissionMapper;
+import com.smartteach.modules.course.entity.Course;
+import com.smartteach.modules.course.mapper.CourseMapper;
 import com.smartteach.modules.portal.entity.CourseEnrollment;
 import com.smartteach.modules.portal.mapper.CourseEnrollmentMapper;
 import com.smartteach.modules.portal.service.PortalMyLearningService;
@@ -22,6 +24,7 @@ import com.smartteach.modules.training.mapper.TrainingRegistrationMapper;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -57,6 +60,7 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
     private final AssignmentSubmissionMapper submissionMapper;
     private final TrainingRegistrationMapper trainingRegistrationMapper;
     private final TrainingPlanMapper trainingPlanMapper;
+    private final CourseMapper courseMapper;
 
     @Override
     public IPage<PortalMyCourseVO> myCourses(Long studentId, long pageNum, long pageSize, String keyword) {
@@ -73,6 +77,52 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
         }
         IPage<CourseEnrollment> page = enrollmentMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
         return page.convert(this::toCourseVO);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PortalMyCourseVO joinCourse(Long studentId, Long courseId) {
+        requireStudent(studentId);
+        if (courseId == null) {
+            throw new BusinessException("课程ID不能为空");
+        }
+
+        // 1) 校验课程存在且已发布
+        Course course = courseMapper.selectById(courseId);
+        if (course == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        }
+        if (course.getStatus() == null || course.getStatus() != 1) {
+            throw new BusinessException("课程尚未发布,无法加入");
+        }
+
+        // 2) 幂等:同一学生同一课程若已选(状态 1=进行中),直接返回现有记录
+        LambdaQueryWrapper<CourseEnrollment> existWrap = new LambdaQueryWrapper<>();
+        existWrap.eq(CourseEnrollment::getStudentId, studentId)
+                .eq(CourseEnrollment::getCourseId, courseId)
+                .eq(CourseEnrollment::getStatus, 1);
+        CourseEnrollment existing = enrollmentMapper.selectOne(existWrap);
+        if (existing != null) {
+            return toCourseVO(existing);
+        }
+
+        // 3) 落 course_enrollment 表(冗余字段填充,避免列表 N+1)
+        CourseEnrollment enrollment = new CourseEnrollment();
+        enrollment.setStudentId(studentId);
+        enrollment.setCourseId(courseId);
+        enrollment.setCourseName(course.getCourseName());
+        enrollment.setCourseCode(course.getCourseCode());
+        enrollment.setTeacherName(course.getTeacherName());
+        // coverImage 当前 Course 实体未带,从 course.cover_image 列读;若该列尚未在实体上,
+        // 后续 PortalMyCourseVO.coverImage 仍然为空字符串,UI 端有兜底渐变色,不影响主流程
+        enrollment.setTotalHours(course.getTotalHours());
+        enrollment.setCourseType(course.getCourseType());
+        enrollment.setProgress(0);
+        enrollment.setEnrolledAt(LocalDateTime.now());
+        enrollment.setStatus(1);   // 进行中
+
+        enrollmentMapper.insert(enrollment);
+        return toCourseVO(enrollment);
     }
 
     @Override
