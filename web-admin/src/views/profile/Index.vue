@@ -33,9 +33,6 @@
             </el-form-item>
           </el-col>
           <el-col :span="8"><el-form-item label="账号">{{ form.username }}</el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="角色">
-            <el-tag>{{ userStore.roleLabel }}</el-tag>
-          </el-form-item></el-col>
 
           <el-col :span="12"><el-form-item label="真实姓名" prop="realName"><el-input v-model="form.realName" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="昵称" prop="nickname"><el-input v-model="form.nickname" /></el-form-item></el-col>
@@ -43,8 +40,7 @@
           <el-col :span="12"><el-form-item label="邮箱" prop="email"><el-input v-model="form.email" /></el-form-item></el-col>
           <el-col :span="12"><el-form-item label="手机" prop="phone"><el-input v-model="form.phone" maxlength="11" /></el-form-item></el-col>
 
-          <el-col :span="12"><el-form-item label="部门">{{ form.deptName || '—' }}</el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="最近登录">{{ userStore.userInfo?.lastLoginTime || '—' }}</el-form-item></el-col>
+          <el-col :span="12"><el-form-item :label="isStudent ? '班级' : '部门'">{{ (isStudent ? form.className : form.deptName) || '—' }}</el-form-item></el-col>
 
           <el-col :span="24"><el-form-item label="个人简介">
             <el-input v-model="form.bio" type="textarea" :rows="3" maxlength="160" show-word-limit placeholder="一句话介绍自己..." />
@@ -56,7 +52,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import { updateMyProfile } from '@/api/profile'
@@ -65,8 +61,10 @@ const userStore = useUserStore()
 const formRef = ref()
 const editing = ref(false)
 const saving = ref(false)
+// roleNames 里存的是角色编码（如 ROLE_STUDENT），学生显示"班级"而非"部门"
+const isStudent = computed(() => (userStore.roles || []).includes('ROLE_STUDENT'))
 const form = reactive({
-  username: '', realName: '', nickname: '', email: '', phone: '', bio: '', avatar: '', deptName: ''
+  username: '', realName: '', nickname: '', email: '', phone: '', bio: '', avatar: '', deptName: '', className: ''
 })
 const rules = {
   realName: [{ required: true, message: '请输入真实姓名', trigger: 'blur' }],
@@ -101,7 +99,8 @@ const fill = () => {
     realName: u.realName || '', nickname: u.nickname || '',
     email: u.email || '', phone: u.phone || '',
     bio: u.bio || '', avatar: u.avatar || '',
-    deptName: u.deptName || u.dept?.name || ''
+    deptName: u.deptName || u.dept?.name || '',
+    className: u.className || ''
   })
   initial = JSON.parse(JSON.stringify(form))
 }
