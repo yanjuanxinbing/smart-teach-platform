@@ -35,8 +35,14 @@
           </nav>
           <div class="sidenav__cta">
             <p class="sidenav__cta-t">需要帮助？</p>
-            <p class="sidenav__cta-d">查阅平台使用指南</p>
-            <el-button size="small" plain>查看文档</el-button>
+            <p class="sidenav__cta-d">查阅管理员在 8081 后台发布的资料</p>
+            <!--
+              在当前项目内路由跳转到 /profile/document 文档查看页。
+              注意:不再跨域跳 8081 —— 8082 是内容展示端,8081 是内容生产端,
+              前端不直接打开管理后台;管理员在 8081 上传后,文档数据通过
+              GET /api/document/me 拉到 8082 渲染。
+            -->
+            <el-button size="small" plain @click="goDocuments">查看文档</el-button>
           </div>
         </aside>
         <main class="grid__main">
@@ -55,12 +61,24 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { User, Lock, Bell, Operation, EditPen } from '@element-plus/icons-vue'
+import { User, Lock, Bell, Operation, EditPen, Document } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { unreadCount } from '@/api/profile'
 
 const router = useRouter()
 const userStore = useUserStore()
+
+// ============================================================
+// 跳转"我的文档"页 —— 当前项目内路由跳转,不跨域
+// ============================================================
+// 与 ProfileIndex 简介卡片里的"查看文件"按钮复用同一个路由;
+// 之前是 window.open 跨域跳 8081,已纠正为内部路由,理由:
+//   1) 8082 / 8081 是内容展示端 / 生产端的关系,不在前台直接打开后台;
+//   2) 用户任务要求按钮触发后页面内出现文档查看/预览界面;
+//   3) 路由跳转可分享、可后退,UX 更稳。
+const goDocuments = () => {
+  router.push('/profile/document')
+}
 
 // TODO: [个人中心统计卡片] [P1] 当前位挂的是 /portal/my/* 三个端点的 total 数字,
 // 后端就绪后会真实呈现；目前为 null 表示"暂未加载"，避免之前写死 6/3/12 的演示数据误导上线用户。
@@ -69,6 +87,7 @@ const unread = ref(0)
 
 const nav = computed(() => [
   { to: '/profile',         label: '我的资料', icon: User },
+  { to: '/profile/document', label: '我的文档', icon: Document },
   { to: '/profile/security', label: '安全设置', icon: Lock },
   { to: '/profile/message',  label: '我的消息', icon: Bell, count: unread.value || null },
   { to: '/profile/log',      label: '操作日志', icon: Operation }

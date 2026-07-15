@@ -75,7 +75,6 @@
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import { Search, Promotion, Warning } from '@element-plus/icons-vue'
 import { myTrainings } from '@/api/my'
 
@@ -122,12 +121,10 @@ const filters = reactive({ q: '', progress: '' })
 
 const setProgress = (v) => { filters.progress = v; page.current = 1; fetch() }
 
-// TODO: [实训详情页] [P0] 详情页路由 /training/:id 尚不存在;接入后在此处 router.push(`/training/${t.trainingId}`)
-// 暂时提示"详情开发中"避免悬空
+// 详情页跳转 —— 走顶部一级路由 /training/:id（受 STUDENT 守卫保护）
 const goDetail = (t) => {
   if (!t?.trainingId) return
-  // 暂未实现详情页 —— 临时提示,留个出口
-  ElMessage.info(`《${t.planName || '实训计划'}》详情页开发中`)
+  router.push(`/training/${t.trainingId}`)
 }
 
 const fetch = async () => {

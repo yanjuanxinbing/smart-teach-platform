@@ -44,14 +44,10 @@
             <span v-else-if="a.submittedAt" class="arow__score">提交于：{{ fmtDate(a.submittedAt) }}</span>
           </div>
         </div>
-        <!-- TODO: [作业动作按钮路由] [P0] "去提交 / 查看提交 / 查看批改" 三个按钮目前没有真实路由跳转:
-               - 去提交 -> /portal/assignment/${a.assignmentId}/submit (待实现)
-               - 查看提交 -> /portal/assignment/${a.assignmentId}/submission (待实现)
-               - 查看批改 -> /portal/assignment/${a.assignmentId}/grade (待实现)
-             等提交/批改详情页完成后,在 @click 上分别 router.push。 -->
-        <el-button v-if="a.status === 'pending'" type="primary" plain size="small">去提交</el-button>
-        <el-button v-else-if="a.status === 'submitted'" plain size="small">查看提交</el-button>
-        <el-button v-else plain size="small">查看批改</el-button>
+        <!-- 三个动作按钮 —— 走 /my/assignment/:id/* 子路由(受 MyLearningLayout + STUDENT 守卫保护) -->
+        <el-button v-if="a.status === 'pending'" type="primary" plain size="small" @click="goSubmit(a)">去提交</el-button>
+        <el-button v-else-if="a.status === 'submitted'" plain size="small" @click="goSubmission(a)">查看提交</el-button>
+        <el-button v-else plain size="small" @click="goGrade(a)">查看批改</el-button>
       </li>
     </ul>
 
@@ -70,8 +66,25 @@
 
 <script setup>
 import { ref, reactive, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { Search, Document, Warning } from '@element-plus/icons-vue'
 import { myAssignments } from '@/api/my'
+
+const router = useRouter()
+
+// 三个动作的路由跳转 —— 全部走 /my/assignment/:id/* 子路由
+const goSubmit = (a) => {
+  if (!a?.assignmentId) return
+  router.push(`/my/assignment/${a.assignmentId}/submit`)
+}
+const goSubmission = (a) => {
+  if (!a?.assignmentId) return
+  router.push(`/my/assignment/${a.assignmentId}/submission`)
+}
+const goGrade = (a) => {
+  if (!a?.assignmentId) return
+  router.push(`/my/assignment/${a.assignmentId}/grade`)
+}
 
 const STATUS_MAP = {
   pending:   { label: '待提交', type: 'danger' },

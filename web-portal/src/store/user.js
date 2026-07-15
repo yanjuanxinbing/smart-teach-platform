@@ -49,6 +49,20 @@ const clearPersistedUserInfo = () => {
   try { localStorage.removeItem(USER_INFO_KEY) } catch (e) {}
 }
 
+// ---------------------------------------------------------------------
+//  持久化前的字段归一化 —— 把 null/undefined 统一规整成空串
+//  避免 localStorage 里出现 "phone": null 后被下游 `||` 反复短路
+//  UI 层根据 '' / null 自行渲染占位（"待完善" / "—"）
+// ---------------------------------------------------------------------
+const sanitizeProfile = (info) => {
+  if (!info || typeof info !== 'object') return info
+  const out = { ...info }
+  for (const k of ['phone', 'bio', 'deptName', 'email', 'className', 'realName', 'avatar']) {
+    out[k] = (info[k] == null) ? '' : info[k]
+  }
+  return out
+}
+
 // 默认导出 store(同时被 request.js 通过事件总线触发;事件名 'portal:auth-expired')
 // 这里提供一个独立的清空方法,便于监听 window 事件
 const onAuthExpired = () => {
@@ -56,14 +70,18 @@ const onAuthExpired = () => {
 };
 
 export const useUserStore = defineStore('user', {
-  state: () => ({
-    token: getToken(),
-    // 关键:store 创建时同步从 localStorage 恢复 userInfo;
-    // 确保路由 guard / 我的学习中心等读取 userId 时不会有 null 窗口。
-    userInfo: loadPersistedUserInfo(),
-    roles: [],
-    permissions: []
-  }),
+  state: () => {
+    // 关键:store 创建时同步从 localStorage 恢复 userInfo / roles / permissions;
+    // 确保路由 guard / 我的学习中心等读取 userId / roleCode 时不会有 null 窗口,
+    // 也避免刷新后 roles 为空导致「我的学习」入口消失(需先访问 /profile 才回填)。
+    const persisted = loadPersistedUserInfo()
+    return {
+      token: getToken(),
+      userInfo: persisted,
+      roles: persisted?.roles || [],
+      permissions: persisted?.permissions || []
+    }
+  },
   getters: {
     isLogin: (s) => !!s.token,
     roleCode: (s) => {
@@ -95,7 +113,13 @@ export const useUserStore = defineStore('user', {
         userId:   Number(vo.userId),
         username: vo.username,
         realName: vo.realName,
-        avatar:   vo.avatar
+        avatar:   vo.avatar,
+        email:    vo.email || this.userInfo?.email || '',
+        phone:    vo.phone || this.userInfo?.phone || '',
+        bio:      vo.bio   || this.userInfo?.bio   || '',
+        deptName: vo.deptName || this.userInfo?.deptName || '',
+        roles:    this.roles,
+        permissions: this.permissions
       }
       this.userInfo = info
       savePersistedUserInfo(info)
@@ -111,7 +135,13 @@ export const useUserStore = defineStore('user', {
         userId:   Number(vo.userId),
         username: vo.username,
         realName: vo.realName,
-        avatar:   vo.avatar
+        avatar:   vo.avatar,
+        email:    vo.email || '',
+        phone:    vo.phone || '',
+        bio:      vo.bio   || '',
+        deptName: vo.deptName || '',
+        roles:    this.roles,
+        permissions: this.permissions
       }
       this.userInfo = info
       savePersistedUserInfo(info)
@@ -119,22 +149,28 @@ export const useUserStore = defineStore('user', {
     },
     async fetchUserInfo() {
       const data = await getUserInfo()
-      // 只保留稳定可序列化的字段,避免把不可 JSON 化的脏数据写盘
-      const safe = {
-        userId:   Number(data?.userId ?? data?.id ?? this.userInfo?.userId),
-        username: data?.username ?? data?.userName ?? this.userInfo?.username,
-        realName: data?.realName ?? this.userInfo?.realName,
-        avatar:   data?.avatar ?? this.userInfo?.avatar,
-        email:    data?.email ?? this.userInfo?.email,
-        deptName: data?.deptName ?? this.userInfo?.deptName,
-        className: data?.className ?? this.userInfo?.className,
-        roleNames: data?.roleNames ?? this.roles,
-        permissions: data?.permissions ?? this.permissions
-      }
-      this.userInfo = safe
+      // 先回填 roles / permissions,再据此构建持久化对象,保证存盘的 roles 是最新值
       if (Array.isArray(data?.roleNames)) this.roles = data.roleNames
       if (Array.isArray(data?.permissions)) this.permissions = data.permissions
-      savePersistedUserInfo(safe)
+
+      // 只保留稳定可序列化的字段,避免把不可 JSON 化的脏数据写盘
+      // 字段缺失时统一落到空串,不构造假数据 —— ProfileIndex 会自行渲染「待完善」/「—」
+      const safe = {
+        userId:    Number(data?.userId ?? data?.id ?? this.userInfo?.userId),
+        username:  data?.username ?? data?.userName ?? this.userInfo?.username,
+        realName:  data?.realName ?? this.userInfo?.realName,
+        avatar:    data?.avatar   ?? this.userInfo?.avatar,
+        email:     data?.email    ?? this.userInfo?.email    ?? '',
+        phone:     data?.phone    ?? this.userInfo?.phone    ?? '',
+        bio:       data?.bio ?? data?.introduction ?? this.userInfo?.bio ?? '',
+        deptName:  data?.deptName ?? data?.dept?.name ?? this.userInfo?.deptName ?? '',
+        className: data?.className ?? this.userInfo?.className ?? '',
+        roleNames: data?.roleNames ?? this.roles,
+        roles:     this.roles,
+        permissions: this.permissions
+      }
+      this.userInfo = safe
+      savePersistedUserInfo(sanitizeProfile(safe))
       return data
     },
     async logout() {

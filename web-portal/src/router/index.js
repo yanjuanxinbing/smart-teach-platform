@@ -19,6 +19,10 @@ const routes = [
       { path: 'article/:id', name: 'Article', component: () => import('@/views/Article.vue') },
       { path: 'stats',   name: 'Stats',     component: () => import('@/views/Stats.vue') },
 
+      // 实训详情 —— 顶部一级路由；不嵌进 /my/* 布局,沿用 PortalLayout 头部;
+      // 但仍受 router.beforeEach 中 '/training/' 前缀拦截,仅 STUDENT 可入。
+      { path: 'training/:id', name: 'TrainingDetail', component: () => import('@/views/TrainingDetail.vue'), meta: { title: '实训详情' } },
+
       // 个人中心（嵌套布局，登录态由 store/user.js 内部判断）
       {
         path: 'profile',
@@ -27,17 +31,21 @@ const routes = [
           { path: '',          name: 'ProfileIndex',    component: () => import('@/views/ProfileIndex.vue') },
           { path: 'security', name: 'ProfileSecurity', component: () => import('@/views/ProfileSecurity.vue') },
           { path: 'message',  name: 'ProfileMessage',  component: () => import('@/views/ProfileMessage.vue') },
-          { path: 'log',      name: 'ProfileLog',      component: () => import('@/views/ProfileLog.vue') }
+          { path: 'log',      name: 'ProfileLog',      component: () => import('@/views/ProfileLog.vue') },
+          // 我的文档 —— 8082 内容展示端;8081 是内容生产端。
+          // 路由跳转来源:
+          //  1) ProfileLayout 侧栏 CTA"查看文档"按钮;
+          //  2) ProfileIndex 个人简介卡片"查看文件"按钮;
+          //  3) ProfileLayout 侧栏导航"我的文档"。
+          // 路由本身不参与任何跨域跳转,文档内容由 src/api/document.js 拉取。
+          { path: 'document', name: 'ProfileDocument', component: () => import('@/views/DocumentView.vue'), meta: { title: '我的文档' } }
         ]
       },
 
       // 学生学习中心:受保护 (router.beforeEach 中 startsWith('/my') 拦截, 仅 STUDENT 角色可入)
-      // TODO: [实训详情页] [P0] /training/:id 详情页路由缺失;现 MyTrainings.vue 的卡片点击仅 ElMessage 提示"开发中". 建议新增 views/TrainingDetail.vue 并在 MyTrainings.vue 的 goDetail() 中 router.push('/training/' + t.trainingId).
-      // TODO: [作业提交 / 提交查看 / 批改查看页] [P0] MyAssignments.vue 三个按钮"去提交 / 查看提交 / 查看批改"目前没有对应路由. 需要:
-      //       /portal/assignment/:id/submit     -> 学生提交表单 (含富文本/附件上传)
-      //       /portal/assignment/:id/submission -> 已提交内容展示
-      //       /portal/assignment/:id/grade      -> 老师批改结果展示 (学生视角)
-      // 后端契约见 web-portal/src/api/my.js
+      // 注：实训详情走顶部一级路由 /training/:id（见上），不嵌在此处。
+      // 作业三个子页（提交/查看提交/查看批改）挂在 /my/assignment/:id/* 下,
+      // 复用 MyLearningLayout 的侧栏 + 受同一 STUDENT 守卫保护。
       {
         path: 'my',
         component: () => import('@/layout/MyLearningLayout.vue'),
@@ -45,7 +53,11 @@ const routes = [
           { path: 'courses',     name: 'MyCourses',     component: () => import('@/views/MyCourses.vue'),     meta: { title: '我的课程' } },
           { path: 'assignments', name: 'MyAssignments', component: () => import('@/views/MyAssignments.vue'), meta: { title: '我的作业' } },
           { path: 'trainings',   name: 'MyTrainings',   component: () => import('@/views/MyTrainings.vue'),   meta: { title: '我的实训' } },
-          { path: '',            redirect: '/my/courses' }
+          // 作业三联 —— 详情/提交/批改(学生视角)
+          { path: 'assignment/:id/submit',     name: 'AssignmentSubmit',     component: () => import('@/views/AssignmentSubmit.vue'),     meta: { title: '提交作业' } },
+          { path: 'assignment/:id/submission', name: 'AssignmentSubmission', component: () => import('@/views/AssignmentSubmission.vue'), meta: { title: '查看提交' } },
+          { path: 'assignment/:id/grade',      name: 'AssignmentGrade',      component: () => import('@/views/AssignmentGrade.vue'),      meta: { title: '查看批改' } },
+          { path: '',                          redirect: '/my/courses' }
         ]
       },
 
@@ -89,19 +101,19 @@ router.beforeEach((to, from, next) => {
   if (isNavigating) return next()
   isNavigating = true
 
-  // (3) 受保护路径：/profile/* 与 /my/* 都需要登录
-  if (to.path.startsWith('/profile') || to.path.startsWith('/my')) {
+  // (3) 受保护路径：/profile/* 与 /my/* 与 /training/* 都需要登录
+  if (to.path.startsWith('/profile') || to.path.startsWith('/my') || to.path.startsWith('/training/')) {
     const token = localStorage.getItem('portal_token')
     if (!token) {
       return next({ path: '/login', query: { redirect: to.fullPath } })
     }
   }
 
-  // (3.5) /my/* 仅 STUDENT 角色可入：教师/管理员进来直接回首页
-  if (to.path.startsWith('/my')) {
+  // (3.5) /my/* 与 /training/* 仅 STUDENT 角色可入：教师/管理员进来直接回首页
+  if (to.path.startsWith('/my') || to.path.startsWith('/training/')) {
     const userStore = useUserStore()
     if (userStore.roleCode !== 'STUDENT') {
-      return next({ path: '/', query: { denied: 'my' } })
+      return next({ path: '/', query: { denied: 'student-only' } })
     }
   }
 
