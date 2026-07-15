@@ -16,6 +16,8 @@ public class UserVO {
     private Integer gender;
     private Long deptId;
     private String deptName;
+    /** 学生所在班级名称（取第一个班级），仅在 /auth/me 中填充 */
+    private String className;
     private Integer status;
     private String remark;
     private LocalDateTime createTime;

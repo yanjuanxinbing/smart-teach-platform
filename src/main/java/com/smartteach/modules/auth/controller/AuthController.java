@@ -7,6 +7,10 @@ import com.smartteach.modules.auth.dto.LoginDTO;
 import com.smartteach.modules.auth.dto.RegisterDTO;
 import com.smartteach.modules.auth.service.AuthService;
 import com.smartteach.modules.auth.vo.LoginVO;
+import com.smartteach.modules.system.entity.SysDept;
+import com.smartteach.modules.system.service.SysClassService;
+import com.smartteach.modules.system.service.SysDeptService;
+import com.smartteach.modules.system.vo.SysClassVO;
 import com.smartteach.modules.systemmonitor.service.SysLoginLogService;
 import com.smartteach.modules.user.mapper.SysUserMapper;
 import com.smartteach.modules.user.service.SysUserService;
@@ -18,6 +22,7 @@ import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
 import javax.validation.Valid;
+import java.util.List;
 
 /**
  * 认证模块：登录、登出、获取当前登录用户信息
@@ -32,6 +37,8 @@ public class AuthController {
     private final SysUserService userService;
     private final SysUserMapper userMapper;
     private final SysLoginLogService loginLogService;
+    private final SysDeptService deptService;
+    private final SysClassService classService;
 
     @ApiOperation("账号密码登录")
     @PostMapping("/login")
@@ -77,6 +84,18 @@ public class AuthController {
         vo.setRoleNames(userMapper.selectRoleCodesByUserId(userId));
         // 同时返回权限标识，让前端在页面刷新后能恢复 hasAuthority() 的判断依据
         vo.setPermissions(userMapper.selectPermissionsByUserId(userId));
+        // 填充部门名（getDetail 只返回 deptId），让教师/管理员的"部门"能正确显示
+        if (vo.getDeptId() != null) {
+            SysDept dept = deptService.getById(vo.getDeptId());
+            if (dept != null) {
+                vo.setDeptName(dept.getDeptName());
+            }
+        }
+        // 填充班级名（取当前用户所在的第一个班级），供学生"班级"显示
+        List<SysClassVO> classes = classService.listByCurrentUser();
+        if (classes != null && !classes.isEmpty()) {
+            vo.setClassName(classes.get(0).getClassName());
+        }
         return Result.success(vo);
     }
 
