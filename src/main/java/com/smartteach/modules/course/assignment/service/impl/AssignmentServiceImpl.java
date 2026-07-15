@@ -15,6 +15,8 @@ import com.smartteach.modules.course.assignment.entity.AssignmentSubmission;
 import com.smartteach.modules.course.assignment.mapper.AssignmentMapper;
 import com.smartteach.modules.course.assignment.mapper.AssignmentSubmissionMapper;
 import com.smartteach.modules.course.assignment.service.AssignmentService;
+import com.smartteach.modules.course.entity.CourseChapter;
+import com.smartteach.modules.course.mapper.CourseChapterMapper;
 import com.smartteach.modules.system.entity.SysAssignmentClass;
 import com.smartteach.modules.system.entity.SysUserClass;
 import com.smartteach.modules.system.mapper.SysAssignmentClassMapper;
@@ -27,8 +29,11 @@ import org.springframework.util.StringUtils;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -38,13 +43,16 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
     private final AssignmentSubmissionMapper submissionMapper;
     private final SysAssignmentClassMapper assignmentClassMapper;
     private final SysUserClassMapper userClassMapper;
+    private final CourseChapterMapper chapterMapper;
 
     public AssignmentServiceImpl(AssignmentSubmissionMapper submissionMapper,
                                  SysAssignmentClassMapper assignmentClassMapper,
-                                 SysUserClassMapper userClassMapper) {
+                                 SysUserClassMapper userClassMapper,
+                                 CourseChapterMapper chapterMapper) {
         this.submissionMapper = submissionMapper;
         this.assignmentClassMapper = assignmentClassMapper;
         this.userClassMapper = userClassMapper;
+        this.chapterMapper = chapterMapper;
     }
 
     @Override
@@ -64,6 +72,7 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
         }
 
         IPage<Assignment> page = this.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
+        enrich(page.getRecords());
         return PageResult.of(page);
     }
 
@@ -98,6 +107,7 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
                 .eq(query.getStatus() != null, Assignment::getStatus, query.getStatus())
                 .orderByDesc(Assignment::getCreateTime);
         IPage<Assignment> page = this.page(new Page<>(query.getPageNum(), query.getPageSize()), wrapper);
+        enrich(page.getRecords());
         return PageResult.of(page);
     }
 
@@ -239,6 +249,38 @@ public class AssignmentServiceImpl extends ServiceImpl<AssignmentMapper, Assignm
     }
 
     // ---- helpers ----
+
+    /**
+     * 列表结果批量回填展示字段：目标班级ID列表 + 所属章节标题。
+     * 一次性按 assignmentId / chapterId 批量查询，避免 N+1。
+     */
+    private void enrich(List<Assignment> records) {
+        if (records == null || records.isEmpty()) {
+            return;
+        }
+        List<Long> assignmentIds = records.stream()
+                .map(Assignment::getId).filter(Objects::nonNull).collect(Collectors.toList());
+
+        // 目标班级：一次查出全部关联，按 assignmentId 分组
+        Map<Long, List<Long>> classIdMap = assignmentIds.isEmpty() ? Collections.emptyMap()
+                : assignmentClassMapper.selectList(new LambdaQueryWrapper<SysAssignmentClass>()
+                        .in(SysAssignmentClass::getAssignmentId, assignmentIds))
+                    .stream()
+                    .collect(Collectors.groupingBy(SysAssignmentClass::getAssignmentId,
+                            Collectors.mapping(SysAssignmentClass::getClassId, Collectors.toList())));
+
+        // 章节标题：一次查出去重后的章节
+        Set<Long> chapterIds = records.stream()
+                .map(Assignment::getChapterId).filter(Objects::nonNull).collect(Collectors.toSet());
+        Map<Long, String> chapterTitleMap = chapterIds.isEmpty() ? Collections.emptyMap()
+                : chapterMapper.selectBatchIds(chapterIds).stream()
+                    .collect(Collectors.toMap(CourseChapter::getId, CourseChapter::getChapterTitle));
+
+        for (Assignment a : records) {
+            a.setClassIds(classIdMap.getOrDefault(a.getId(), Collections.emptyList()));
+            a.setChapterTitle(chapterTitleMap.get(a.getChapterId()));
+        }
+    }
 
     private Integer deriveStatusByDeadline(LocalDateTime deadline) {
         if (deadline == null) {

@@ -35,7 +35,11 @@ public class Assignment extends BaseEntity {
     /** 状态：0草稿 / 1已发布 / 2已截止 */
     private Integer status;
 
-    /** 目标班级ID列表（非持久化字段，详情/编辑回填用） */
+    /** 目标班级ID列表（非持久化字段，列表/详情/编辑回填用） */
     @TableField(exist = false)
     private List<Long> classIds;
+
+    /** 所属章节标题（非持久化字段，列表展示用） */
+    @TableField(exist = false)
+    private String chapterTitle;
 }

@@ -63,7 +63,11 @@
               <el-option v-for="d in (dict.semester && dict.semester.value ? dict.semester.value : dict.semester) || []" :key="d.value" :label="d.label" :value="d.value" />
             </el-select>
           </el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="班级" prop="className"><el-input v-model="form.className" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="班级" prop="className">
+            <el-select v-model="form.className" filterable clearable placeholder="请选择班级" style="width:100%">
+              <el-option v-for="c in classOptions" :key="c.id" :label="c.className" :value="c.className" />
+            </el-select>
+          </el-form-item></el-col>
           <el-col :span="8"><el-form-item label="教师"><el-input v-model="form.teacherName" disabled /></el-form-item></el-col>
         </el-row>
         <el-row :gutter="16">
@@ -116,12 +120,18 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, watch } from 'vue'
+import { ref, reactive, onMounted, watch, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
 import { useDict } from '@/hooks/useDict'
+import { useUserStore } from '@/store/user'
 import { planPage, planAdd, planEdit, planRemove, planSubmit, planApprove, planReject, planDetail, myCourses } from '@/api/course'
+import { classMyClasses } from '@/api/system'
+
+const userStore = useUserStore()
+// 当前登录用户显示名（优先真实姓名，兜底账号）
+const currentUserName = computed(() => userStore.userInfo?.realName || userStore.userInfo?.username || '')
 
 const dict = useDict('semester')
 const list = ref([])
@@ -129,6 +139,7 @@ const total = ref(0)
 const loading = ref(false)
 const query = reactive({ pageNum: 1, pageSize: 10, planTitle: '', semester: '', status: null })
 const courseList = ref([])
+const classOptions = ref([]) // 当前教师任教的班级（下拉用）
 
 const dialogVisible = ref(false)
 const submitting = ref(false)
@@ -159,8 +170,6 @@ const onCourseChange = (val) => {
   const c = courseList.value.find(x => x.id === val)
   if (c) {
     form.courseName = c.courseName
-    // 教师从关联课程直接带出，不必手动输入
-    form.teacherName = c.teacherName || ''
   }
 }
 
@@ -190,12 +199,13 @@ watch(() => form.startDate, () => {
 
 const openForm = async (row) => {
   if (!courseList.value.length) courseList.value = await myCourses()
+  if (!classOptions.value.length) classOptions.value = await classMyClasses()
   dialogVisible.value = true
   if (row) {
     const d = await planDetail(row.id)
     Object.assign(form, { ...d.plan, items: d.items || [] })
   } else {
-    Object.assign(form, { id: null, planTitle: '', courseId: null, courseName: '', semester: '', className: '', teacherName: '', startDate: '', endDate: '', totalWeeks: 0, description: '', items: [] })
+    Object.assign(form, { id: null, planTitle: '', courseId: null, courseName: '', semester: '', className: '', teacherName: currentUserName.value, startDate: '', endDate: '', totalWeeks: 0, description: '', items: [] })
   }
 }
 
