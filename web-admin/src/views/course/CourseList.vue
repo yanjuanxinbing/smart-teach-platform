@@ -23,8 +23,6 @@
       <el-table :data="list" v-loading="loading" border>
         <el-table-column prop="courseCode" label="课程编号" width="140" />
         <el-table-column prop="courseName" label="课程名称" />
-        <el-table-column prop="categoryName" label="分类" width="120" />
-        <el-table-column prop="teacherName" label="任课教师" width="120" />
         <el-table-column prop="credit" label="学分" width="80" />
         <el-table-column prop="totalHours" label="学时" width="80" />
         <el-table-column label="课程性质" width="100">
@@ -62,17 +60,6 @@
           </el-col>
           <el-col :span="12">
             <el-form-item label="课程名称" prop="courseName"><el-input v-model="form.courseName" /></el-form-item>
-          </el-col>
-        </el-row>
-        <el-row :gutter="16">
-          <el-col :span="12">
-            <el-form-item label="任课教师">
-              <!-- 授课管理上线后，任课教师由"授课管理"页维护；此处只读展示 -->
-              <el-input :value="form.teacherName" disabled placeholder="请到「授课管理」页面分配" />
-            </el-form-item>
-          </el-col>
-          <el-col :span="12">
-            <el-form-item label="课程分类" prop="categoryName"><el-input v-model="form.categoryName" /></el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="16">
@@ -153,11 +140,10 @@ const getCourseTypeTagType = (type) => {
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const formRef = ref()
-const form = reactive({ id: null, courseCode: '', courseName: '', teacherId: 1, teacherName: '', categoryId: 1, categoryName: '', credit: 0, totalHours: 0, courseType: 1, status: 0, description: '' })
+const form = reactive({ id: null, courseCode: '', courseName: '', credit: 0, totalHours: 0, courseType: 1, status: 0, description: '' })
 const rules = {
   courseCode: [{ required: true, message: '请输入课程编号' }],
   courseName: [{ required: true, message: '请输入课程名称' }],
-  categoryName: [{ required: true, message: '请输入课程分类' }],
   courseType: [{ required: true, message: '请选择课程性质' }]
 }
 
@@ -177,7 +163,7 @@ const openForm = (row) => {
   if (row) {
     Object.assign(form, row)
   } else {
-    Object.assign(form, { id: null, courseCode: '', courseName: '', teacherId: 1, teacherName: '', categoryId: 1, categoryName: '', credit: 0, totalHours: 0, courseType: 1, status: 0, description: '' })
+    Object.assign(form, { id: null, courseCode: '', courseName: '', credit: 0, totalHours: 0, courseType: 1, status: 0, description: '' })
   }
 }
 

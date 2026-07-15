@@ -57,8 +57,8 @@
             <el-input v-model="teacherKeyword" placeholder="搜索教师姓名/账号" clearable style="width: 200px" @input="filterTeachers" />
             <el-button @click="addAllVisible" :disabled="!filteredTeachers.length">加入</el-button>
           </div>
-          <el-table :data="filteredTeachers" max-height="180" border @selection-change="onPickedTeachers">
-            <el-table-column type="selection" width="44" />
+          <el-table ref="poolTableRef" :data="filteredTeachers" row-key="id" max-height="180" border @selection-change="onPickedTeachers">
+            <el-table-column type="selection" width="44" reserve-selection />
             <el-table-column prop="realName" label="姓名" />
             <el-table-column prop="username" label="账号" />
           </el-table>
@@ -93,12 +93,12 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted, computed } from 'vue'
+import { ref, reactive, onMounted, computed, nextTick } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
 import { useUserStore } from '@/store/user'
-import { teachPage, teachAssign, teachChangeStatus, teachRemove, userListByRole } from '@/api/teaching'
+import { teachPage, teachAssign, teachChangeStatus, teachRemove, userListByRole, listTeachersByCourse } from '@/api/teaching'
 import { listAllCourses } from '@/api/course'
 
 const userStore = useUserStore()
@@ -151,6 +151,7 @@ const filteredTeachers = computed(() => {
     (t.username && t.username.toLowerCase().includes(kw)))
 })
 const assignFormRef = ref()
+const poolTableRef = ref()
 const assignForm = reactive({ courseId: null, teachers: [] })
 const assignRules = {
   courseId: [{ required: true, message: '请选择课程' }],
@@ -172,9 +173,27 @@ const openAssignDialog = async () => {
   ])
 }
 
-const onCourseChange = () => {
-  // 切换课程时清空已选教师，避免跨课程残留
+const onCourseChange = async (courseId) => {
+  // 切换课程时先清空，再按该课程"当前授课教师"回填已选列表
+  // （分配是全量替换：先删后插，所以必须展示现状供管理员增删）
   assignForm.teachers = []
+  await nextTick()
+  poolTableRef.value?.clearSelection()
+  if (!courseId) return
+  const current = await listTeachersByCourse(courseId)
+  assignForm.teachers = (current || []).map((u, idx) => ({
+    id: u.id,
+    realName: u.realName,
+    username: u.username,
+    role: u.remark || '主讲', // 后端用 UserVO.remark 透出授课角色
+    sort: idx
+  }))
+  // 同步勾选池表中对应教师（按 id 匹配 teacherOptions 里的行对象）
+  await nextTick()
+  const currentIds = new Set(assignForm.teachers.map(t => t.id))
+  teacherOptions.value.forEach(t => {
+    if (currentIds.has(t.id)) poolTableRef.value?.toggleRowSelection(t, true)
+  })
 }
 
 const filterTeachers = () => { /* computed 自动响应 */ }

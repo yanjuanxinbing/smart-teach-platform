@@ -60,8 +60,14 @@
               <el-option v-for="s in semesterOptions" :key="s" :label="s" :value="s" />
             </el-select>
           </el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="班级" prop="className"><el-input v-model="form.className" /></el-form-item></el-col>
-          <el-col :span="8"><el-form-item label="教师" prop="teacherName"><el-input v-model="form.teacherName" /></el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="班级" prop="className">
+            <el-select v-model="form.className" filterable clearable placeholder="请选择班级" style="width:100%">
+              <el-option v-for="c in classOptions" :key="c.id" :label="c.className" :value="c.className" />
+            </el-select>
+          </el-form-item></el-col>
+          <el-col :span="8"><el-form-item label="教师" prop="teacherName">
+            <el-input v-model="form.teacherName" disabled />
+          </el-form-item></el-col>
         </el-row>
         <el-row :gutter="16">
           <el-col :span="8"><el-form-item label="地点"><el-input v-model="form.location" /></el-form-item></el-col>
@@ -110,11 +116,18 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted } from 'vue'
+import { ref, reactive, watch, onMounted, computed } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
+import { useUserStore } from '@/store/user'
 import { trainingPage, trainingAdd, trainingEdit, trainingRemove, trainingPublish, trainingApprove, trainingReject, trainingFinish, trainingDetail } from '@/api/training'
+import { classMyClasses } from '@/api/system'
+
+const userStore = useUserStore()
+const currentUserName = computed(() => userStore.userInfo?.realName || userStore.userInfo?.username || '')
+// 当前教师任教的班级（下拉用）
+const classOptions = ref([])
 
 const list = ref([])
 const total = ref(0)
@@ -189,13 +202,14 @@ const resetQuery = () => {
 }
 
 const openForm = async (row) => {
+  if (!classOptions.value.length) classOptions.value = await classMyClasses()
   dialogVisible.value = true
   if (row) {
     try { const d = await trainingDetail(row.id); Object.assign(form, d) }
-    catch (e) { Object.assign(form, { id: null, planTitle: '', projectName: '', semester: '', className: '', teacherName: '', location: '', startDate: '', endDate: '', durationDays: 0, totalHours: 0, capacity: 30, objective: '', content: '', assessment: '', status: 0 }) }
+    catch (e) { Object.assign(form, { id: null, planTitle: '', projectName: '', semester: '', className: '', teacherName: currentUserName.value, location: '', startDate: '', endDate: '', durationDays: 0, totalHours: 0, capacity: 30, objective: '', content: '', assessment: '', status: 0 }) }
   } else {
     // 新增场景：显式把 status 置为 0（草稿），避免之前编辑残留的"已发布"等状态被带回
-    Object.assign(form, { id: null, planTitle: '', projectName: '', semester: '', className: '', teacherName: '', location: '', startDate: '', endDate: '', durationDays: 0, totalHours: 0, capacity: 30, objective: '', content: '', assessment: '', status: 0 })
+    Object.assign(form, { id: null, planTitle: '', projectName: '', semester: '', className: '', teacherName: currentUserName.value, location: '', startDate: '', endDate: '', durationDays: 0, totalHours: 0, capacity: 30, objective: '', content: '', assessment: '', status: 0 })
   }
 }
 

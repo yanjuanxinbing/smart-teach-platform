@@ -195,10 +195,9 @@ import { useUserStore } from '@/store/user'
 import { useDict } from '@/hooks/useDict'
 import {
   classPage, classAdd, classEdit, classRemove,
-  classListMembers, classAssignMembers, classBatchAddMembers
+  classListMembers, classAvailableUsers, classAssignMembers, classBatchAddMembers
 } from '@/api/system'
 import { deptTree } from '@/api/system'
-import { userPage } from '@/api/system'
 
 const userStore = useUserStore()
 
@@ -416,20 +415,15 @@ const loadAvailableUsers = async () => {
   if (!currentRow.value) return
   availableLoading.value = true
   try {
-    const res = await userPage({ pageNum: 1, pageSize: 500, keyword: '' })
-    let all = res.list || []
-    if (memberRole.value) {
-      all = all.filter(u => (u.roleNames || []).includes(memberRole.value))
-    }
-    if (memberKeyword.value) {
-      const kw = memberKeyword.value.toLowerCase()
-      all = all.filter(u =>
-        (u.username && u.username.toLowerCase().includes(kw)) ||
-        (u.realName && u.realName.toLowerCase().includes(kw)))
-    }
-    // 排除跨角色已分配用户（含本轮新加未保存的），避免双列同时出现
+    // 学生场景下后端已自动排除"已在任何班级"的学生；教师场景下后端只排除本班成员。
+    // 这里再扣掉本轮未保存的、已经挑到右栏的用户，避免双列同时出现。
+    const list = await classAvailableUsers({
+      classId: currentRow.value.id,
+      roleName: memberRole.value || '',
+      keyword: memberKeyword.value || ''
+    })
     const assignedIds = new Set(allMembersCache.value.map(u => u.id))
-    availableUsers.value = all.filter(u => !assignedIds.has(u.id))
+    availableUsers.value = (list || []).filter(u => !assignedIds.has(u.id))
   } finally { availableLoading.value = false }
 }
 

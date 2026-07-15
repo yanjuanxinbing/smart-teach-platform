@@ -175,11 +175,30 @@ const currentCourseName = computed(() => {
   return c ? `${c.courseCode || ''} ${c.courseName || ''}`.trim() : ''
 })
 
+// 后端返回的是扁平章节列表（仅带 parentId），el-table 树形需要嵌套 children，
+// 这里按 parentId 组装成树。注意：id/parentId 是雪花ID字符串，用字符串比较。
+const buildChapterTree = (flat) => {
+  const map = new Map()
+  flat.forEach(n => map.set(String(n.id), { ...n, children: [] }))
+  const roots = []
+  flat.forEach(n => {
+    const node = map.get(String(n.id))
+    const pid = n.parentId == null ? '0' : String(n.parentId)
+    const parent = pid !== '0' ? map.get(pid) : null
+    if (parent) parent.children.push(node)
+    else roots.push(node)
+  })
+  // 去掉叶子节点的空 children，避免 el-table 渲染出无效的展开箭头
+  map.forEach(node => { if (!node.children.length) delete node.children })
+  return roots
+}
+
 const load = async () => {
   if (!courseId.value) return
   loading.value = true
   try {
-    chapters.value = await chapterList(courseId.value)
+    const flat = await chapterList(courseId.value)
+    chapters.value = buildChapterTree(flat || [])
   } finally { loading.value = false }
 }
 

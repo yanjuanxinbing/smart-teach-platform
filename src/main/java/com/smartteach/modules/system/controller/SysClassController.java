@@ -80,6 +80,15 @@ public class SysClassController {
         return Result.success(classService.listMembers(id, roleName));
     }
 
+    @ApiOperation("班级可分配用户（学生仅返回尚未加入任何班级的；教师仅排除本班已有）")
+    @GetMapping("/available-users")
+    @PreAuthorize("hasAuthority('class:member:assign')")
+    public Result<List<UserVO>> availableUsers(@RequestParam Long classId,
+                                               @RequestParam(required = false) String roleName,
+                                               @RequestParam(required = false) String keyword) {
+        return Result.success(classService.listAvailableUsers(classId, roleName, keyword));
+    }
+
     @ApiOperation("新增班级")
     @PostMapping
     @PreAuthorize("hasAuthority('class:add')")
