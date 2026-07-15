@@ -37,6 +37,16 @@ public interface SysClassService extends IService<SysClass> {
     /** 班级成员列表（按中文角色名过滤："教师"/"学生"/""=全部） */
     List<UserVO> listMembers(Long classId, String roleName);
 
+    /**
+     * 班级可分配用户列表（分配成员对话框左栏用）。
+     * <ul>
+     *   <li>角色 = 学生：排除已加入任何班级的学生（一个学生只属于一个班级）</li>
+     *   <li>角色 = 教师 或 不传：只排除本班级已分配的用户（教师可同时带多个班级）</li>
+     * </ul>
+     * 关键字同时匹配 username / realName，模糊查询。
+     */
+    List<UserVO> listAvailableUsers(Long classId, String roleName, String keyword);
+
     /** 整批替换班级成员 */
     void assignMembers(SysClassMemberDTO dto);
 
