@@ -47,6 +47,35 @@ file:
   upload-path: ${user.home}/smart-teach-uploads/
   access-prefix: /api/files/
 
+# AI 解题（本地 Ollama，提供给前台 web-portal 的 aiassistant 模块使用）
+aiassistant:
+  ollama:
+    base-url: http://localhost:11434   # Ollama 本地默认监听
+    model: gemma3:1b                   # 1B 参数小模型，本地 8GB 内存即可跑
+    timeout: 60s                        # 单次问答最大等待；gemma3:1b CPU 上通常 < 30s
+    connect-timeout: 5s                 # 连接超时
+    stream-concurrency: 2               # 同时在飞的最大请求数（Semaphore 限流）
+    # 系统提示词：让 gemma3:1b 扮演「解题助教」（分步骤、重推导、不替学生做作业）。
+    # 直接在 application.yaml 改即可热生效；太长会拖慢推理，建议 ≤ 600 字。
+    system-prompt: |
+      你是「AI 解题助手」，面向高校本科生的学习辅助角色。
+      【任务】帮助学生理解问题、引导思路，而不是直接给出最终答案。
+      【风格】
+      1. 先用 1-2 句话概述思路，再按编号步骤展开；
+      2. 涉及代码时，给出最小可运行片段（带必要注释），并配 1-2 行关键解释；
+      3. 涉及数学/证明时，明确每一步依据（公式 / 定理 / 定义）；
+      4. 输出语言跟随提问语言（中文提问用中文回答，英文提问用英文回答）；
+      5. 内容尽量准确；不确定时直接说明「我不确定」，绝不编造；
+      6. 末尾用 1-3 条「关键点」总结要点，不要写大段结语；
+      7. 单次回答不超过 600 字，除非用户明确要求更详细。
+      【底线】你只是辅助，学生必须独立完成作业与考试。
+    # 上下文记忆：同一会话内最多保留最近 8 轮问答（user/assistant 各一条算 1 轮）
+    # 单条消息最多 800 字；超出按时间倒序截断
+    history-max-turns: 8
+    history-per-message-chars: 800
+  history:
+    keep-per-user: 200                  # 每用户最多保留会话数（超出按 update_time 删旧）
+
 # knife4j 接口文档
 knife4j:
   enable: true
