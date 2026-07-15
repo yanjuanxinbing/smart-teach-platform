@@ -91,7 +91,7 @@
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="截止时间" prop="deadline">
-              <el-date-picker v-model="form.deadline" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" placeholder="选择日期时间" />
+              <el-date-picker v-model="form.deadline" type="datetime" value-format="YYYY-MM-DD HH:mm:ss" style="width:100%" placeholder="选择日期时间" :disabled-date="disabledDeadline" />
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -154,6 +154,11 @@ const rules = {
   chapterId: [{ required: true, message: '请选择章节' }],
   title: [{ required: true, message: '请输入作业标题' }],
   deadline: [{ required: true, message: '请选择截止时间' }]
+}
+
+// 截止时间不能选择今天之前的日期
+const disabledDeadline = (time) => {
+  return time.getTime() < Date.now() - 8.64e7
 }
 
 const load = async () => {
