@@ -211,6 +211,25 @@ CREATE TABLE `course` (
     UNIQUE KEY `uk_course_code` (`course_code`)
 ) ENGINE = InnoDB COMMENT ='课程';
 
+-- 课程-教师授课关系（多对多；新模块「授课管理」维护此表）
+DROP TABLE IF EXISTS `course_teacher`;
+CREATE TABLE `course_teacher` (
+    `id`          BIGINT       NOT NULL,
+    `course_id`   BIGINT       NOT NULL                COMMENT '课程ID',
+    `teacher_id`  BIGINT       NOT NULL                COMMENT '教师用户ID',
+    `role`        VARCHAR(20)           DEFAULT '主讲' COMMENT '主讲/助教',
+    `sort`        INT                   DEFAULT 1,
+    `status`      TINYINT      NOT NULL DEFAULT 1       COMMENT '0禁用 1启用',
+    `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_by`   BIGINT                DEFAULT NULL,
+    `update_by`   BIGINT                DEFAULT NULL,
+    `deleted`     TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_course_teacher` (`course_id`, `teacher_id`),
+    KEY `idx_teacher_course` (`teacher_id`, `course_id`)
+) ENGINE = InnoDB COMMENT ='课程-教师授课关系';
+
 DROP TABLE IF EXISTS `course_chapter`;
 CREATE TABLE `course_chapter` (
     `id`            BIGINT      NOT NULL,
@@ -719,6 +738,13 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (122, 103, '删除计划', 3, NULL, NULL, NULL, 'course:plan:remove', 3, 1, 1),
 (123, 103, '审核计划', 3, NULL, NULL, NULL, 'course:plan:approve', 4, 1, 1),
 (124, 103, '查看详情', 3, NULL, NULL, NULL, 'course:plan:query', 5, 1, 1),
+-- 授课管理（课程-教师多对多关系；与 /course/teacher/* 接口配套）
+(104, 100, '授课管理',  2, '/course/teach', 'course/TeachList', NULL, 'teach:list',  4, 1, 1),
+(140, 104, '查询',     3, NULL, NULL, NULL, 'teach:query',    1, 1, 1),
+(141, 104, '新增',     3, NULL, NULL, NULL, 'teach:add',      2, 1, 1),
+(142, 104, '编辑',     3, NULL, NULL, NULL, 'teach:edit',     3, 1, 1),
+(143, 104, '删除',     3, NULL, NULL, NULL, 'teach:remove',   4, 1, 1),
+(144, 104, '分配',     3, NULL, NULL, NULL, 'teach:assign',   5, 1, 1),
 -- 课程实验计划管理
 (201, 200, '实验计划', 2, '/experiment/plan', 'experiment/PlanList', NULL, 'experiment:plan:list', 1, 1, 1),
 (210, 201, '新增', 3, NULL, NULL, NULL, 'experiment:plan:add', 1, 1, 1),
@@ -839,15 +865,74 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (543, 507, '查询',      3, NULL, NULL, NULL, 'class:query',           4, 1, 1),
 (544, 507, '分配成员',  3, NULL, NULL, NULL, 'class:member:assign',   5, 1, 1);
 
--- 超级管理员分配所有菜单
+-- 超级管理员(role=1)分配所有菜单
 INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY id) + 1000, 1, id FROM sys_menu;
 
--- 系统管理员(role=2)额外获得班级管理菜单（其他菜单走 ROLE_ADMIN 已自动获得，role=2 没有自动授权）
+-- ---------------------------------------------------------------------
+-- 系统内置默认角色权限分配
+-- id 段分配：5000+ ROLE_SYSTEM / 6000+ ROLE_TEACHER / 7000+ ROLE_STUDENT
+-- ---------------------------------------------------------------------
+
+-- 系统管理员(role=2)：资源管理 + 系统管理 + 系统监控（不含业务模块、门户内容）
 INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
 SELECT ROW_NUMBER() OVER (ORDER BY id) + 5000, 2, id FROM sys_menu
-WHERE id IN (507, 540, 541, 542, 543, 544)
-  AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 2);
+WHERE id IN (
+    -- 资源管理
+    400, 401, 402, 410, 411, 412, 420, 421, 422,
+    -- 系统管理（含班级）
+    500, 501, 502, 503, 504, 505, 506, 507,
+    510, 511, 512, 513,
+    520, 521, 522,
+    530, 531, 532,
+    540, 541, 542, 543, 544,
+    700, 701, 702, 703, 704,
+    710, 711, 712, 713, 714, 715, 716,
+    720, 721, 722,
+    -- 系统监控
+    600, 601, 602, 603, 739, 740
+)
+AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 2);
+
+-- 教师(role=3)：课程计划管理 + 课程实验计划管理 + 实训计划管理 + 作业管理（教师侧）
+INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
+SELECT ROW_NUMBER() OVER (ORDER BY id) + 6000, 3, id FROM sys_menu
+WHERE id IN (
+    -- 课程计划管理
+    100, 101, 102, 103,
+    110, 111, 112,
+    120, 121, 122, 123, 124,
+    -- 课程实验计划管理
+    200, 201,
+    210, 211, 212, 213, 214, 730,
+    -- 实训计划管理
+    300, 301, 302,
+    310, 311, 312, 313,
+    320, 321, 322, 323,
+    731, 732, 733,
+    -- 作业管理（教师子菜单：751/752 + 教师按钮；不含学生子菜单 753）
+    750, 751, 752,
+    760, 761, 762, 763, 764, 765,
+    770
+)
+AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 3);
+
+-- 学生(role=4)：课程计划（只读+详情）+ 实验计划（只读+详情）+ 实训（看+报名）+ 我的作业
+INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
+SELECT ROW_NUMBER() OVER (ORDER BY id) + 7000, 4, id FROM sys_menu
+WHERE id IN (
+    -- 课程计划管理（只读，不含新增/编辑/删除/审核；含详情查询）
+    100, 101, 102, 103, 124,
+    -- 课程实验计划管理（只读 + 详情）
+    200, 201, 214, 730,
+    -- 实训计划管理（看 + 报名/取消报名；不含审核/登记成绩）
+    300, 301, 302,
+    731, 732, 733,
+    -- 作业管理（仅学生子菜单 753 + 学生按钮）
+    750, 753,
+    780, 781, 782, 783
+)
+AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 4);
 
 -- 学生(role=4)获得「我的学习中心」门户侧专属权限
 INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
@@ -943,6 +1028,17 @@ INSERT INTO `course`(`id`, `course_code`, `course_name`, `category_id`, `categor
 (6, 'SE301', 'Web应用开发',           2, '课程资源', '前后端分离架构、Vue + Spring Boot 全栈开发实战。',     1, '超级管理员', 3.0, 48, 2, 1),
 (7, 'AI301', '人工智能导论',           4, '课程资源', '搜索、知识表示、机器学习与深度学习基础。',             1, '超级管理员', 3.0, 48, 1, 1),
 (8, 'CYB201','网络安全基础',          3, '课程资源', '密码学、网络协议安全、常见攻防技术。',                 1, '超级管理员', 3.0, 48, 2, 1);
+
+-- 课程-教师授课关系回填：8 门 seed 课每条都分配给当前 course.teacher_id（=1 超级管理员）
+INSERT INTO `course_teacher`(`id`, `course_id`, `teacher_id`, `role`, `status`) VALUES
+(1, 1, 1, '主讲', 1),
+(2, 2, 1, '主讲', 1),
+(3, 3, 1, '主讲', 1),
+(4, 4, 1, '主讲', 1),
+(5, 5, 1, '主讲', 1),
+(6, 6, 1, '主讲', 1),
+(7, 7, 1, '主讲', 1),
+(8, 8, 1, '主讲', 1);
 
 USE `smart_teach_platform`;
 

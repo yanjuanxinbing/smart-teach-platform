@@ -155,6 +155,62 @@ public class SysUserServiceImpl extends ServiceImpl<SysUserMapper, SysUser> impl
         return this.lambdaQuery().eq(SysUser::getUsername, username).one();
     }
 
+    @Override
+    public List<UserVO> listByRole(String roleCode) {
+        if (roleCode == null || roleCode.isBlank()) return new ArrayList<>();
+        // 1. 查 sys_user_role + sys_role 拿 userIds
+        List<SysUserRole> mappings = userRoleMapper.selectList(
+                new LambdaQueryWrapper<SysUserRole>()
+                        .eq(SysUserRole::getRoleId,
+                                roleMapper.selectList(new LambdaQueryWrapper<SysRole>()
+                                        .eq(SysRole::getRoleCode, roleCode)
+                                        .eq(SysRole::getStatus, 1)
+                                        .select(SysRole::getId))
+                                        .stream().findFirst().map(SysRole::getId).orElse(-1L)));
+        if (mappings.isEmpty()) return new ArrayList<>();
+        List<Long> userIds = mappings.stream().map(SysUserRole::getUserId).collect(Collectors.toList());
+
+        // 2. 拉用户（@TableLogic 自动过滤 deleted=1）
+        List<SysUser> users = this.lambdaQuery()
+                .in(SysUser::getId, userIds)
+                .eq(SysUser::getStatus, 1)
+                .orderByAsc(SysUser::getUsername)
+                .list();
+        if (users.isEmpty()) return new ArrayList<>();
+
+        // 3. 批量拉角色名（按用户）
+        Set<Long> allIds = users.stream().map(SysUser::getId).collect(Collectors.toSet());
+        List<SysUserRole> allMappings = userRoleMapper.selectList(
+                new LambdaQueryWrapper<SysUserRole>().in(SysUserRole::getUserId, allIds));
+        Set<Long> allRoleIds = allMappings.stream().map(SysUserRole::getRoleId).collect(Collectors.toSet());
+        Map<Long, String> idToRoleName = new HashMap<>();
+        if (!allRoleIds.isEmpty()) {
+            roleMapper.selectBatchIds(allRoleIds).forEach(r -> idToRoleName.put(r.getId(), r.getRoleName()));
+        }
+        Map<Long, List<Long>> userIdToRoleIds = new HashMap<>();
+        for (SysUserRole ur : allMappings) {
+            userIdToRoleIds.computeIfAbsent(ur.getUserId(), k -> new ArrayList<>()).add(ur.getRoleId());
+        }
+
+        List<UserVO> result = new ArrayList<>();
+        for (SysUser u : users) {
+            UserVO vo = new UserVO();
+            vo.setId(u.getId());
+            vo.setUsername(u.getUsername());
+            vo.setRealName(u.getRealName());
+            vo.setAvatar(u.getAvatar());
+            vo.setPhone(u.getPhone());
+            vo.setEmail(u.getEmail());
+            vo.setStatus(u.getStatus());
+            List<Long> rids = userIdToRoleIds.getOrDefault(u.getId(), Collections.emptyList());
+            vo.setRoleIds(rids);
+            List<String> names = rids.stream().map(idToRoleName::get).filter(java.util.Objects::nonNull).collect(Collectors.toList());
+            vo.setRoleNames(names);
+            result.add(vo);
+        }
+        return result;
+    }
+
     private void bindRoles(Long userId, List<Long> roleIds) {
         if (roleIds == null || roleIds.isEmpty()) {
             return;

@@ -277,13 +277,19 @@ const availableLoading = ref(false)
 const assignedLoading = ref(false)
 const assignSubmitting = ref(false)
 const pickedAvailable = ref([])
+// 全量已分配用户（跨角色缓存，是右栏与保存的单一真相）
+// 解决两个 bug：（1）左栏不再误把已分配用户列出来；（2）保存时不会丢对端角色的成员。
+const allMembersCache = ref([])
 
 const openMembersDialog = async (row) => {
   currentRow.value = row
   membersDialog.value = true
   memberKeyword.value = ''
   memberRole.value = '学生'
-  await Promise.all([loadAssignedUsers(), loadAvailableUsers()])
+  // 先一次性拉全量（classListMembers id=null 时返回全员），再派生当前 tab 视图
+  await loadAllMembersCache()
+  await loadMembers()
+  await loadAvailableUsers()
 }
 
 // ===== 表格导入（CSV: 班级名称 + 账号）=====
@@ -389,39 +395,40 @@ const submitImport = async () => {
   } finally { importSubmitting.value = false }
 }
 
-// radio 切换时同时刷新两栏（已分配按 role 过滤，可选按 role + 关键字过滤）
-const loadMembers = async () => {
-  await Promise.all([loadAssignedUsers(), loadAvailableUsers()])
-}
-
-const loadAssignedUsers = async () => {
+// 一次性拉全量已分配成员（roleName=null）作缓存；右栏视图、左栏"已分配"过滤集、保存集都从这里派生
+const loadAllMembersCache = async () => {
   if (!currentRow.value) return
   assignedLoading.value = true
   try {
-    assignedUsers.value = await classListMembers(currentRow.value.id, memberRole.value || null)
+    allMembersCache.value = await classListMembers(currentRow.value.id, null)
   } finally { assignedLoading.value = false }
+}
+
+// radio 切换时：右栏从缓存派生当前角色；左栏按角色 + 关键字重过滤
+const loadMembers = async () => {
+  if (!currentRow.value) return
+  assignedUsers.value = allMembersCache.value.filter(u =>
+    (u.roleNames || []).includes(memberRole.value))
+  await loadAvailableUsers()
 }
 
 const loadAvailableUsers = async () => {
   if (!currentRow.value) return
   availableLoading.value = true
   try {
-    // 拉所有用户（前端再做角色 + 关键字 + 已分配 三重过滤）
     const res = await userPage({ pageNum: 1, pageSize: 500, keyword: '' })
     let all = res.list || []
-    // 角色过滤：UserVO.roleNames 里是中文名（"教师"/"学生"）
     if (memberRole.value) {
       all = all.filter(u => (u.roleNames || []).includes(memberRole.value))
     }
-    // 关键字过滤
     if (memberKeyword.value) {
       const kw = memberKeyword.value.toLowerCase()
       all = all.filter(u =>
         (u.username && u.username.toLowerCase().includes(kw)) ||
         (u.realName && u.realName.toLowerCase().includes(kw)))
     }
-    // 排除已分配的
-    const assignedIds = new Set(assignedUsers.value.map(u => u.id))
+    // 排除跨角色已分配用户（含本轮新加未保存的），避免双列同时出现
+    const assignedIds = new Set(allMembersCache.value.map(u => u.id))
     availableUsers.value = all.filter(u => !assignedIds.has(u.id))
   } finally { availableLoading.value = false }
 }
@@ -429,20 +436,25 @@ const loadAvailableUsers = async () => {
 const onAvailableSelect = (rows) => { pickedAvailable.value = rows }
 
 const addToClass = () => {
-  // 把勾选的用户移到右栏
-  const ids = new Set(assignedUsers.value.map(u => u.id))
+  // 把勾选的用户移到右栏；同时同步全量缓存（这是保存与左栏过滤的唯一真相）
+  const ids = new Set(allMembersCache.value.map(u => u.id))
   for (const u of pickedAvailable.value) {
     if (!ids.has(u.id)) {
-      assignedUsers.value.push(u)
+      allMembersCache.value.push(u)
       ids.add(u.id)
     }
   }
+  // 右栏只显示当前角色
+  assignedUsers.value = allMembersCache.value.filter(u =>
+    (u.roleNames || []).includes(memberRole.value))
   availableUsers.value = availableUsers.value.filter(u => !pickedAvailable.value.find(p => p.id === u.id))
   pickedAvailable.value = []
 }
 
 const removeFromClass = (row) => {
+  // 右栏只动当前角色视图；缓存里要把 row 真删掉（否则保存时还会带回去）
   assignedUsers.value = assignedUsers.value.filter(u => u.id !== row.id)
+  allMembersCache.value = allMembersCache.value.filter(u => u.id !== row.id)
   // 同时回到可分配栏，方便继续分配
   const inAvailable = new Set(availableUsers.value.map(u => u.id))
   if (!inAvailable.has(row.id)) {
@@ -454,9 +466,11 @@ const saveMembers = async () => {
   if (!currentRow.value) return
   assignSubmitting.value = true
   try {
+    // 用全量缓存（含本轮增删）作为保存集——这样切到任一角色保存都不会丢对端角色的成员
+    const ids = [...new Set(allMembersCache.value.map(u => u.id))]
     await classAssignMembers({
       classId: currentRow.value.id,
-      userIds: assignedUsers.value.map(u => u.id),
+      userIds: ids,
       roleName: null
     })
     ElMessage.success('成员分配成功')

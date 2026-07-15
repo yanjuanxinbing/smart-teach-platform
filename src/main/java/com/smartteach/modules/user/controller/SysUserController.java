@@ -95,4 +95,13 @@ public class SysUserController {
         userService.changeOwnPassword(UserContext.getUserId(), body.get("oldPassword"), body.get("newPassword"));
         return Result.success();
     }
+
+    /**
+     * 按角色编码列出所有启用的用户（任意登录用户可读，给授课管理"教师选择器"用）。
+     */
+    @ApiOperation("按角色编码列用户（任意登录用户可读）")
+    @GetMapping("/list-by-role")
+    public Result<List<UserVO>> listByRole(@RequestParam String roleCode) {
+        return Result.success(userService.listByRole(roleCode));
+    }
 }

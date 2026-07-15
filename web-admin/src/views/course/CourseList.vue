@@ -66,7 +66,10 @@
         </el-row>
         <el-row :gutter="16">
           <el-col :span="12">
-            <el-form-item label="任课教师" prop="teacherName"><el-input v-model="form.teacherName" /></el-form-item>
+            <el-form-item label="任课教师">
+              <!-- 授课管理上线后，任课教师由"授课管理"页维护；此处只读展示 -->
+              <el-input :value="form.teacherName" disabled placeholder="请到「授课管理」页面分配" />
+            </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="课程分类" prop="categoryName"><el-input v-model="form.categoryName" /></el-form-item>
@@ -154,7 +157,6 @@ const form = reactive({ id: null, courseCode: '', courseName: '', teacherId: 1, 
 const rules = {
   courseCode: [{ required: true, message: '请输入课程编号' }],
   courseName: [{ required: true, message: '请输入课程名称' }],
-  teacherName: [{ required: true, message: '请输入任课教师' }],
   categoryName: [{ required: true, message: '请输入课程分类' }],
   courseType: [{ required: true, message: '请选择课程性质' }]
 }

@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smartteach.modules.course.mapper.CourseMapper">
+
+    <!--
+        授课管理上线后，/course/manage/my 走 course_teacher 关系表。
+        过滤：软删的分配行(deleted=1)、禁用的分配行(status=0)、已结课的课程(status=2) 都不返。
+    -->
+    <select id="selectCoursesByTeacherId" resultType="com.smartteach.modules.course.entity.Course">
+        SELECT c.*
+        FROM course c
+        INNER JOIN course_teacher ct ON ct.course_id = c.id
+        WHERE ct.teacher_id = #{teacherId}
+          AND ct.deleted = 0
+          AND ct.status = 1
+          AND c.deleted = 0
+          AND c.status IN (0, 1)
+        ORDER BY c.create_time DESC
+    </select>
+
+</mapper>
