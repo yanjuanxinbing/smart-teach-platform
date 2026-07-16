@@ -27,6 +27,6 @@ public interface ExperimentPlanService extends IService<ExperimentPlan> {
 
     void reject(Long id, Long approverId, String approverName, String remark);
 
-    /** 已发布计划中出现的班级（去重），用于"分配管理"下拉 */
+    /** 实验计划中出现的班级（去重），用于"实验评分"班级筛选下拉 */
     List<String> listDistinctClasses();
 }

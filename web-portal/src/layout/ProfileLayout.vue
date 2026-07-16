@@ -15,11 +15,6 @@
             </p>
           </div>
         </div>
-        <div class="head__right">
-          <el-statistic :value="stat.courses" title="我的课程" />
-          <el-statistic :value="stat.assignments" title="待办作业" />
-          <el-statistic :value="stat.snippets" title="代码片段" />
-        </div>
       </div>
     </header>
 
@@ -61,9 +56,6 @@ import { unreadCount } from '@/api/profile'
 const router = useRouter()
 const userStore = useUserStore()
 
-// 个人中心统计卡片 —— 当前位挂的是 /portal/my/* 三个端点的 total 数字,
-// 后端就绪后会真实呈现；目前为 null 表示"暂未加载"，避免之前写死 6/3/12 的演示数据误导上线用户。
-const stat = ref({ courses: null, assignments: null, snippets: null })
 const unread = ref(0)
 
 const nav = computed(() => [
@@ -94,9 +86,6 @@ onMounted(async () => {
 .head__name { font-family: var(--font-display); font-size: 28px; font-weight: 600; color: var(--ink); margin: 0; letter-spacing: -0.012em; }
 .head__meta { margin: 0; font-size: 13px; color: var(--ink-soft); display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .badge { font-family: var(--font-mono); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; padding: 3px 8px; color: var(--accent); background: var(--accent-tint); border: 1px solid var(--accent-tint); }
-.head__right { display: flex; gap: clamp(20px, 4vw, 56px); }
-.head__right :deep(.el-statistic__number) { font-family: var(--font-display); font-size: 28px; color: var(--ink); }
-.head__right :deep(.el-statistic__title) { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.18em; text-transform: uppercase; color: var(--mute); }
 
 .profile__body { padding: var(--s-8) 0 0; }
 .grid { display: grid; grid-template-columns: 240px minmax(0, 1fr); gap: var(--s-7); }
@@ -125,7 +114,6 @@ onMounted(async () => {
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
 @media (max-width: 880px) {
-  .head__right { gap: 24px; }
   .grid { grid-template-columns: 1fr; }
 }
 </style>

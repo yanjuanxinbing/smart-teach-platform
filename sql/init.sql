@@ -775,7 +775,7 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (213, 201, '审核', 3, NULL, NULL, NULL, 'experiment:plan:approve', 4, 1, 1),
 (214, 201, '查看详情', 3, NULL, NULL, NULL, 'experiment:plan:query', 5, 1, 1),
 -- 实验分配(220/230/231/232)：菜单 + 按钮,挂在课程实验计划管理(200)目录下,与实验计划(201)平级
-(220, 200, '分配管理',   2, '/experiment/assignment', 'experiment/AssignmentList', NULL, 'experiment:assignment:list',     2, 1, 1),
+(220, 200, '实验评分',   2, '/experiment/assignment', 'experiment/AssignmentList', NULL, 'experiment:assignment:list',     2, 1, 1),
 (230, 220, '新增分配',   3, NULL, NULL, NULL, 'experiment:assignment:add',     1, 1, 1),
 (231, 220, '标记完成',   3, NULL, NULL, NULL, 'experiment:assignment:complete', 2, 1, 1),
 (232, 220, '撤销分配',   3, NULL, NULL, NULL, 'experiment:assignment:remove',  3, 1, 1),

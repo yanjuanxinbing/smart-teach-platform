@@ -65,12 +65,33 @@ public class ExperimentAssignmentServiceImpl
         if (cls == null) {
             throw new BusinessException("班级不存在：" + className);
         }
-        // c) 该班学生列表
+        return autoCreateByPlan(plan, operatorId);
+    }
+
+    /**
+     * 给定一份刚保存/更新的实验计划，按它的 className 给班里每个学生铺一条 status=1 的记录（幂等）。
+     * 不做计划 status 校验：实验计划保存/更新后被调用，新计划可能在草稿状态也要铺好评分占位。
+     * 与 assignByClass 的差别仅在于不做 status=1 校验，复用班级查找 + 逐人建记录的逻辑。
+     */
+    @Override
+    public int autoCreateByPlan(ExperimentPlan plan, Long operatorId) {
+        if (plan == null) return 0;
+        String className = plan.getClassName();
+        if (className == null || className.isEmpty()) return 0;
+        Long planId = plan.getId();
+        if (planId == null) return 0;
+
+        SysClass cls = sysClassService.lambdaQuery()
+                .eq(SysClass::getClassName, className)
+                .one();
+        if (cls == null) return 0;
+
+        // 该班学生列表
         List<UserVO> students = sysClassService.listMembers(cls.getId(), "学生");
         if (students == null || students.isEmpty()) {
             return 0;
         }
-        // d) 逐个分配：先 selectCount 查重（uk_plan_student 唯一索引兜底）
+        // 逐个分配：先 selectCount 查重（uk_plan_student 唯一索引兜底）
         int added = 0;
         for (UserVO s : students) {
             Long sid = s.getId();

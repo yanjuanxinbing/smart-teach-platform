@@ -8,13 +8,12 @@
             <el-option v-for="c in classOptions" :key="c" :label="c" :value="c" />
           </el-select>
           <el-select v-model="query.status" placeholder="状态" clearable style="width: 120px" @change="search">
-            <el-option label="已分配" :value="1" />
-            <el-option label="已完成" :value="3" />
+            <el-option label="未评分" :value="1" />
+            <el-option label="已评分" :value="3" />
           </el-select>
           <el-button type="primary" @click="search">搜索</el-button>
           <el-button @click="resetQuery">重置</el-button>
         </div>
-        <el-button type="primary" :icon="Plus" @click="openForm()">新增分配</el-button>
       </div>
 
       <el-table :data="list" v-loading="loading" border>
@@ -29,7 +28,7 @@
         <el-table-column label="状态" width="100">
           <template #default="{ row }">
             <el-tag :type="row.status === 3 ? 'primary' : 'success'">
-              {{ row.status === 3 ? '已完成' : '已分配' }}
+              {{ row.status === 3 ? '已评分' : '未评分' }}
             </el-tag>
           </template>
         </el-table-column>
@@ -41,7 +40,7 @@
         </el-table-column>
         <el-table-column label="操作" width="200" fixed="right">
           <template #default="{ row }">
-            <el-button size="small" link type="primary" v-if="row.status === 1" @click="openComplete(row)">标记完成</el-button>
+            <el-button size="small" link type="primary" v-if="row.status === 1" @click="openComplete(row)">评分</el-button>
             <el-button size="small" link type="danger" @click="remove(row)">撤销</el-button>
           </template>
         </el-table-column>
@@ -50,28 +49,8 @@
       <Pagination v-model:page="query.pageNum" v-model:size="query.pageSize" :total="total" @change="load" />
     </el-card>
 
-    <!-- 新增分配弹窗：选计划 + 选班级 -->
-    <el-dialog v-model="formDialog" title="新增实验分配" width="500px">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="实验计划" prop="planId">
-          <el-select v-model="form.planId" filterable style="width:100%" :no-data-text="availablePlans.length === 0 ? '暂无可分配的实验计划（仅已发布的计划可分配）' : '无匹配数据'">
-            <el-option v-for="p in availablePlans" :key="p.id" :label="p.planTitle" :value="p.id" />
-          </el-select>
-        </el-form-item>
-        <el-form-item label="分配班级" prop="className">
-          <el-select v-model="form.className" filterable style="width:100%" placeholder="选择班级（系统会按班级自动给所有学生铺一条已分配记录）">
-            <el-option v-for="c in classOptions" :key="c" :label="c" :value="c" />
-          </el-select>
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="formDialog = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submit">确定</el-button>
-      </template>
-    </el-dialog>
-
-    <!-- 标记完成弹窗：录成绩 -->
-    <el-dialog v-model="completeDialog" title="标记完成" width="420px">
+    <!-- 评分弹窗：录成绩 -->
+    <el-dialog v-model="completeDialog" title="评分" width="420px">
       <el-form ref="completeFormRef" :model="completeForm" :rules="completeRules" label-width="80px">
         <el-form-item label="学生">
           <span>{{ completeRow?.studentName }}（{{ completeRow?.className || '未填班级' }}）</span>
@@ -94,32 +73,19 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
 import {
-  assignPage, assignByClass, assignComplete, assignRemove
+  assignPage, assignComplete, assignRemove
 } from '@/api/experiment'
-import { expPage, expClasses } from '@/api/experiment'
+import { expClasses } from '@/api/experiment'
 
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
 const query = reactive({ pageNum: 1, pageSize: 10, keyword: '', className: '', status: null })
-const planList = ref([])
 const classOptions = ref([])
-// 仅 status === 1(已发布)的实验计划才允许分配
-const availablePlans = ref([])
 
-const formDialog = ref(false)
-const formRef = ref()
-const submitting = ref(false)
-const form = reactive({ planId: null, className: '' })
-const rules = {
-  planId: [{ required: true, message: '请选择实验计划' }],
-  className: [{ required: true, message: '请选择分配班级' }]
-}
-
-// 标记完成
+// 评分弹窗
 const completeDialog = ref(false)
 const completeFormRef = ref()
 const completeRow = ref(null)
@@ -152,24 +118,6 @@ const resetQuery = () => {
   load()
 }
 
-const openForm = () => {
-  formDialog.value = true
-  Object.assign(form, { planId: null, className: '' })
-}
-
-const submit = async () => {
-  await formRef.value.validate()
-  submitting.value = true
-  try {
-    const added = await assignByClass({ planId: form.planId, className: form.className })
-    ElMessage.success(`已分配 ${added} 名学生`)
-    formDialog.value = false
-    load()
-  } finally {
-    submitting.value = false
-  }
-}
-
 const openComplete = (row) => {
   completeRow.value = row
   completeForm.score = null
@@ -185,7 +133,7 @@ const submitComplete = async () => {
       score: completeForm.score,
       comment: completeForm.comment
     })
-    ElMessage.success('已标记完成')
+    ElMessage.success('已评分')
     completeDialog.value = false
     load()
   } finally {
@@ -196,9 +144,9 @@ const submitComplete = async () => {
 const remove = async (row) => {
   loading.value = true
   try {
-    await ElMessageBox.confirm(`确定撤销 ${row.studentName} 的实验分配？`, '提示', { type: 'warning' })
+    await ElMessageBox.confirm(`确定删除 ${row.studentName} 的评分记录？`, '提示', { type: 'warning' })
     await assignRemove([row.id])
-    ElMessage.success('已撤销')
+    ElMessage.success('已删除')
     load()
   } catch (e) {
     // 用户取消或接口报错
@@ -208,13 +156,7 @@ const remove = async (row) => {
 }
 
 onMounted(async () => {
-  const [planRes, classRes] = await Promise.all([
-    expPage({ pageNum: 1, pageSize: 1000 }).catch(() => ({ list: [] })),
-    expClasses().catch(() => [])
-  ])
-  planList.value = Array.isArray(planRes.list) ? planRes.list : []
-  availablePlans.value = planList.value.filter(p => p && p.status === 1)
-  classOptions.value = Array.isArray(classRes) ? classRes : []
+  classOptions.value = (await expClasses().catch(() => [])) || []
   load()
 })
 </script>

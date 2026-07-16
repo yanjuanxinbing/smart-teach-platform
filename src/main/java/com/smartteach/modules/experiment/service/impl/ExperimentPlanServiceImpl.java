@@ -8,6 +8,7 @@ import com.baomidou.mybatisplus.extension.service.impl.ServiceImpl;
 import com.smartteach.common.base.PageResult;
 import com.smartteach.common.exception.BusinessException;
 import com.smartteach.common.result.ResultCode;
+import com.smartteach.common.utils.UserContext;
 import com.smartteach.modules.experiment.dto.ExperimentPlanItemDTO;
 import com.smartteach.modules.experiment.dto.ExperimentPlanQueryDTO;
 import com.smartteach.modules.experiment.dto.ExperimentPlanSaveDTO;
@@ -15,10 +16,12 @@ import com.smartteach.modules.experiment.entity.ExperimentPlan;
 import com.smartteach.modules.experiment.entity.ExperimentPlanItem;
 import com.smartteach.modules.experiment.mapper.ExperimentPlanItemMapper;
 import com.smartteach.modules.experiment.mapper.ExperimentPlanMapper;
+import com.smartteach.modules.experiment.service.ExperimentAssignmentService;
 import com.smartteach.modules.experiment.service.ExperimentPlanService;
 import com.smartteach.modules.experiment.vo.ExperimentPlanDetailVO;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,9 +32,13 @@ import java.util.stream.Collectors;
 public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper, ExperimentPlan> implements ExperimentPlanService {
 
     private final ExperimentPlanItemMapper itemMapper;
+    // 实验计划 → 实验评分 自动铺记录的桥接服务。@Lazy 避免与本服务的可能循环依赖。
+    private final ExperimentAssignmentService assignmentService;
 
-    public ExperimentPlanServiceImpl(ExperimentPlanItemMapper itemMapper) {
+    public ExperimentPlanServiceImpl(ExperimentPlanItemMapper itemMapper,
+                                    @Lazy ExperimentAssignmentService assignmentService) {
         this.itemMapper = itemMapper;
+        this.assignmentService = assignmentService;
     }
 
     @Override
@@ -82,6 +89,15 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
         if (plan.getStatus() == null) plan.setStatus(0);
         this.save(plan);
         saveItems(plan.getId(), dto.getItems());
+        // 自动铺评分占位:给该班所有学生铺一条 status=1(未评分) 的记录,
+        // 后续教师在「实验评分」页直接录成绩即可。
+        try {
+            assignmentService.autoCreateByPlan(plan, UserContext.getUserId());
+        } catch (Exception e) {
+            // 评分占位失败不应阻塞计划保存,记录日志便于排查
+            org.slf4j.LoggerFactory.getLogger(getClass()).warn("实验计划保存后自动铺评分记录失败: planId={}, className={}",
+                    plan.getId(), plan.getClassName(), e);
+        }
         return plan;
     }
 
@@ -110,6 +126,18 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
         this.updateById(entity);
         itemMapper.delete(new LambdaUpdateWrapper<ExperimentPlanItem>().eq(ExperimentPlanItem::getPlanId, dto.getId()));
         saveItems(dto.getId(), dto.getItems());
+        // 编辑后重新触发铺记录(幂等去重):
+        //   - 同一班:已存在的跳过,无副作用
+        //   - 改了 className:旧班级无影响,新班级的学生会自动出现
+        ExperimentPlan after = this.getById(dto.getId());
+        if (after != null) {
+            try {
+                assignmentService.autoCreateByPlan(after, UserContext.getUserId());
+            } catch (Exception e) {
+                org.slf4j.LoggerFactory.getLogger(getClass()).warn("实验计划编辑后自动铺评分记录失败: planId={}, className={}",
+                        after.getId(), after.getClassName(), e);
+            }
+        }
     }
 
     private void saveItems(Long planId, List<ExperimentPlanItemDTO> items) {
