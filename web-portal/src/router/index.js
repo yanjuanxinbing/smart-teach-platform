@@ -13,6 +13,7 @@ const routes = [
       { path: 'course',  name: 'CourseList', component: () => import('@/views/CourseList.vue') },
       { path: 'course/:id', name: 'CourseDetail', component: () => import('@/views/CourseDetail.vue') },
       { path: 'codex',   name: 'CodeList',  component: () => import('@/views/CodeList.vue') },
+      { path: 'codex/student-notes', name: 'StudentNotes', component: () => import('@/views/StudentNotes.vue'), meta: { title: '学生笔记评审' } },
       { path: 'codex/:id', name: 'CodeDetail', component: () => import('@/views/CodeDetail.vue') },
       { path: 'notice',  name: 'Notice',    component: () => import('@/views/Notice.vue') },
       { path: 'news',    name: 'News',      component: () => import('@/views/News.vue') },
