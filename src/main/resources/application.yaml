@@ -20,7 +20,7 @@ spring:
     driver-class-name: com.mysql.cj.jdbc.Driver
     url: jdbc:mysql://127.0.0.1:3306/smart_teach_platform?useUnicode=true&characterEncoding=utf8&useSSL=false&serverTimezone=Asia/Shanghai&allowPublicKeyRetrieval=true
     username: root
-    password: 123456z
+    password: 123456
 
 mybatis-plus:
   mapper-locations: classpath:mapper/**/*.xml
@@ -53,7 +53,7 @@ aiassistant:
     base-url: http://localhost:11434   # Ollama 本地默认监听
     model: deepseek-r1:7b                   # 1B 参数小模型，本地 8GB 内存即可跑
     timeout: 60s                        # 单次问答最大等待；gemma3:1b CPU 上通常 < 30s
-    connect-timeout: 5s                 # 连接超时
+    connect-timeout: 60s                 # 连接超时
     stream-concurrency: 2               # 同时在飞的最大请求数（Semaphore 限流）
     # 系统提示词：让 gemma3:1b 扮演「解题助教」（分步骤、重推导、不替学生做作业）。
     # 直接在 application.yaml 改即可热生效；太长会拖慢推理，建议 ≤ 600 字。

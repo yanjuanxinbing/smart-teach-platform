@@ -59,13 +59,17 @@
     <el-dialog v-model="formDialog" title="新增报名" width="500px">
       <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
         <el-form-item label="实训计划" prop="planId">
-          <el-select v-model="form.planId" filterable style="width:100%" :no-data-text="availablePlans.length === 0 ? '暂无可报名的实训计划（仅进行中的计划可报名）' : '无匹配数据'">
+          <el-select v-model="form.planId" filterable style="width:100%" :no-data-text="availablePlans.length === 0 ? '暂无可报名的实训计划（仅进行中的计划可报名）' : '无匹配数据'" @change="onPlanChange">
             <el-option v-for="p in availablePlans" :key="p.id" :label="p.projectName" :value="p.id" />
           </el-select>
         </el-form-item>
-        <el-form-item label="学生姓名" prop="studentName"><el-input v-model="form.studentName" /></el-form-item>
-        <el-form-item label="学生ID" prop="studentId"><el-input-number v-model="form.studentId" :min="1" controls-position="right" style="width:100%" /></el-form-item>
-        <el-form-item label="班级"><el-input v-model="form.className" /></el-form-item>
+        <el-form-item label="学生" prop="studentId">
+          <el-select v-model="form.studentId" filterable clearable style="width:100%" :disabled="!form.planId || studentOptions.length === 0" placeholder="先选择实训计划" @change="onStudentChange">
+            <el-option v-for="s in studentOptions" :key="s.id" :label="s.realName ? `${s.realName}（${s.username}）` : s.username" :value="s.id" />
+          </el-select>
+        </el-form-item>
+        <el-form-item label="学生姓名"><el-input :value="form.studentName" disabled /></el-form-item>
+        <el-form-item label="班级"><el-input :value="form.className" disabled /></el-form-item>
         <el-form-item label="联系电话" prop="phone"><el-input v-model="form.phone" maxlength="11" placeholder="请输入11位手机号" @input="form.phone = (form.phone || '').replace(/\D/g, '').slice(0, 11)" /></el-form-item>
       </el-form>
       <template #footer>
@@ -128,13 +132,14 @@ import { Plus } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
 import { regPage, regAdd, regAdminAdd, regRemove, regReview, regSignOut, regGrade } from '@/api/training'
 import { trainingPage, trainingClasses } from '@/api/training'
+import { classListMembers, classListAll } from '@/api/system'
 
 const list = ref([])
 const total = ref(0)
 const loading = ref(false)
 const query = reactive({ pageNum: 1, pageSize: 10, keyword: '', className: '', status: null })
 const planList = ref([])
-const classOptions = ref([])
+const classOptions = ref([]) // SysClassVO：全量班级（带 id），用于 plan→class 匹配
 // planId → 项目名称 映射，用于在表格中根据 planId 查找对应的项目名称展示
 const planMap = computed(() => {
   const m = {}
@@ -146,11 +151,14 @@ const availablePlans = computed(() => (planList.value || []).filter(p => p && p.
 
 const formDialog = ref(false)
 const formRef = ref()
-const form = reactive({ planId: null, studentName: '', studentId: null, className: '', phone: '' })
+const form = reactive({ planId: null, studentName: '', studentId: null, classId: null, className: '', phone: '' })
+const studentOptions = ref([]) // 当前选中班级下的学生列表
+const planClassMap = reactive({}) // planId → { classId, className }（项目对应班级）
 const rules = {
   planId: [{ required: true, message: '请选择实训计划' }],
-  studentName: [{ required: true, message: '请输入学生姓名' }],
-  studentId: [{ required: true, message: '请输入学生ID' }],
+  // studentId 后端是 Long；前端拿到的是 Jackson 序列化的字符串（防 JS 精度丢失），
+  // 所以这里不要写 type: 'number'，只验"非空"。Spring 反序列化时会自动把字符串转 Long。
+  studentId: [{ required: true, message: '请选择学生', trigger: 'change' }],
   phone: [{ pattern: /^\d{11}$/, message: '联系电话必须是11位数字', trigger: 'blur' }]
 }
 
@@ -218,7 +226,61 @@ const resetQuery = () => {
   load()
 }
 
-const openForm = () => { formDialog.value = true; Object.assign(form, { planId: null, studentName: '', studentId: null, className: '', phone: '' }) }
+const openForm = async () => {
+  formDialog.value = true
+  Object.assign(form, { planId: null, studentName: '', studentId: null, classId: null, className: '', phone: '' })
+  studentOptions.value = []
+  // 拉全量班级，用于把计划的 className 字符串映射回 classId（教师无需在班级成员表里）
+  if (!classOptions.value.length) {
+    try { classOptions.value = await classListAll() } catch (e) { classOptions.value = [] }
+  }
+}
+
+// 选计划 → 用计划上挂的 className 匹配 → 拿到 classId → 加载该班学生
+const onPlanChange = async (planId) => {
+  form.studentId = null
+  form.studentName = ''
+  form.className = ''
+  form.classId = null
+  studentOptions.value = []
+  if (!planId) return
+  const plan = (planList.value || []).find(p => p.id === planId)
+  const planClassName = plan?.className
+  if (!planClassName) {
+    ElMessage.warning('该计划未挂班级，请先在实训计划中设置班级')
+    return
+  }
+  const matches = (classOptions.value || []).filter(c => normalizeName(c.className) === normalizeName(planClassName))
+  if (!matches.length) {
+    ElMessage.warning(`未找到对应班级「${planClassName}」，请检查该班级是否已在班级管理中存在`)
+    return
+  }
+  if (matches.length > 1) {
+    ElMessage.warning(`存在多个同名班级「${planClassName}」，已按 ID 升序选其一加载学生`)
+  }
+  // 同名多个时按 id 升序取第一个，保证选择稳定
+  matches.sort((a, b) => Number(a.id) - Number(b.id))
+  const target = matches[0]
+  form.className = target.className
+  form.classId = target.id
+  try {
+    studentOptions.value = await classListMembers(target.id, '学生')
+  } catch (e) {
+    studentOptions.value = []
+    ElMessage.error('加载班级学生失败：' + (e?.message || '网络异常'))
+  }
+}
+
+// 计划 className 与 sys_class.className 都是字符串，做 trim 后精确匹配；同名班级取第一个
+const normalizeName = (s) => (s == null ? '' : String(s).trim())
+
+// 选学生 → 自动填姓名 / 学号 / 手机号（学号即用户 id）
+const onStudentChange = (studentId) => {
+  const s = studentOptions.value.find(u => u.id === studentId)
+  if (!s) return
+  form.studentName = s.realName || s.username || ''
+  form.phone = s.phone || ''
+}
 
 const submit = async () => {
   await formRef.value.validate()
@@ -283,12 +345,11 @@ const remove = async (row) => {
 }
 
 onMounted(async () => {
-  const [planRes, classRes] = await Promise.all([
-    trainingPage({ pageNum: 1, pageSize: 1000 }),
-    trainingClasses().catch(() => [])
-  ])
+  // 只拉计划列表；classOptions 改在 openForm 里按需拉 SysClassVO[]
+  // （之前在 onMounted 拉 trainingClasses 返 List<String> 污染了 classOptions，
+  //  导致 onPlanChange 把它当对象数组用 .className 匹配永远失败）
+  const planRes = await trainingPage({ pageNum: 1, pageSize: 1000 })
   planList.value = planRes.list
-  classOptions.value = Array.isArray(classRes) ? classRes : []
   load()
 })
 </script>
