@@ -234,11 +234,21 @@ const onProfileCommand = async (cmd) => {
 }
 
 // 「我的学习」下拉命令（仅学生可见）
-const myLearningItems = [
-  { label: '我的课程', to: '/my/courses' },
-  { label: '我的作业', to: '/my/assignments' },
-  { label: '我的实训', to: '/my/trainings' }
-]
+// 学生角色额外追加「我的实验」「我的资源」两项,与路由 /my/* 下的页面一一对应
+const myLearningItems = computed(() => {
+  const base = [
+    { label: '我的课程', to: '/my/courses' },
+    { label: '我的作业', to: '/my/assignments' },
+    { label: '我的实训', to: '/my/trainings' }
+  ]
+  if (userStore.roleCode === 'STUDENT') {
+    base.push(
+      { label: '我的实验', to: '/my/experiments' },
+      { label: '我的资源', to: '/my/resources' }
+    )
+  }
+  return base
+})
 const onMyLearningCommand = (to) => {
   closeMenu()
   router.push(to)

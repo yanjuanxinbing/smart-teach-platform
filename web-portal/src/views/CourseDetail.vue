@@ -16,7 +16,7 @@
         <p class="hero__lead">{{ course?.summary || course?.description || '—' }}</p>
         <div class="hero__foot">
           <span class="hero__teacher">主讲：<b>{{ course?.teacherName || '主讲教师' }}</b></span>
-          <el-button v-if="userStore.isLogin && !enrolled" type="primary" class="hero__cta" :loading="enrolling" @click="enroll">加入我的学习</el-button>
+          <el-button v-if="userStore.isLogin && !enrolled && !isTeacherOrAdmin" type="primary" class="hero__cta" :loading="enrolling" @click="enroll">加入我的学习</el-button>
           <el-button v-if="enrolled" plain class="hero__cta">已加入</el-button>
           <el-button v-if="!userStore.isLogin" type="primary" class="hero__cta" @click="gotoLogin">登录后选课</el-button>
         </div>
@@ -95,7 +95,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Back, ArrowDown, ArrowRight } from '@element-plus/icons-vue'
@@ -112,10 +112,18 @@ const activeChapter = ref(null)
 const enrolled = ref(false)
 const enrolling = ref(false)
 
+// 教师 / 管理员身份不展示「加入我的学习」(学生专属入口)
+const isTeacherOrAdmin = computed(() => {
+  const r = userStore.roleCode
+  return r === 'TEACHER' || r === 'ADMIN'
+})
+
 const gotoLogin = () => router.push('/login?redirect=/course/' + route.params.id)
 
 const toggle = (ch) => { activeChapter.value = activeChapter.value === ch.id ? null : ch.id }
 const enroll = async () => {
+  // 教师/管理员:按钮不渲染,但此处再做一次防御性拦截,避免被控制台/快捷键绕过
+  if (isTeacherOrAdmin.value) return
   if (!course.value?.id) return
   enrolling.value = true
   try {

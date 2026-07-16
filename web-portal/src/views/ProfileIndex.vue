@@ -56,51 +56,8 @@
           <el-col :span="12"><el-form-item label="所属部门 / 学院">
             <el-input v-model="form.deptName" disabled placeholder="待完善" />
           </el-form-item></el-col>
-          <el-col :span="12"><el-form-item label="个人简介" prop="bio">
-            <el-input v-model="form.bio" type="textarea" :rows="3" placeholder="一句话介绍自己..." maxlength="160" show-word-limit />
-          </el-form-item></el-col>
         </el-row>
       </el-form>
-    </article>
-
-    <!-- ============= 个人简介（独立卡片 + 专属切换） ============= -->
-    <article class="card">
-      <div class="card__head">
-        <h3 class="card__title">个人简介</h3>
-        <!--
-          显示态:右上角一个"编辑简介"按钮,点击进入编辑态;
-          编辑态:右侧一组"取消 / 保存"按钮,实时反馈保存结果。
-          这是用户要求的"el-input / 富文本 的切换逻辑"。
-        -->
-        <el-button v-if="!bioEditing" type="primary" plain class="card__edit" @click="startBioEdit">编辑简介</el-button>
-        <div v-else class="card__actions">
-          <el-button @click="cancelBioEdit">取消</el-button>
-          <el-button type="primary" :loading="bioSaving" @click="saveBio">保存</el-button>
-        </div>
-      </div>
-
-      <!-- 显示态 -->
-      <div v-if="!bioEditing" class="bio bio--display">
-        <!--
-          bio 现在可能保存为富文本 HTML；用 v-html 渲染。
-          注意：后端应负责 XSS 过滤（白名单或转义），前端 v-html 仅做展示。
-          若后端存储纯文本，仍会按文本正常显示（HTML 解析为纯文本节点）。
-        -->
-        <div v-if="bio" class="bio__text bio__text--html" v-html="bio"></div>
-        <p v-else class="bio__text bio__text--empty">还没有填写个人简介,点击右上角"编辑简介"补充一下吧~</p>
-      </div>
-
-      <!-- 编辑态 —— 富文本编辑器（@wangeditor/editor-for-vue 5.x） -->
-      <div v-else class="bio bio--edit">
-        <RichEditor
-          v-model="bioDraft"
-          height="220px"
-          placeholder="介绍自己,比如研究方向、兴趣爱好、近期目标..."
-          :exclude-keys="['uploadImage', 'uploadVideo', 'insertVideo', 'insertTable', 'codeBlock', 'todo']"
-          :readonly="bioSaving"
-        />
-        <p class="bio__hint">简介会在课程页、消息签名、个人空间公开区域展示,建议 1-3 行。</p>
-      </div>
     </article>
 
     <!-- ============= 登录与安全 ============= -->
@@ -117,12 +74,11 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, nextTick, watch } from 'vue'
+import { ref, reactive, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/store/user'
 import { updateMyProfile, uploadAvatar } from '@/api/profile'
-import RichEditor from '@/components/RichEditor.vue'
 
 const router = useRouter()
 const userStore = useUserStore()
@@ -135,7 +91,7 @@ const editing = ref(false)
 const saving = ref(false)
 const isStudent = computed(() => userStore.roleCode === 'STUDENT')
 const form = reactive({
-  username: '', realName: '', email: '', phone: '', bio: '', avatar: '', deptName: '', className: ''
+  username: '', realName: '', email: '', phone: '', avatar: '', deptName: '', className: ''
 })
 const rules = {
   realName: [{ required: true, message: '请输入昵称/真实姓名', trigger: 'blur' }],
@@ -237,53 +193,7 @@ const save = async () => {
 }
 
 // ============================================================
-// 个人简介 —— 独立编辑状态(不与基础信息表单的 editing 耦合)
-// ============================================================
-const bio = ref('')           // 显示态用的源数据(只读,跟 store 同步)
-const bioDraft = ref('')      // 编辑态用的可写副本
-const bioEditing = ref(false)
-const bioSaving = ref(false)
-
-const startBioEdit = async () => {
-  bioDraft.value = bio.value || ''
-  bioEditing.value = true
-  // RichEditor 会在 onMounted 后自动获得焦点，无需手动 focus textarea
-  await nextTick()
-}
-const cancelBioEdit = () => {
-  bioDraft.value = ''
-  bioEditing.value = false
-}
-const saveBio = async () => {
-  // 富文本 bio 是 HTML 字符串；校验时剥离标签再判断字符长度
-  const html = bioDraft.value || ''
-  const textOnly = html.replace(/<[^>]*>/g, '').trim()
-  if (textOnly.length > 600) {
-    ElMessage.warning('简介不能超过 600 字（富文本按纯文本计算）')
-    return
-  }
-  if (!textOnly) {
-    ElMessage.warning('简介不能为空')
-    return
-  }
-  bioSaving.value = true
-  try {
-    await updateMyProfile({ bio: html })
-    ElMessage.success('简介已保存')
-    bio.value = html
-    // 同步 store.userInfo.bio,刷新时不会丢
-    await userStore.fetchUserInfo()
-    bioEditing.value = false
-  } catch (e) {
-    console.warn('功能开发中:简介保存接口未就绪', e?.message)
-    ElMessage.warning('简介保存功能开发中,请稍后重试')
-  } finally {
-    bioSaving.value = false
-  }
-}
-
-// ============================================================
-// 数据装载 —— 把 store.userInfo 映射到本地 form / bio
+// 数据装载 —— 把 store.userInfo 映射到本地 form
 // ============================================================
 const fill = () => {
   const u = userStore.userInfo || {}
@@ -293,12 +203,10 @@ const fill = () => {
     realName:  u.realName || '',
     email:     u.email    || '',
     phone:     u.phone    || '',
-    bio:       u.bio      || '',
     avatar:    u.avatar   || '',
     deptName:  u.deptName || u.dept?.name || '',
     className: u.className || ''
   })
-  bio.value = u.bio || ''
   initial = snapshot()
   avatarOriginal = form.avatar
 }
@@ -341,17 +249,4 @@ onMounted(async () => {
 .quick span { color: var(--mute); letter-spacing: 0.08em; text-transform: uppercase; font-size: 11px; }
 .quick b { color: var(--ink); font-weight: 500; }
 .quick b.warn { color: var(--warn); }
-
-/* 富文本简介显示态 —— 复用展示样式并允许内嵌 a/img/code 等元素 */
-.bio__text--html { white-space: normal; line-height: 1.8; font-size: 14px; color: var(--ink); }
-.bio__text--html :deep(p) { margin: 0 0 8px; }
-.bio__text--html :deep(strong) { font-weight: 600; color: var(--ink); }
-.bio__text--html :deep(em) { font-style: italic; color: var(--accent); }
-.bio__text--html :deep(a) { color: var(--accent); text-decoration: underline; }
-.bio__text--html :deep(ul), .bio__text--html :deep(ol) { padding-left: 20px; margin: 6px 0; }
-.bio__text--html :deep(code) { background: var(--surface-soft); padding: 1px 6px; font-family: var(--font-mono); font-size: 12px; border: 1px solid var(--line-soft); }
-
-/* 富文本编辑态的 toolbar 容器 —— 边角对齐项目 button 风格 */
-.bio--edit :deep(.rich-editor) { border-radius: 0; }
-.bio--edit :deep(.w-e-toolbar) { border-radius: 0; }
 </style>
