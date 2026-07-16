@@ -9,7 +9,7 @@ export const expRemove = (ids) => request.delete('/experiment/plan', { data: ids
 export const expSubmit = (id) => request.put(`/experiment/plan/${id}/submit`)
 export const expApprove = (id, remark) => request.put(`/experiment/plan/${id}/approve`, { remark })
 export const expReject = (id, remark) => request.put(`/experiment/plan/${id}/reject`, { remark })
-// 已发布计划中出现的班级（去重）—— 分配管理下拉用
+// 实验计划中出现的班级（去重）—— 实验评分下拉用
 export const expClasses = () => request.get('/experiment/plan/classes')
 
 // 实验分配

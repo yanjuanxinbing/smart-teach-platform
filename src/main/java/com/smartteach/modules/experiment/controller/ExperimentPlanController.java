@@ -98,7 +98,7 @@ public class ExperimentPlanController {
         return Result.success();
     }
 
-    @ApiOperation("获取已发布计划中出现的班级（去重），用于分配管理下拉")
+    @ApiOperation("获取实验计划中出现的班级（去重），用于实验评分班级筛选下拉")
     @GetMapping("/classes")
     public Result<List<String>> listClasses() {
         return Result.success(planService.listDistinctClasses());

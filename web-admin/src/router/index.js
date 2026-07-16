@@ -33,7 +33,7 @@ const routes = [
       { path: 'course/teach', name: 'CourseTeach', component: () => import('@/views/course/TeachList.vue'), meta: { title: '授课管理', icon: 'UserFilled' } },
       // 课程实验计划管理
       { path: 'experiment/plan', name: 'ExperimentPlan', component: () => import('@/views/experiment/PlanList.vue'), meta: { title: '实验计划', icon: 'Cpu' } },
-      { path: 'experiment/assignment', name: 'ExperimentAssignment', component: () => import('@/views/experiment/AssignmentList.vue'), meta: { title: '分配管理', icon: 'UserFilled' } },
+      { path: 'experiment/assignment', name: 'ExperimentAssignment', component: () => import('@/views/experiment/AssignmentList.vue'), meta: { title: '实验评分', icon: 'UserFilled' } },
       // 实训计划管理
       { path: 'training/plan', name: 'TrainingPlan', component: () => import('@/views/training/PlanList.vue'), meta: { title: '实训计划', icon: 'Promotion' } },
       { path: 'training/registration', name: 'TrainingRegistration', component: () => import('@/views/training/RegistrationList.vue'), meta: { title: '报名管理', icon: 'UserFilled' } },
