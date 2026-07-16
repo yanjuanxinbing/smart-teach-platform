@@ -1380,6 +1380,10 @@ SELECT ROW_NUMBER() OVER (ORDER BY id) + 10200, 4, id FROM sys_menu
 WHERE id IN (784, 786)
   AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 4);
 
+-- 教师(role=3) 拿到「分配班级成员」按钮权限（class:member:assign），
+-- 让"新增报名"能调用 GET /system/class/{id}/members 拉学生列表
+INSERT IGNORE INTO `sys_role_menu`(`id`, `role_id`, `menu_id`) VALUES (7600, 3, 544);
+
 -- 班级扩 1 条（合计 1 班 / 2 班 / 3 班），用于"3 班也可分析"
 INSERT INTO `sys_class`(`id`, `class_name`, `grade`, `dept_id`, `sort`, `status`) VALUES
 (3, '计科2202班', '2022', 2, 3, 1);
