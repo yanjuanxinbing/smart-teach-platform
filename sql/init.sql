@@ -208,7 +208,10 @@ CREATE TABLE `course` (
     `update_by`    BIGINT                DEFAULT NULL,
     `deleted`      TINYINT      NOT NULL DEFAULT 0,
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_course_code` (`course_code`)
+    -- 函数式唯一索引：仅对"未删除"的行强制唯一；软删（deleted=1）的行 course_code 可重复，
+    -- 这样删除课程后可重新创建同名/同编号课程。NULL 在函数式索引中不参与唯一性判断。
+    -- 参考 sys_user.uk_username_active 的同款写法。
+    UNIQUE KEY `uk_course_code_active` ((CASE WHEN deleted = 0 THEN course_code END))
 ) ENGINE = InnoDB COMMENT ='课程';
 
 -- 课程-教师授课关系（多对多；新模块「授课管理」维护此表）
@@ -1380,6 +1383,32 @@ SELECT ROW_NUMBER() OVER (ORDER BY id) + 10200, 4, id FROM sys_menu
 WHERE id IN (784, 786)
   AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 4);
 
+-- 教师(role=3) 拿到「分配班级成员」按钮权限（class:member:assign），
+-- 让"新增报名"能调用 GET /system/class/{id}/members 拉学生列表
+INSERT IGNORE INTO `sys_role_menu`(`id`, `role_id`, `menu_id`) VALUES (7600, 3, 544);
+
+-- =====================================================================
+-- 课程表唯一索引迁移（既存库）：把普通 uk_course_code 换成函数式索引
+-- 解决"删除课程后同 code 重建报已存在"问题（与 sys_user.uk_username_active 同款）
+-- =====================================================================
+SET @stmt := IF(
+    EXISTS(SELECT 1 FROM information_schema.STATISTICS
+           WHERE TABLE_SCHEMA = DATABASE()
+             AND TABLE_NAME = 'course'
+             AND INDEX_NAME = 'uk_course_code'),
+    'ALTER TABLE `course` DROP INDEX `uk_course_code`',
+    'SELECT 1');
+PREPARE s FROM @stmt; EXECUTE s; DEALLOCATE PREPARE s;
+
+SET @stmt := IF(
+    NOT EXISTS(SELECT 1 FROM information_schema.STATISTICS
+               WHERE TABLE_SCHEMA = DATABASE()
+                 AND TABLE_NAME = 'course'
+                 AND INDEX_NAME = 'uk_course_code_active'),
+    'ALTER TABLE `course` ADD UNIQUE KEY `uk_course_code_active` ((CASE WHEN deleted = 0 THEN course_code END))',
+    'SELECT 1');
+PREPARE s FROM @stmt; EXECUTE s; DEALLOCATE PREPARE s;
+
 -- 班级扩 1 条（合计 1 班 / 2 班 / 3 班），用于"3 班也可分析"
 INSERT INTO `sys_class`(`id`, `class_name`, `grade`, `dept_id`, `sort`, `status`) VALUES
 (3, '计科2202班', '2022', 2, 3, 1);
@@ -1452,31 +1481,3 @@ INSERT INTO `assignment_submission`(`id`, `assignment_id`, `student_id`, `studen
 -- 结束
 -- =====================================================================
 SELECT '初始化完成' AS message;
-
--- =====================================================================
--- 实验分配权限验证段（运行 init.sql 完会自动打印）
---   用于同事确认：1)菜单注册成功 2)admin/teacher/student 三类角色都拿到了正确权限
---   在生产环境可注释掉;开发环境留作冒烟测试用
--- =====================================================================
--- SELECT '--- 管理员 experiment:* 权限 ---' AS info;
--- SELECT m.id AS menu_id, m.menu_name, m.permission
--- FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id = m.id
--- WHERE rm.role_id = 1 AND m.permission LIKE 'experiment:%'
--- ORDER BY m.id;
-
--- SELECT '--- 教师 experiment:* 权限 ---' AS info;
--- SELECT m.id AS menu_id, m.menu_name, m.permission
--- FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id = m.id
--- WHERE rm.role_id = 3 AND m.permission LIKE 'experiment:%'
--- ORDER BY m.id;
-
--- SELECT '--- 学生 experiment:* 权限 ---' AS info;
--- SELECT m.id AS menu_id, m.menu_name, m.permission
--- FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id = m.id
--- WHERE rm.role_id = 4 AND m.permission LIKE 'experiment:%'
--- ORDER BY m.id;
-
--- SELECT '--- 实验分配种子数据 ---' AS info;
--- SELECT a.id, a.plan_title, a.student_name, a.class_name,
---        CASE a.status WHEN 1 THEN '已分配' WHEN 3 THEN '已完成' ELSE a.status END AS status
--- FROM experiment_assignment a WHERE a.deleted = 0 ORDER BY a.id;
