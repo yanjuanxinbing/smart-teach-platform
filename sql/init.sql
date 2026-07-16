@@ -1271,7 +1271,70 @@ INSERT INTO `message_notify`(`id`, `user_id`, `type`, `level`, `title`, `content
 (7, 2001, 'course',  'info',    '新课程已发布：《Java 程序设计基础》', '主讲：李副教授 · 开课学期：2025-2026-1', '新课程已发布。', '/course/2', 0),
 (8, 2001, 'assignment','warn',  '《实验三》剩余 3 天截止',     '请尽快提交，否则将影响平时成绩。', '剩余 3 天截止。', '/student/assignment/list', 0),
 (9, 2001, 'private', 'success', '辅导员已通过你的请假申请',   '系统已更新你的请假状态。', '系统已更新你的请假状态。', '/profile/message', 1);
--- 既存库的迁移：把 sys_user 上的旧简单 UK 替换为"仅作用于未删除行"的函数式 UK
+
+-- =====================================================================
+-- AI 解题（本地 Ollama，本计划新增模块）
+--   - 菜单挂在 「网站门户」顶级目录(parent_id=1) 下
+--   - 学生/教师/管理员 三种登录角色都可使用（前端 requireLogin 兜底，
+--     后端 @PreAuthorize("isAuthenticated()") 真正把关）
+--   - 超级管理员(role=1) 已被前面 SELECT...FROM sys_menu 全量覆盖
+-- =====================================================================
+
+-- 菜单 + 按钮
+INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `component`, `icon`, `permission`, `sort`, `visible`, `status`) VALUES
+(970,   1, 'AI 解题',    2, '/portal/aiassistant', 'portal/AiAssistant', NULL, 'aiassistant:solve',   4, 1, 1),
+(971, 970, '发起提问',  3, NULL, NULL, NULL, 'aiassistant:solve',   1, 1, 1),
+(972, 970, '查看历史',  3, NULL, NULL, NULL, 'aiassistant:history', 2, 1, 1);
+
+-- 教师(role=3) 获得 AI 解题菜单 + 按钮
+INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
+SELECT ROW_NUMBER() OVER (ORDER BY id) + 9700, 3, id FROM sys_menu
+WHERE id IN (970, 971, 972)
+  AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 3);
+
+-- 学生(role=4) 获得 AI 解题菜单 + 按钮
+INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
+SELECT ROW_NUMBER() OVER (ORDER BY id) + 9800, 4, id FROM sys_menu
+WHERE id IN (970, 971, 972)
+  AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 4);
+
+-- AI 解题 — 会话头
+DROP TABLE IF EXISTS `aiassistant_session`;
+CREATE TABLE `aiassistant_session` (
+    `id`          BIGINT       NOT NULL,
+    `user_id`     BIGINT       NOT NULL                COMMENT '学生用户ID',
+    `title`       VARCHAR(200)          DEFAULT NULL    COMMENT '会话标题（首问前 30 字）',
+    `status`      TINYINT      NOT NULL DEFAULT 1      COMMENT '0关闭 1进行中',
+    `create_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time` DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_by`   BIGINT                DEFAULT NULL,
+    `update_by`   BIGINT                DEFAULT NULL,
+    `deleted`     TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_user_create` (`user_id`, `create_time`)
+) ENGINE = InnoDB COMMENT ='AI 解题会话';
+
+-- AI 解题 — 消息流水
+DROP TABLE IF EXISTS `aiassistant_message`;
+CREATE TABLE `aiassistant_message` (
+    `id`            BIGINT       NOT NULL,
+    `session_id`    BIGINT       NOT NULL,
+    `user_id`       BIGINT       NOT NULL                COMMENT '冗余便于按用户筛',
+    `role`          VARCHAR(20)  NOT NULL DEFAULT 'user' COMMENT 'user / assistant',
+    `content`       MEDIUMTEXT                           COMMENT '消息正文',
+    `prompt_eval_count` INT       DEFAULT NULL           COMMENT 'Ollama 返回的 prompt token 数',
+    `eval_count`    INT          DEFAULT NULL            COMMENT 'Ollama 返回的 eval token 数',
+    `duration_ms`   INT          DEFAULT NULL            COMMENT '本次调用耗时（毫秒）',
+    `create_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `update_time`   DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `create_by`     BIGINT                DEFAULT NULL,
+    `update_by`     BIGINT                DEFAULT NULL,
+    `deleted`       TINYINT      NOT NULL DEFAULT 0,
+    PRIMARY KEY (`id`),
+    KEY `idx_session` (`session_id`),
+    KEY `idx_user_create` (`user_id`, `create_time`)
+) ENGINE = InnoDB COMMENT ='AI 解题消息流水';
+
 -- 新装库（fresh init.sql）不会重复执行，因为 DROP/CREATE 已经重建了 sys_user。
 -- MySQL 8.0.16+ 才有 DROP INDEX IF EXISTS；8.0 整系列都支持函数式索引。
 -- =====================================================================
