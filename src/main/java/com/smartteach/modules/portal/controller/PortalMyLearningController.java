@@ -7,14 +7,17 @@ import com.smartteach.common.result.Result;
 import com.smartteach.common.result.ResultCode;
 import com.smartteach.common.utils.UserContext;
 import com.smartteach.modules.portal.service.PortalMyLearningService;
+import com.smartteach.modules.portal.vo.PortalExperimentDetailVO;
 import com.smartteach.modules.portal.vo.PortalMyAssignmentVO;
 import com.smartteach.modules.portal.vo.PortalMyCourseVO;
+import com.smartteach.modules.portal.vo.PortalMyExperimentVO;
 import com.smartteach.modules.portal.vo.PortalMyTrainingVO;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -73,7 +76,7 @@ public class PortalMyLearningController {
         return Result.success(PageResult.of(page));
     }
 
-    @ApiOperation("我的实训（按状态过滤：not_started/in_progress/done）")
+    @ApiOperation("我的实训（按状态过滤：pending_review/not_started/in_progress/done）")
     @GetMapping("/trainings")
     @PreAuthorize("hasAuthority('training:my:list')")
     public Result<PageResult<PortalMyTrainingVO>> myTrainings(
@@ -83,6 +86,27 @@ public class PortalMyLearningController {
         Long studentId = requireStudent();
         IPage<PortalMyTrainingVO> page = myLearningService.myTrainings(studentId, current, size, status);
         return Result.success(PageResult.of(page));
+    }
+
+    @ApiOperation("我的实验（仅返回当前学生被分配的实验，item 状态由 classDate 推算）")
+    @GetMapping("/experiments")
+    @PreAuthorize("hasAuthority('experiment:my:list')")
+    public Result<PageResult<PortalMyExperimentVO>> myExperiments(
+            @RequestParam(defaultValue = "1") long current,
+            @RequestParam(defaultValue = "12") long size,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) String q) {
+        Long studentId = requireStudent();
+        IPage<PortalMyExperimentVO> page = myLearningService.myExperiments(studentId, current, size, status, q);
+        return Result.success(PageResult.of(page));
+    }
+
+    @ApiOperation("实验详情（item 级别，含目的/内容/要求 + 学生当前分配状态）")
+    @GetMapping("/experiments/{id}")
+    @PreAuthorize("hasAuthority('experiment:my:list')")
+    public Result<PortalExperimentDetailVO> experimentDetail(@PathVariable("id") Long id) {
+        Long studentId = requireStudent();
+        return Result.success(myLearningService.getExperimentDetail(studentId, id));
     }
 
     // --- 工具 ---

@@ -126,7 +126,7 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import Pagination from '@/components/Pagination.vue'
-import { regPage, regAdd, regRemove, regReview, regSignOut, regGrade } from '@/api/training'
+import { regPage, regAdd, regAdminAdd, regRemove, regReview, regSignOut, regGrade } from '@/api/training'
 import { trainingPage, trainingClasses } from '@/api/training'
 
 const list = ref([])
@@ -224,8 +224,8 @@ const submit = async () => {
   await formRef.value.validate()
   const plan = planList.value.find(p => p.id === form.planId)
   const data = { ...form, planTitle: plan ? plan.planTitle : '' }
-  await regAdd(data)
-  ElMessage.success('报名成功')
+  await regAdminAdd(data)
+  ElMessage.success('代报名成功（已通过）')
   formDialog.value = false
   load()
 }

@@ -66,6 +66,17 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
     @Override
     @Transactional(rollbackFor = Exception.class)
     public ExperimentPlan save(ExperimentPlanSaveDTO dto) {
+        // 防御:items 至少 1 条 —— 否则学生端 myExperiments 步骤 3 会因 itemsByPlan=null 静默跳过该 plan,前端 list 空 total=0
+        if (dto.getItems() == null || dto.getItems().isEmpty()) {
+            throw new BusinessException("实验计划必须至少添加 1 条实验明细");
+        }
+        // 防御:每条 item 的 expName 和 classDate 必填 —— 学生端按 item 展开 VO,缺字段会被静默跳过
+        for (int i = 0; i < dto.getItems().size(); i++) {
+            ExperimentPlanItemDTO it = dto.getItems().get(i);
+            if (it == null || !StringUtils.isNotBlank(it.getExpName()) || it.getClassDate() == null) {
+                throw new BusinessException("第 " + (i + 1) + " 条实验的名称/上课日期不能为空");
+            }
+        }
         ExperimentPlan plan = new ExperimentPlan();
         BeanUtils.copyProperties(dto, plan);
         if (plan.getStatus() == null) plan.setStatus(0);
@@ -83,6 +94,16 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
         }
         if (plan.getStatus() != 0 && plan.getStatus() != 3) {
             throw new BusinessException("只有草稿或驳回状态才能编辑");
+        }
+        // 防御:编辑时也不允许把 items 清空,否则已分配的学生会"突然看不到实验"
+        if (dto.getItems() == null || dto.getItems().isEmpty()) {
+            throw new BusinessException("实验计划必须至少保留 1 条实验明细,不能清空");
+        }
+        for (int i = 0; i < dto.getItems().size(); i++) {
+            ExperimentPlanItemDTO it = dto.getItems().get(i);
+            if (it == null || !StringUtils.isNotBlank(it.getExpName()) || it.getClassDate() == null) {
+                throw new BusinessException("第 " + (i + 1) + " 条实验的名称/上课日期不能为空");
+            }
         }
         ExperimentPlan entity = new ExperimentPlan();
         BeanUtils.copyProperties(dto, entity);
@@ -116,8 +137,10 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
         if (plan == null) {
             throw new BusinessException(ResultCode.DATA_NOT_EXIST);
         }
-        if (plan.getStatus() != 0) {
-            throw new BusinessException("只有草稿状态才能提交");
+        // 允许 0(草稿) / 2(已完成) / 3(已驳回) 三种状态回退到 1(已发布)
+        // —— 解决"误点通过/驳回后无法再分配"的卡点;1(已发布)→1 是幂等 noop
+        if (plan.getStatus() != 0 && plan.getStatus() != 2 && plan.getStatus() != 3) {
+            throw new BusinessException("当前状态不允许提交");
         }
         plan.setStatus(1);
         this.updateById(plan);
@@ -153,5 +176,21 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
         plan.setApproverName(approverName);
         plan.setApproveRemark(remark);
         this.updateById(plan);
+    }
+
+    @Override
+    public List<String> listDistinctClasses() {
+        // 仅从未逻辑删除的计划里取 class_name，去重 + 过滤 null/空
+        LambdaQueryWrapper<ExperimentPlan> wrapper = new LambdaQueryWrapper<>();
+        wrapper.isNotNull(ExperimentPlan::getClassName)
+                .ne(ExperimentPlan::getClassName, "")
+                .select(ExperimentPlan::getClassName)
+                .groupBy(ExperimentPlan::getClassName);
+        return this.list(wrapper).stream()
+                .map(ExperimentPlan::getClassName)
+                .filter(s -> s != null && !s.isEmpty())
+                .distinct()
+                .sorted()
+                .collect(Collectors.toList());
     }
 }

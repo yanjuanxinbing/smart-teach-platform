@@ -11,16 +11,29 @@ import com.smartteach.modules.course.assignment.mapper.AssignmentMapper;
 import com.smartteach.modules.course.assignment.mapper.AssignmentSubmissionMapper;
 import com.smartteach.modules.course.entity.Course;
 import com.smartteach.modules.course.mapper.CourseMapper;
+import com.smartteach.modules.experiment.entity.ExperimentAssignment;
+import com.smartteach.modules.experiment.entity.ExperimentPlan;
+import com.smartteach.modules.experiment.entity.ExperimentPlanItem;
+import com.smartteach.modules.experiment.mapper.ExperimentAssignmentMapper;
+import com.smartteach.modules.experiment.mapper.ExperimentPlanItemMapper;
+import com.smartteach.modules.experiment.mapper.ExperimentPlanMapper;
 import com.smartteach.modules.portal.entity.CourseEnrollment;
 import com.smartteach.modules.portal.mapper.CourseEnrollmentMapper;
 import com.smartteach.modules.portal.service.PortalMyLearningService;
+import com.smartteach.modules.portal.vo.PortalExperimentDetailVO;
 import com.smartteach.modules.portal.vo.PortalMyAssignmentVO;
 import com.smartteach.modules.portal.vo.PortalMyCourseVO;
+import com.smartteach.modules.portal.vo.PortalMyExperimentVO;
 import com.smartteach.modules.portal.vo.PortalMyTrainingVO;
+import com.smartteach.modules.portal.vo.PortalTrainingVO;
+import com.smartteach.modules.training.dto.TrainingRegistrationSaveDTO;
 import com.smartteach.modules.training.entity.TrainingPlan;
 import com.smartteach.modules.training.entity.TrainingRegistration;
 import com.smartteach.modules.training.mapper.TrainingPlanMapper;
 import com.smartteach.modules.training.mapper.TrainingRegistrationMapper;
+import com.smartteach.modules.training.service.TrainingRegistrationService;
+import com.smartteach.modules.user.entity.SysUser;
+import com.smartteach.modules.user.mapper.SysUserMapper;
 import lombok.RequiredArgsConstructor;
 import org.apache.commons.lang3.StringUtils;
 import org.springframework.stereotype.Service;
@@ -61,6 +74,11 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
     private final TrainingRegistrationMapper trainingRegistrationMapper;
     private final TrainingPlanMapper trainingPlanMapper;
     private final CourseMapper courseMapper;
+    private final TrainingRegistrationService trainingRegistrationService;
+    private final SysUserMapper sysUserMapper;
+    private final ExperimentAssignmentMapper experimentAssignmentMapper;
+    private final ExperimentPlanMapper experimentPlanMapper;
+    private final ExperimentPlanItemMapper experimentPlanItemMapper;
 
     @Override
     public IPage<PortalMyCourseVO> myCourses(Long studentId, long pageNum, long pageSize, String keyword) {
@@ -184,9 +202,11 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
         requireStudent(studentId);
 
         // 1) 学生报名记录
+        //   包含 status=0(待审核):学生门户自报名后,等待管理员审核期间对学生可见;
+        //   不包含 status=2(已驳回):驳回即"未通过",学生门户不应再展示。
         LambdaQueryWrapper<TrainingRegistration> wrapper = new LambdaQueryWrapper<>();
         wrapper.eq(TrainingRegistration::getStudentId, studentId)
-                .in(TrainingRegistration::getStatus, 1, 3)   // 仅"已通过 / 已完成"
+                .in(TrainingRegistration::getStatus, 0, 1, 3)
                 .orderByDesc(TrainingRegistration::getCreateTime);
         IPage<TrainingRegistration> regPage = trainingRegistrationMapper.selectPage(new Page<>(pageNum, pageSize), wrapper);
 
@@ -207,6 +227,277 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
         Page<PortalMyTrainingVO> voPage = new Page<>(regPage.getCurrent(), regPage.getSize(), regPage.getTotal());
         voPage.setRecords(filtered);
         return voPage;
+    }
+
+    // ====================================================================
+    //  门户-实训计划浏览与自报名
+    // ====================================================================
+
+    @Override
+    public List<PortalTrainingVO> listAvailableTrainings(Long studentId) {
+        requireStudent(studentId);
+        // 仅展示 status=3(进行中)的计划 —— 与 TrainingRegistrationServiceImpl.register() 的可报名校验保持一致
+        LambdaQueryWrapper<TrainingPlan> planWrap = new LambdaQueryWrapper<>();
+        planWrap.eq(TrainingPlan::getStatus, 3)
+                .orderByDesc(TrainingPlan::getCreateTime);
+        List<TrainingPlan> plans = trainingPlanMapper.selectList(planWrap);
+        if (plans.isEmpty()) return Collections.emptyList();
+
+        return plans.stream().map(p -> toPortalTrainingVO(p, studentId)).collect(Collectors.toList());
+    }
+
+    @Override
+    public PortalTrainingVO getTrainingDetail(Long studentId, Long planId) {
+        requireStudent(studentId);
+        if (planId == null) throw new BusinessException("实训计划ID不能为空");
+        TrainingPlan plan = trainingPlanMapper.selectById(planId);
+        if (plan == null) throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        return toPortalTrainingVO(plan, studentId);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public PortalTrainingVO registerForTraining(Long studentId, Long planId) {
+        requireStudent(studentId);
+        if (planId == null) throw new BusinessException("实训计划ID不能为空");
+
+        // 1) 计划存在性 + 状态校验（service 内也会校验，这里提前报错更友好）
+        TrainingPlan plan = trainingPlanMapper.selectById(planId);
+        if (plan == null) throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        if (plan.getStatus() == null || plan.getStatus() != 3) {
+            throw new BusinessException("该实训计划当前不可报名");
+        }
+
+        // 2) 重复报名（同学生同计划任意状态都算已报名，避免反复点）
+        long dup = trainingRegistrationMapper.selectCount(new LambdaQueryWrapper<TrainingRegistration>()
+                .eq(TrainingRegistration::getPlanId, planId)
+                .eq(TrainingRegistration::getStudentId, studentId));
+        if (dup > 0) {
+            throw new BusinessException("你已报名该实训计划，无需重复报名");
+        }
+
+        // 3) 学生信息从 sys_user 拿 —— realName/phone
+        SysUser user = sysUserMapper.selectById(studentId);
+        if (user == null) throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+
+        // 4) 组装 DTO 并调用既有 register() 落 status=0(待审核)
+        //    className 取自 plan —— 计划本就限定了班级
+        TrainingRegistrationSaveDTO dto = new TrainingRegistrationSaveDTO();
+        dto.setPlanId(planId);
+        dto.setStudentId(studentId);
+        dto.setStudentName(user.getRealName());
+        dto.setPhone(user.getPhone());
+        dto.setClassName(plan.getClassName());
+        // status 保持 null：register() 内部对 null 兜底为 0(待审核)
+        trainingRegistrationService.register(dto);
+
+        // 5) 重新读取并返回（带上冗余 planTitle）
+        TrainingRegistration saved = trainingRegistrationMapper.selectOne(new LambdaQueryWrapper<TrainingRegistration>()
+                .eq(TrainingRegistration::getPlanId, planId)
+                .eq(TrainingRegistration::getStudentId, studentId)
+                .orderByDesc(TrainingRegistration::getCreateTime)
+                .last("LIMIT 1"));
+        return toPortalTrainingVO(plan, studentId, saved);
+    }
+
+    /**
+     * 把 TrainingPlan + 当前学生报名上下文拼装成 PortalTrainingVO。
+     * 报名记录可空（学生未报名时）；为空时 registered=false,registrationId/Status=null。
+     */
+    private PortalTrainingVO toPortalTrainingVO(TrainingPlan plan, Long studentId) {
+        TrainingRegistration reg = trainingRegistrationMapper.selectOne(new LambdaQueryWrapper<TrainingRegistration>()
+                .eq(TrainingRegistration::getPlanId, plan.getId())
+                .eq(TrainingRegistration::getStudentId, studentId)
+                .orderByDesc(TrainingRegistration::getCreateTime)
+                .last("LIMIT 1"));
+        return toPortalTrainingVO(plan, studentId, reg);
+    }
+
+    private PortalTrainingVO toPortalTrainingVO(TrainingPlan plan, Long studentId, TrainingRegistration reg) {
+        PortalTrainingVO vo = new PortalTrainingVO();
+        vo.setPlanId(plan.getId());
+        vo.setPlanTitle(plan.getPlanTitle());
+        vo.setProjectName(plan.getProjectName());
+        vo.setSemester(plan.getSemester());
+        vo.setClassName(plan.getClassName());
+        vo.setTeacherName(plan.getTeacherName());
+        vo.setLocation(plan.getLocation());
+        vo.setStartDate(plan.getStartDate());
+        vo.setEndDate(plan.getEndDate());
+        vo.setStatus(plan.getStatus());
+        vo.setCapacity(plan.getCapacity());
+        vo.setObjective(plan.getObjective());
+        vo.setContent(plan.getContent());
+        vo.setAssessment(plan.getAssessment());
+
+        // 已报名人数（含待审核/已通过/已驳回，不含已删除），用于前端余位展示
+        Long count = trainingRegistrationMapper.selectCount(new LambdaQueryWrapper<TrainingRegistration>()
+                .eq(TrainingRegistration::getPlanId, plan.getId())
+                .in(TrainingRegistration::getStatus, 0, 1, 2));
+        vo.setRegisteredCount(count == null ? 0 : count.intValue());
+
+        if (reg != null) {
+            vo.setRegistered(true);
+            vo.setRegistrationId(reg.getId());
+            vo.setRegistrationStatus(reg.getStatus());
+        } else {
+            vo.setRegistered(false);
+        }
+        return vo;
+    }
+
+    // ====================================================================
+    //  门户-实验（学生只读 —— 仅看到自己被分配的实验）
+    // ====================================================================
+
+    @Override
+    public IPage<PortalMyExperimentVO> myExperiments(Long studentId, long pageNum, long pageSize, String status, String keyword) {
+        requireStudent(studentId);
+
+        // 1) 查当前学生所有有效 assignment（status IN 1,3）
+        LambdaQueryWrapper<ExperimentAssignment> regWrap = new LambdaQueryWrapper<>();
+        regWrap.eq(ExperimentAssignment::getStudentId, studentId)
+                .in(ExperimentAssignment::getStatus, 1, 3)
+                .orderByDesc(ExperimentAssignment::getCreateTime);
+        List<ExperimentAssignment> regs = experimentAssignmentMapper.selectList(regWrap);
+        if (regs.isEmpty()) {
+            return new Page<>(pageNum, pageSize, 0);
+        }
+
+        // 2) 批量取 plan + items
+        Set<Long> planIds = regs.stream().map(ExperimentAssignment::getPlanId).collect(Collectors.toSet());
+        Map<Long, ExperimentPlan> planMap = experimentPlanMapper.selectBatchIds(planIds).stream()
+                .collect(Collectors.toMap(ExperimentPlan::getId, p -> p));
+
+        LambdaQueryWrapper<ExperimentPlanItem> itemWrap = new LambdaQueryWrapper<>();
+        itemWrap.in(ExperimentPlanItem::getPlanId, planIds)
+                .orderByAsc(ExperimentPlanItem::getPlanId, ExperimentPlanItem::getExpNo);
+        List<ExperimentPlanItem> items = experimentPlanItemMapper.selectList(itemWrap);
+        Map<Long, List<ExperimentPlanItem>> itemsByPlan = items.stream()
+                .collect(Collectors.groupingBy(ExperimentPlanItem::getPlanId));
+
+        // 3) 展开为 per-item VO，按 classDate 推算 status
+        LocalDate today = LocalDate.now();
+        List<PortalMyExperimentVO> all = new ArrayList<>();
+        for (ExperimentAssignment reg : regs) {
+            ExperimentPlan plan = planMap.get(reg.getPlanId());
+            List<ExperimentPlanItem> planItems = itemsByPlan.get(reg.getPlanId());
+            if (planItems == null) continue;
+            for (ExperimentPlanItem item : planItems) {
+                PortalMyExperimentVO vo = new PortalMyExperimentVO();
+                vo.setExperimentId(item.getId());
+                vo.setPlanId(reg.getPlanId());
+                vo.setExperimentName(item.getExpName());
+                if (plan != null) {
+                    vo.setCourseId(plan.getCourseId());
+                    vo.setCourseName(plan.getCourseName());
+                    vo.setSemester(plan.getSemester());
+                    vo.setClassName(plan.getClassName());
+                    vo.setTeacherName(plan.getTeacherName());
+                    vo.setLabRoom(plan.getLabRoom());
+                    vo.setStartDate(plan.getStartDate());
+                    vo.setEndDate(plan.getEndDate());
+                }
+                // 用 item.classDate 优先；plan 的 start/end 已冗余展示
+                vo.setStatus(computeItemStatus(item.getClassDate(), today));
+                all.add(vo);
+            }
+        }
+
+        // 4) 关键字 / 状态过滤
+        if (StringUtils.isNotBlank(keyword)) {
+            String kw = keyword.trim();
+            all = all.stream().filter(v ->
+                    (v.getExperimentName() != null && v.getExperimentName().contains(kw))
+                            || (v.getCourseName() != null && v.getCourseName().contains(kw))
+            ).collect(Collectors.toList());
+        }
+        if (StringUtils.isNotBlank(status) && !"all".equalsIgnoreCase(status)) {
+            all = all.stream().filter(v -> status.equalsIgnoreCase(v.getStatus())).collect(Collectors.toList());
+        }
+
+        // 5) 内存分页
+        long total = all.size();
+        long from = Math.max(0L, (pageNum - 1) * pageSize);
+        long to = Math.min(total, from + pageSize);
+        List<PortalMyExperimentVO> slice = from >= total ? Collections.emptyList()
+                : new ArrayList<>(all.subList((int) from, (int) to));
+        Page<PortalMyExperimentVO> result = new Page<>(pageNum, pageSize, total);
+        result.setRecords(slice);
+        return result;
+    }
+
+    @Override
+    public PortalExperimentDetailVO getExperimentDetail(Long studentId, Long itemId) {
+        requireStudent(studentId);
+        if (itemId == null) {
+            throw new BusinessException("实验明细ID不能为空");
+        }
+
+        // 1) 校验 item 存在
+        ExperimentPlanItem item = experimentPlanItemMapper.selectById(itemId);
+        if (item == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        }
+        ExperimentPlan plan = experimentPlanMapper.selectById(item.getPlanId());
+
+        // 2) 校验当前学生确实被分配过这个 plan（防止越权查看未分配的实验）
+        ExperimentAssignment reg = experimentAssignmentMapper.selectOne(new LambdaQueryWrapper<ExperimentAssignment>()
+                .eq(ExperimentAssignment::getStudentId, studentId)
+                .eq(ExperimentAssignment::getPlanId, item.getPlanId())
+                .in(ExperimentAssignment::getStatus, 1, 3)
+                .last("LIMIT 1"));
+        if (reg == null) {
+            throw new BusinessException("该实验未分配给你，无法查看详情");
+        }
+
+        // 3) 装配
+        PortalExperimentDetailVO vo = new PortalExperimentDetailVO();
+        vo.setItemId(item.getId());
+        vo.setPlanId(item.getPlanId());
+        vo.setExpNo(item.getExpNo());
+        vo.setExpName(item.getExpName());
+        vo.setExpType(item.getExpType());
+        vo.setPurpose(item.getPurpose());
+        vo.setContent(item.getContent());
+        vo.setRequirement(item.getRequirement());
+        vo.setResourceId(item.getResourceId());
+        vo.setClassDate(item.getClassDate());
+        vo.setClassPeriod(item.getClassPeriod());
+        vo.setHours(item.getHours());
+        vo.setTeacherName(item.getTeacherName());
+        vo.setRemark(item.getRemark());
+
+        if (plan != null) {
+            vo.setPlanTitle(plan.getPlanTitle());
+            vo.setCourseId(plan.getCourseId());
+            vo.setCourseName(plan.getCourseName());
+            vo.setSemester(plan.getSemester());
+            vo.setClassName(plan.getClassName());
+            vo.setLabRoom(plan.getLabRoom());
+            vo.setPlanStartDate(plan.getStartDate());
+            vo.setPlanEndDate(plan.getEndDate());
+        }
+
+        vo.setAssigned(true);
+        vo.setAssignmentStatus(reg.getStatus());
+        vo.setScore(reg.getScore());
+        vo.setComment(reg.getComment());
+        vo.setStatus(computeItemStatus(item.getClassDate(), LocalDate.now()));
+        return vo;
+    }
+
+    /**
+     * item 状态由 classDate 与 today 推算:
+     *   classDate > today → not_started
+     *   classDate == today → in_progress
+     *   classDate < today → done
+     */
+    private String computeItemStatus(LocalDate classDate, LocalDate today) {
+        if (classDate == null) return "not_started";
+        if (classDate.isAfter(today)) return "not_started";
+        if (classDate.isBefore(today)) return "done";
+        return "in_progress";
     }
 
     // ====================================================================
@@ -274,6 +565,19 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
             vo.setTeacherName(plan.getTeacherName());
             vo.setStartDate(plan.getStartDate());
             vo.setEndDate(plan.getEndDate());
+        }
+
+        // 待审核 (status=0):学生门户自报名后,管理员尚未审核 —— 优先级最高,先于按日期推算
+        if (r.getStatus() != null && r.getStatus() == 0) {
+            vo.setStatus("pending_review");
+            vo.setProgress(0);
+            return vo;
+        }
+        // 已驳回 (status=2):门户 SQL 已经过滤掉,这里做防御性映射
+        if (r.getStatus() != null && r.getStatus() == 2) {
+            vo.setStatus("rejected");
+            vo.setProgress(0);
+            return vo;
         }
 
         // 已完成 (status=3) -> done

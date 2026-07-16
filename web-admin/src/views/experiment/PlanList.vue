@@ -33,13 +33,14 @@
             <el-tag :type="statusType(row.status)">{{ statusLabel(row.status) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column label="操作" width="280" fixed="right">
           <template #default="{ row }">
             <el-button size="small" link @click="openForm(row)">编辑</el-button>
             <el-button size="small" link @click="showDetail(row)">详情</el-button>
             <el-button size="small" link v-if="row.status === 0" @click="submit(row)">提交</el-button>
             <el-button size="small" link v-if="row.status === 1" @click="approve(row)">通过</el-button>
             <el-button size="small" link type="danger" v-if="row.status === 1" @click="reject(row)">驳回</el-button>
+            <el-button size="small" link type="primary" v-if="row.status === 2 || row.status === 3" @click="revoke(row)">撤销审批</el-button>
             <el-button size="small" link type="danger" @click="remove(row)">删除</el-button>
           </template>
         </el-table-column>
@@ -92,14 +93,25 @@
         <el-form-item label="计划说明"><el-input v-model="form.description" type="textarea" :rows="2" /></el-form-item>
 
         <el-divider>实验明细</el-divider>
-        <el-button @click="addItem">新增实验</el-button>
-        <el-table :data="form.items || []" border style="margin-top: 8px">
+        <div class="items-header">
+          <el-button @click="addItem">新增实验</el-button>
+          <span class="items-error" v-if="itemsError">{{ itemsError }}</span>
+        </div>
+        <el-table :data="form.items || []" border style="margin-top: 8px" :row-class-name="itemRowClass">
           <el-table-column label="序号" width="80">
             <template #default="{ $index }"><el-input-number v-model="form.items[$index].expNo" :min="1" /></template>
           </el-table-column>
-          <el-table-column label="实验名称" width="180"><template #default="{ row }"><el-input v-model="row.expName" /></template></el-table-column>
-          <el-table-column label="上课日期" width="170">
-            <template #default="{ row }"><el-date-picker v-model="row.classDate" type="date" value-format="YYYY-MM-DD" style="width:100%" /></template>
+          <el-table-column width="180">
+            <template #header><span class="required-mark">*</span> 实验名称</template>
+            <template #default="{ row, $index }">
+              <el-input v-model="row.expName" placeholder="必填" :class="{ 'is-required-error': !row.expName?.trim() }" />
+            </template>
+          </el-table-column>
+          <el-table-column width="170">
+            <template #header><span class="required-mark">*</span> 上课日期</template>
+            <template #default="{ row }">
+              <el-date-picker v-model="row.classDate" type="date" value-format="YYYY-MM-DD" style="width:100%" :class="{ 'is-required-error': !row.classDate }" />
+            </template>
           </el-table-column>
           <el-table-column label="节次" width="100"><template #default="{ row }"><el-input v-model="row.classPeriod" /></template></el-table-column>
           <el-table-column label="学时" width="80"><template #default="{ row }"><el-input-number v-model="row.hours" :min="0" /></template></el-table-column>
@@ -157,6 +169,7 @@ const query = reactive({ pageNum: 1, pageSize: 10, planTitle: '', semester: '', 
 const dialogVisible = ref(false)
 const submitting = ref(false)
 const formRef = ref()
+const itemsError = ref('')
 const form = reactive({
   id: null, planTitle: '', courseId: null, courseName: '',
   semester: '', className: '', teacherId: null, teacherName: '', labRoom: '',
@@ -235,6 +248,7 @@ const reset = () => {
 
 const openForm = async (row) => {
   dialogVisible.value = true
+  itemsError.value = ''
   try {
     if (row) {
       const d = await expDetail(row.id)
@@ -271,6 +285,19 @@ const addItem = () => {
 
 const submitForm = async () => {
   await formRef.value.validate()
+  // 实验明细校验:至少 1 条;每条 expName 和 classDate 必填
+  if (!form.items || form.items.length === 0) {
+    itemsError.value = '实验明细不能为空,请至少添加 1 条实验'
+    ElMessage.error('请至少添加 1 条实验明细')
+    return
+  }
+  const badIdx = form.items.findIndex(it => !it?.expName?.trim() || !it?.classDate)
+  if (badIdx >= 0) {
+    itemsError.value = `第 ${badIdx + 1} 条实验的名称/上课日期不能为空`
+    ElMessage.error(itemsError.value)
+    return
+  }
+  itemsError.value = ''
   submitting.value = true
   try {
     if (form.id) await expEdit(form)
@@ -283,16 +310,46 @@ const submitForm = async () => {
   }
 }
 
+// 表格行 class:缺失必填字段的行高亮
+const itemRowClass = ({ row }) => {
+  if (!row?.expName?.trim() || !row?.classDate) return 'row-required-error'
+  return ''
+}
+
 const submit = async (row) => { await expSubmit(row.id); ElMessage.success('已提交'); load() }
+// 撤销审批：把已通过(2)/已驳回(3) 的实验计划回滚到已发布(1)
+// 后端 submit() 已放宽为接受 0/2/3 → 1,直接复用
+const revoke = async (row) => {
+  try {
+    await ElMessageBox.confirm(
+      `将实验计划「${row.planTitle}」从${row.status === 2 ? '已完成' : '已驳回'}撤销为「已发布」？撤销后可重新分配。`,
+      '撤销审批',
+      { type: 'warning' }
+    )
+    await expSubmit(row.id)
+    ElMessage.success('已撤销为「已发布」')
+    load()
+  } catch (e) {
+    // 用户点取消 —— 静默
+  }
+}
 const approve = async (row) => {
-  const { value } = await ElMessageBox.prompt('审核意见', '审核通过', { inputValue: '同意' })
-  await expApprove(row.id, value)
-  ElMessage.success('已通过'); load()
+  try {
+    const { value } = await ElMessageBox.prompt('审核意见', '审核通过', { inputValue: '同意' })
+    await expApprove(row.id, value)
+    ElMessage.success('已通过'); load()
+  } catch (e) {
+    // 用户点取消 / 接口报错 —— 静默，不弹 Uncaught (in promise) cancel
+  }
 }
 const reject = async (row) => {
-  const { value } = await ElMessageBox.prompt('驳回意见', '审核驳回', { inputValue: '请完善' })
-  await expReject(row.id, value)
-  ElMessage.success('已驳回'); load()
+  try {
+    const { value } = await ElMessageBox.prompt('驳回意见', '审核驳回', { inputValue: '请完善' })
+    await expReject(row.id, value)
+    ElMessage.success('已驳回'); load()
+  } catch (e) {
+    // 用户点取消 / 接口报错 —— 静默
+  }
 }
 const remove = async (row) => {
   await ElMessageBox.confirm(`确定删除"${row.planTitle}"？`, '提示', { type: 'warning' })
@@ -312,3 +369,31 @@ const showDetail = async (row) => {
 
 onMounted(load)
 </script>
+
+<style scoped>
+.required-mark {
+  color: #f56c6c;
+  margin-right: 2px;
+  font-weight: 600;
+}
+.items-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 4px;
+}
+.items-error {
+  color: #f56c6c;
+  font-size: 12px;
+  font-weight: 500;
+}
+/* 必填字段缺失时输入框红边 */
+:deep(.is-required-error .el-input__wrapper),
+:deep(.is-required-error .el-date-editor) {
+  box-shadow: 0 0 0 1px #f56c6c inset !important;
+}
+/* 必填行整体浅红底 */
+:deep(.row-required-error td) {
+  background-color: #fef0f0 !important;
+}
+</style>

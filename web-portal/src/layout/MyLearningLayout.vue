@@ -57,7 +57,7 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { Notebook, EditPen, Promotion, Files } from '@element-plus/icons-vue'
+import { Notebook, EditPen, Promotion, Files, DataAnalysis } from '@element-plus/icons-vue'
 import { useUserStore } from '@/store/user'
 import { myCourses, myAssignments, myTrainings } from '@/api/my'
 import { listPortalResources } from '@/api/resource'
@@ -70,6 +70,7 @@ const nav = computed(() => [
   { to: '/my/courses',     label: '我的课程', icon: Notebook },
   { to: '/my/assignments', label: '我的作业', icon: EditPen },
   { to: '/my/trainings',   label: '我的实训', icon: Promotion },
+  { to: '/my/experiments', label: '我的实验', icon: DataAnalysis },
   { to: '/my/resources',   label: '我的资源', icon: Files }
 ])
 
