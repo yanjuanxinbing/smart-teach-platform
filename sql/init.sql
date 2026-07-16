@@ -889,8 +889,9 @@ INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `com
 (915, 753, '查看实训',     3, NULL, NULL, NULL, 'training:my:query', 13, 1, 1),
 (916, 753, '报名',         3, NULL, NULL, NULL, 'training:my:add',   14, 1, 1),
 (917, 753, '取消报名',     3, NULL, NULL, NULL, 'training:my:remove',15, 1, 1),
--- 9. 班级管理（系统管理下的子菜单 507；按钮 540-544）
-(507, 500, '班级管理',  2, '/system/class', 'system/ClassList', 'User', 'class:list',          7, 1, 1),
+-- 9. 班级管理（**顶级菜单** 507；按钮 540-544 仍挂在它下面）
+--   parent_id 改为 0，使班级管理与课程/作业同层；URL 仍是 /system/class 不动
+(507, 0,   '班级管理',  2, '/system/class', 'system/ClassList', 'User', 'class:list',          7, 1, 1),
 (540, 507, '新增',      3, NULL, NULL, NULL, 'class:add',             1, 1, 1),
 (541, 507, '编辑',      3, NULL, NULL, NULL, 'class:edit',            2, 1, 1),
 (542, 507, '删除',      3, NULL, NULL, NULL, 'class:remove',          3, 1, 1),

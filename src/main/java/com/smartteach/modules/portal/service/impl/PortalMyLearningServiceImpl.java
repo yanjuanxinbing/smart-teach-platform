@@ -48,6 +48,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -406,7 +407,8 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
 
         LambdaQueryWrapper<ExperimentPlanItem> itemWrap = new LambdaQueryWrapper<>();
         itemWrap.in(ExperimentPlanItem::getPlanId, planIds)
-                .orderByAsc(ExperimentPlanItem::getPlanId, ExperimentPlanItem::getExpNo);
+                // 显式组装 List<SFunction>,避免 SFunction<T,?>... varargs 的"创建泛型数组"堆污染警告
+                .orderByAsc(Arrays.asList(ExperimentPlanItem::getPlanId, ExperimentPlanItem::getExpNo));
         List<ExperimentPlanItem> items = experimentPlanItemMapper.selectList(itemWrap);
         Map<Long, List<ExperimentPlanItem>> itemsByPlan = items.stream()
                 .collect(Collectors.groupingBy(ExperimentPlanItem::getPlanId));
