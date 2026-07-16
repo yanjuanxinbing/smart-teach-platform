@@ -24,7 +24,10 @@ const fallbackHandler = (req, res) => {
 const buildProxyOptions = () => ({
   target: 'http://localhost:8080',
   changeOrigin: true,
-  timeout: 5000,
+  // dev proxy timeout —— 上游 Spring Boot 慢请求 / AI 生成 (gemma3:1b 30~90s) 都不能被掐
+  // 5 秒太激进：MySQL 冷查询 + HikariCP + 几次大 LEFT JOIN 偶尔会超
+  // 改成 180 秒 = 3 分钟覆盖最坏情况；生产 nginx 走独立配置不受此限
+  timeout: 180000,
   // 自定义 agent：用 try-connect 思路；Vite 是基于 http-proxy 的 native 事件
   configure(proxy) {
     proxy.on('error', (err, _req, res) => {

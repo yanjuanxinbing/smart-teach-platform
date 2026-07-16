@@ -1063,10 +1063,10 @@ USE `smart_teach_platform`;
 -- 密码均为 123456 (对应的 BCrypt 哈希值如下)
 -- ---------------------------------------------------------------------
 INSERT INTO `sys_user`(`id`, `username`, `password`, `real_name`, `phone`, `email`, `gender`, `dept_id`, `status`, `remark`) VALUES 
-(1001, 'teacher1', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '张教授', '13800138001', 'zhang@smartteach.edu.cn', 1, 2, 1, '计算机科学系专业课教师'),
-(1002, 'teacher2', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '李副教授', '13800138002', 'li@smartteach.edu.cn', 2, 3, 1, '软件工程系骨干教师'),
-(2001, 'student1', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '王小明', '18611112222', 'wangxm@std.edu.cn', 1, 2, 1, '计科2201班学生'),
-(2002, 'student2', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '赵美美', '18611113333', 'zhaomm@std.edu.cn', 2, 3, 1, '软工2202班学生');
+(1001, '1', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '张教授', '13800138001', 'zhang@smartteach.edu.cn', 1, 2, 1, '计算机科学系专业课教师'),
+(1002, '2', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '李副教授', '13800138002', 'li@smartteach.edu.cn', 2, 3, 1, '软件工程系骨干教师'),
+(2001, '71', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '王小明', '18611112222', 'wangxm@std.edu.cn', 1, 2, 1, '计科2201班学生'),
+(2002, '72', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '赵美美', '18611113333', 'zhaomm@std.edu.cn', 2, 3, 1, '软工2202班学生');
 
 -- 分配角色
 INSERT INTO `sys_user_role`(`id`, `user_id`, `role_id`) VALUES
@@ -1316,6 +1316,97 @@ SET @stmt := IF(
     'ALTER TABLE `sys_user` ADD UNIQUE KEY `uk_username_active` ((CASE WHEN deleted = 0 THEN username END))',
     'SELECT 1');
 PREPARE s FROM @stmt; EXECUTE s; DEALLOCATE PREPARE s;
+
+-- =====================================================================
+-- 作业 AI 智能分析（aiassignment 模块）—— 教师班级分析 + 学生个人反思
+-- =====================================================================
+
+-- 菜单 + 按钮（菜单挂在 750 作业管理 下）
+INSERT INTO `sys_menu`(`id`, `parent_id`, `menu_name`, `menu_type`, `path`, `component`, `icon`, `permission`, `sort`, `visible`, `status`) VALUES
+(754, 750, '班级作业分析',   2, '/assignment/analytics/class',     'course/AssignmentAnalyticsClass',     'DataAnalysis', 'assignment:analytics:class',  3, 1, 1),
+(785, 754, '查看分析',       3, NULL, NULL, NULL,                                                       'assignment:analytics:class',  1, 1, 1),
+(784, 750, '我的成绩分析',   2, '/student/assignment/analytics',  'student/AssignmentAnalyticsStudent',  'TrendCharts',  'assignment:analytics:student',4, 1, 1),
+(786, 784, '查看分析',       3, NULL, NULL, NULL,                                                       'assignment:analytics:student', 1, 1, 1);
+
+-- 教师(role=3) 拿到 754 + 785
+INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
+SELECT ROW_NUMBER() OVER (ORDER BY id) + 10100, 3, id FROM sys_menu
+WHERE id IN (754, 785)
+  AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 3);
+
+-- 学生(role=4) 拿到 784 + 786
+INSERT INTO `sys_role_menu`(`id`, `role_id`, `menu_id`)
+SELECT ROW_NUMBER() OVER (ORDER BY id) + 10200, 4, id FROM sys_menu
+WHERE id IN (784, 786)
+  AND id NOT IN (SELECT menu_id FROM sys_role_menu WHERE role_id = 4);
+
+-- 班级扩 1 条（合计 1 班 / 2 班 / 3 班），用于"3 班也可分析"
+INSERT INTO `sys_class`(`id`, `class_name`, `grade`, `dept_id`, `sort`, `status`) VALUES
+(3, '计科2202班', '2022', 2, 3, 1);
+
+-- 学生扩 5 条（2003~2007），密码统一为 BCrypt("123456")
+INSERT INTO `sys_user`(`id`, `username`, `password`, `real_name`, `phone`, `email`, `gender`, `dept_id`, `status`, `remark`) VALUES
+(2003, 'student3', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '李雷',   '18611114444', 'lilei@std.edu.cn',   1, 2, 1, '计科2201班学生'),
+(2004, 'student4', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '韩梅梅', '18611115555', 'hanmm@std.edu.cn',   2, 2, 1, '计科2201班学生'),
+(2005, 'student5', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '林涛',   '18611116666', 'lintao@std.edu.cn',  1, 3, 1, '软工2202班学生'),
+(2006, 'student6', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '陈雪',   '18611117777', 'chenx@std.edu.cn',   2, 3, 1, '软工2202班学生'),
+(2007, 'student7', '$2a$10$GA1/Xml8Iryf5TphFd0la.DU.1xLSjBMyReH31Z.qmTPVL84GC/h2', '周强',   '18611118888', 'zhouq@std.edu.cn',   1, 2, 1, '计科2202班学生');
+
+INSERT INTO `sys_user_role`(`id`, `user_id`, `role_id`) VALUES
+(203, 2003, 4), (204, 2004, 4), (205, 2005, 4), (206, 2006, 4), (207, 2007, 4);
+
+INSERT INTO `sys_user_class`(`id`, `user_id`, `class_id`) VALUES
+(5, 2003, 1), (6, 2004, 1),
+(7, 2005, 2), (8, 2006, 2),
+(9, 2007, 3);
+
+-- 作业 6 条（id 10101~10106，避开原有 10001/10002 与教学计划 10001）
+INSERT INTO `assignment`(`id`, `course_id`, `chapter_id`, `title`, `description`, `deadline`, `total_score`, `allow_late`, `status`, `create_by`) VALUES
+(10101, 2, 1101, '绪论核心概念作业', '提交数据结构抽象类型实例',           DATE_SUB(NOW(), INTERVAL 60 DAY), 100, 1, 2, 1001),
+(10102, 2, 1102, '复杂度分析练习',    '对 5 段代码分别推导大O',              DATE_SUB(NOW(), INTERVAL 45 DAY), 100, 1, 2, 1001),
+(10103, 2, 1201, '顺序表上机题',      '完成动态数组扩容实现',                 DATE_SUB(NOW(), INTERVAL 30 DAY), 100, 1, 2, 1001),
+(10104, 2, 1202, '双向链表实现',      '完成双向链表增删改查',                 DATE_SUB(NOW(), INTERVAL 14 DAY), 100, 1, 1, 1001),
+(10105, 6, 1300, 'Vue 综合作业',      '做一个 todo list SPA',                DATE_SUB(NOW(), INTERVAL  7 DAY), 100, 1, 1, 1002),
+(10106, 2, 1201, '链表反转作业',      '力扣 206 题 3 种解法',                 DATE_ADD(NOW(), INTERVAL  7 DAY), 100, 1, 1, 1001);
+
+INSERT INTO `assignment_target_class`(`id`, `assignment_id`, `class_id`) VALUES
+(101, 10101, 1), (102, 10102, 1), (103, 10103, 1), (104, 10104, 1), (105, 10104, 2),
+(106, 10105, 2), (107, 10106, 1), (108, 10106, 3);
+
+-- 作业提交（覆盖各状态 + 各分数段）
+-- 2001 王小明：高分稳定（含 1 条草稿）
+INSERT INTO `assignment_submission`(`id`, `assignment_id`, `student_id`, `student_name`, `class_name`, `submit_text`, `submit_time`, `score`, `comment`, `grader_id`, `grader_name`, `grade_time`, `is_late`, `status`) VALUES
+(20101, 10101, 2001, '王小明', '计科2201班学生', '抽象数据类型定义', DATE_SUB(NOW(), INTERVAL 58 DAY), 95, '优秀',    1001, '张教授',   DATE_SUB(NOW(), INTERVAL 56 DAY), 0, 2),
+(20102, 10102, 2001, '王小明', '计科2201班学生', 'O(n), O(nlogn), O(1)...', DATE_SUB(NOW(), INTERVAL 43 DAY), 70, '基础可', 1001, '张教授', DATE_SUB(NOW(), INTERVAL 41 DAY), 0, 2),
+(20103, 10103, 2001, '王小明', '计科2201班学生', '动态扩容实现',                DATE_SUB(NOW(), INTERVAL 28 DAY), NULL, NULL, NULL, NULL, NULL, 0, 1),
+(20104, 10104, 2001, '王小明', '计科2201班学生', '',                              NULL, NULL, NULL, NULL, NULL, NULL, 0, 0);
+
+-- 2002 赵美美：分数波动含迟交
+INSERT INTO `assignment_submission`(`id`, `assignment_id`, `student_id`, `student_name`, `class_name`, `submit_text`, `submit_time`, `score`, `comment`, `grader_id`, `grader_name`, `grade_time`, `is_late`, `status`) VALUES
+(20201, 10101, 2002, '赵美美', '软工2202班学生', 'ADT 实例',                  DATE_SUB(NOW(), INTERVAL 56 DAY), 55, '欠基础', 1001, '张教授',   DATE_SUB(NOW(), INTERVAL 54 DAY), 0, 2),
+(20202, 10102, 2002, '赵美美', '软工2202班学生', 'O-notation',                DATE_SUB(NOW(), INTERVAL 41 DAY), 82, 'OK',    1001, '张教授',   DATE_SUB(NOW(), INTERVAL 39 DAY), 0, 2),
+(20203, 10103, 2002, '赵美美', '软工2202班学生', '迟交的实现',                DATE_ADD(NOW(), INTERVAL  3 DAY), 60, '迟交',   1001, '张教授', DATE_ADD(NOW(), INTERVAL  4 DAY), 1, 2);
+
+-- 2003 李雷：稳定高分
+INSERT INTO `assignment_submission`(`id`, `assignment_id`, `student_id`, `student_name`, `class_name`, `submit_text`, `submit_time`, `score`, `comment`, `grader_id`, `grader_name`, `grade_time`, `is_late`, `status`) VALUES
+(20301, 10101, 2003, '李雷',  '计科2201班学生', 'ADT',                       DATE_SUB(NOW(), INTERVAL 57 DAY), 92, '好',    1001, '张教授',   DATE_SUB(NOW(), INTERVAL 55 DAY), 0, 2),
+(20302, 10102, 2003, '李雷',  '计科2201班学生', '复杂度推导',                DATE_SUB(NOW(), INTERVAL 42 DAY), 96, '很好',  1001, '张教授',   DATE_SUB(NOW(), INTERVAL 40 DAY), 0, 2),
+(20303, 10103, 2003, '李雷',  '计科2201班学生', '顺序表代码',                DATE_SUB(NOW(), INTERVAL 27 DAY), 94, '完整',  1001, '张教授',   DATE_SUB(NOW(), INTERVAL 25 DAY), 0, 2);
+
+-- 2004 韩梅梅：低分稳定
+INSERT INTO `assignment_submission`(`id`, `assignment_id`, `student_id`, `student_name`, `class_name`, `submit_text`, `submit_time`, `score`, `comment`, `grader_id`, `grader_name`, `grade_time`, `is_late`, `status`) VALUES
+(20401, 10101, 2004, '韩梅梅','计科2201班学生', 'ADT',                       DATE_SUB(NOW(), INTERVAL 57 DAY), 65, '一般',  1001, '张教授',   DATE_SUB(NOW(), INTERVAL 55 DAY), 0, 2),
+(20402, 10102, 2004, '韩梅梅','计科2201班学生', '复杂度',                    DATE_SUB(NOW(), INTERVAL 42 DAY), 70, 'OK',   1001, '张教授',   DATE_SUB(NOW(), INTERVAL 40 DAY), 0, 2),
+(20403, 10103, 2004, '韩梅梅','计科2201班学生', '顺序表',                    DATE_SUB(NOW(), INTERVAL 27 DAY), 68, '勉强', 1001, '张教授',   DATE_SUB(NOW(), INTERVAL 25 DAY), 0, 2);
+
+-- 2005 林涛 / 2006 陈雪（2 班 Vue 作业）
+INSERT INTO `assignment_submission`(`id`, `assignment_id`, `student_id`, `student_name`, `class_name`, `submit_text`, `submit_time`, `score`, `comment`, `grader_id`, `grader_name`, `grade_time`, `is_late`, `status`) VALUES
+(20501, 10105, 2005, '林涛',  '软工2202班学生', 'Vue TodoList',              DATE_SUB(NOW(), INTERVAL  5 DAY), 92, '扎实',   1002, '李副教授', DATE_SUB(NOW(), INTERVAL  4 DAY), 0, 2),
+(20601, 10105, 2006, '陈雪',  '软工2202班学生', 'TodoList 部分',            DATE_ADD(NOW(), INTERVAL  1 DAY), NULL, NULL, NULL, NULL, NULL, 1, 1);
+
+-- 2007 周强（3 班，仅 10106）
+INSERT INTO `assignment_submission`(`id`, `assignment_id`, `student_id`, `student_name`, `class_name`, `submit_text`, `submit_time`, `score`, `comment`, `grader_id`, `grader_name`, `grade_time`, `is_late`, `status`) VALUES
+(20701, 10106, 2007, '周强',  '计科2202班学生', '',                          NULL, NULL, NULL, NULL, NULL, NULL, 0, 0);
 
 -- =====================================================================
 -- 结束

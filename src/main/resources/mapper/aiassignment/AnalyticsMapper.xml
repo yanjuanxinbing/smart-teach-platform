@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.smartteach.modules.aiassignment.mapper.AnalyticsMapper">
+
+    <!--
+        公共约定：
+          - assignment / assignment_target_class / assignment_submission 走 deleted=0
+          - sys_user_class 也走 deleted=0
+          - 时间窗由 #{startDate} / #{endDate} 传入（service 解析 semester 后算出）
+    -->
+
+    <!-- ============ 班级维度 ============ -->
+
+    <select id="classOverview" resultType="java.util.Map">
+        SELECT
+          COUNT(DISTINCT a.id)                                              AS assignment_count,
+          COUNT(DISTINCT a.id) * COUNT(DISTINCT su.id)                      AS expected_submissions,
+          SUM(CASE WHEN s.id IS NOT NULL AND s.status IN (1,2) THEN 1 ELSE 0 END) AS submitted_count,
+          SUM(CASE WHEN s.is_late = 1 THEN 1 ELSE 0 END)                    AS late_count
+        FROM assignment a
+        INNER JOIN assignment_target_class atc
+            ON atc.assignment_id = a.id AND atc.class_id = #{classId} AND atc.deleted = 0
+        INNER JOIN sys_user_class suc
+            ON suc.class_id = atc.class_id AND suc.deleted = 0
+        INNER JOIN sys_user su
+            ON su.id = suc.user_id
+            AND su.deleted = 0
+            AND su.id IN (SELECT user_id FROM sys_user_role WHERE role_id = 4)
+        LEFT JOIN assignment_submission s
+            ON s.assignment_id = a.id
+           AND s.student_id = su.id
+           AND s.deleted = 0
+           AND s.status IN (1,2)
+        WHERE a.deleted = 0
+          AND a.deadline BETWEEN #{startDate} AND #{endDate}
+    </select>
+
+    <select id="classAvgScore" resultType="java.lang.Double">
+        SELECT AVG(s.score)
+        FROM assignment_submission s
+        INNER JOIN assignment a ON a.id = s.assignment_id
+        INNER JOIN assignment_target_class atc ON atc.assignment_id = a.id
+        WHERE atc.class_id = #{classId}
+          AND a.deadline BETWEEN #{startDate} AND #{endDate}
+          AND s.status = 2
+          AND s.deleted = 0
+    </select>
+
+    <select id="classScoreBuckets" resultType="java.util.Map">
+        SELECT
+          SUM(CASE WHEN s.status = 2 AND s.score >= 90 THEN 1 ELSE 0 END) AS b90,
+          SUM(CASE WHEN s.status = 2 AND s.score >= 80 AND s.score &lt; 90 THEN 1 ELSE 0 END) AS b80,
+          SUM(CASE WHEN s.status = 2 AND s.score >= 70 AND s.score &lt; 80 THEN 1 ELSE 0 END) AS b70,
+          SUM(CASE WHEN s.status = 2 AND s.score >= 60 AND s.score &lt; 70 THEN 1 ELSE 0 END) AS b60,
+          SUM(CASE WHEN s.status = 2 AND s.score &lt;  60 THEN 1 ELSE 0 END) AS bFail
+        FROM assignment_submission s
+        INNER JOIN assignment a ON a.id = s.assignment_id
+        INNER JOIN assignment_target_class atc ON atc.assignment_id = a.id
+        WHERE atc.class_id = #{classId}
+          AND a.deadline BETWEEN #{startDate} AND #{endDate}
+          AND s.deleted = 0
+    </select>
+
+    <select id="classExpectedSubmissions" resultType="java.lang.Long">
+        SELECT COUNT(DISTINCT a.id) * COALESCE(stu.cnt, 0) AS expected
+        FROM assignment a
+        INNER JOIN assignment_target_class atc
+            ON atc.assignment_id = a.id AND atc.class_id = #{classId} AND atc.deleted = 0
+        CROSS JOIN (
+            SELECT COUNT(DISTINCT suc.user_id) AS cnt
+            FROM sys_user_class suc
+            INNER JOIN sys_user su ON su.id = suc.user_id AND su.deleted = 0
+            WHERE suc.class_id = #{classId}
+              AND suc.deleted = 0
+              AND su.id IN (SELECT user_id FROM sys_user_role WHERE role_id = 4)
+        ) stu
+        WHERE a.deleted = 0
+          AND a.deadline BETWEEN #{startDate} AND #{endDate}
+    </select>
+
+    <select id="classSubmittedCount" resultType="java.lang.Long">
+        SELECT COUNT(*) AS cnt
+        FROM assignment_submission s
+        INNER JOIN assignment a ON a.id = s.assignment_id
+        INNER JOIN assignment_target_class atc ON atc.assignment_id = a.id
+        WHERE atc.class_id = #{classId}
+          AND a.deadline BETWEEN #{startDate} AND #{endDate}
+          AND s.status IN (1,2)
+          AND s.deleted = 0
+    </select>
+
+    <select id="classAssignmentAvgScores" resultType="com.smartteach.modules.aiassignment.vo.AssignmentAvgScoreVO">
+        SELECT a.id          AS assignmentId,
+               a.title       AS title,
+               a.deadline    AS deadline,
+               AVG(s.score)  AS avgScore,
+               COUNT(s.id)   AS submittedCount
+        FROM assignment a
+        INNER JOIN assignment_target_class atc
+            ON atc.assignment_id = a.id AND atc.class_id = #{classId} AND atc.deleted = 0
+        LEFT JOIN assignment_submission s
+            ON s.assignment_id = a.id
+           AND s.status = 2
+           AND s.deleted = 0
+        WHERE a.deleted = 0
+          AND a.deadline BETWEEN #{startDate} AND #{endDate}
+        GROUP BY a.id, a.title, a.deadline
+        ORDER BY a.deadline
+    </select>
+
+    <select id="classMonthlyTrend" resultType="com.smartteach.modules.aiassignment.vo.MonthlyPointVO">
+        SELECT DATE_FORMAT(a.deadline, '%Y-%m') AS month,
+               COUNT(s.id)                     AS gradedCount,
+               AVG(s.score)                    AS avgScore
+        FROM assignment a
+        INNER JOIN assignment_target_class atc
+            ON atc.assignment_id = a.id AND atc.class_id = #{classId} AND atc.deleted = 0
+        LEFT JOIN assignment_submission s
+            ON s.assignment_id = a.id
+           AND s.status = 2
+           AND s.deleted = 0
+        WHERE a.deleted = 0
+          AND a.deadline BETWEEN #{startDate} AND #{endDate}
+        GROUP BY DATE_FORMAT(a.deadline, '%Y-%m')
+        ORDER BY month
+    </select>
+
+    <!-- ============ 学生维度 ============ -->
+
+    <select id="studentOverview" resultType="java.util.Map">
+        SELECT
+          COUNT(DISTINCT a.id)                                          AS assignment_count,
+          SUM(CASE WHEN s.status IN (1,2) THEN 1 ELSE 0 END)            AS submitted_count,
+          SUM(CASE WHEN s.status = 2 THEN 1 ELSE 0 END)                 AS graded_count,
+          AVG(CASE WHEN s.status = 2 THEN s.score END)                  AS avg_score,
+          MAX(CASE WHEN s.status = 2 THEN s.score END)                  AS max_score,
+          MIN(CASE WHEN s.status = 2 THEN s.score END)                  AS min_score,
+          STDDEV(CASE WHEN s.status = 2 THEN s.score END)               AS std_score,
+          SUM(CASE WHEN s.is_late = 1 THEN 1 ELSE 0 END)                AS late_count
+        FROM assignment a
+        INNER JOIN assignment_target_class atc
+            ON atc.assignment_id = a.id AND atc.deleted = 0
+            AND atc.class_id IN (
+                SELECT class_id FROM sys_user_class
+                 WHERE user_id = #{studentId} AND deleted = 0
+            )
+        LEFT JOIN assignment_submission s
+            ON s.assignment_id = a.id
+           AND s.student_id = #{studentId}
+           AND (s.deleted = 0 OR s.id IS NULL)
+        WHERE a.deleted = 0
+          AND a.deadline BETWEEN #{startDate} AND #{endDate}
+    </select>
+
+    <select id="studentScoreTrend" resultType="com.smartteach.modules.aiassignment.vo.StudentScorePointVO">
+        SELECT a.id          AS assignmentId,
+               a.title       AS title,
+               a.deadline    AS deadline,
+               s.score       AS score
+        FROM assignment a
+        INNER JOIN assignment_target_class atc
+            ON atc.assignment_id = a.id AND atc.deleted = 0
+            AND atc.class_id IN (
+                SELECT class_id FROM sys_user_class
+                 WHERE user_id = #{studentId} AND deleted = 0
+            )
+        LEFT JOIN assignment_submission s
+            ON s.assignment_id = a.id
+           AND s.student_id = #{studentId}
+           AND s.status = 2
+           AND s.deleted = 0
+        WHERE a.deleted = 0
+          AND a.deadline BETWEEN #{startDate} AND #{endDate}
+        ORDER BY a.deadline
+    </select>
+
+    <select id="studentUnsubmitted" resultType="com.smartteach.modules.aiassignment.vo.UnsubmittedAssignmentVO">
+        SELECT a.id          AS assignmentId,
+               a.title       AS title,
+               a.deadline    AS deadline,
+               COALESCE(s.status, 0) AS status
+        FROM assignment a
+        INNER JOIN assignment_target_class atc
+            ON atc.assignment_id = a.id AND atc.deleted = 0
+            AND atc.class_id IN (
+                SELECT class_id FROM sys_user_class
+                 WHERE user_id = #{studentId} AND deleted = 0
+            )
+        LEFT JOIN assignment_submission s
+            ON s.assignment_id = a.id
+           AND s.student_id = #{studentId}
+           AND s.deleted = 0
+        WHERE a.deleted = 0
+          AND a.deadline BETWEEN #{startDate} AND #{endDate}
+          AND (s.id IS NULL OR s.status = 0)
+        ORDER BY a.deadline
+    </select>
+
+</mapper>

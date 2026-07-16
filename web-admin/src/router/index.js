@@ -39,7 +39,9 @@ const routes = [
       // 作业管理（顶级菜单由后端 my-menu 控制；此处按角色筛路由即可）
       { path: 'assignment/list', name: 'AssignmentList', component: () => import('@/views/course/AssignmentList.vue'), meta: { title: '作业列表', icon: 'Notebook' } },
       { path: 'assignment/submission-list', name: 'SubmissionList', component: () => import('@/views/course/SubmissionList.vue'), meta: { title: '提交批改', icon: 'EditPen' } },
+      { path: 'assignment/analytics/class', name: 'AssignmentAnalyticsClass', component: () => import('@/views/course/AssignmentAnalyticsClass.vue'), meta: { title: '班级作业分析', icon: 'DataAnalysis' } },
       { path: 'student/assignment/list', name: 'StudentAssignmentList', component: () => import('@/views/student/MyAssignmentList.vue'), meta: { title: '我的作业', icon: 'Reading' } },
+      { path: 'student/assignment/analytics', name: 'StudentAssignmentAnalytics', component: () => import('@/views/student/AssignmentAnalyticsStudent.vue'), meta: { title: '我的成绩分析', icon: 'TrendCharts' } },
       // 资源管理
       { path: 'resource/category', name: 'ResourceCategory', component: () => import('@/views/resource/CategoryList.vue'), meta: { title: '资源分类', icon: 'FolderOpened' } },
       { path: 'resource/list', name: 'ResourceList', component: () => import('@/views/resource/ResourceList.vue'), meta: { title: '资源列表', icon: 'Files' } },
