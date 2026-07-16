@@ -110,7 +110,7 @@
           <el-table-column width="170">
             <template #header><span class="required-mark">*</span> 上课日期</template>
             <template #default="{ row }">
-              <el-date-picker v-model="row.classDate" type="date" value-format="YYYY-MM-DD" style="width:100%" :class="{ 'is-required-error': !row.classDate }" />
+              <el-date-picker v-model="row.classDate" type="date" value-format="YYYY-MM-DD" style="width:100%" :disabled-date="disabledItemDate" :class="{ 'is-required-error': !row.classDate }" />
             </template>
           </el-table-column>
           <el-table-column label="节次" width="100"><template #default="{ row }"><el-input v-model="row.classPeriod" /></template></el-table-column>
@@ -210,6 +210,13 @@ const fillCurrentTeacher = () => {
 const disabledEndDate = (time) => {
   if (!form.startDate) return false
   return time.getTime() <= new Date(form.startDate).getTime()
+}
+
+// 实验明细的上课日期必须落在计划的开始日期与结束日期之间
+const disabledItemDate = (time) => {
+  if (form.startDate && time.getTime() < new Date(form.startDate).getTime()) return true
+  if (form.endDate && time.getTime() > new Date(form.endDate).getTime()) return true
+  return false
 }
 
 // 开始日期变化时重新校验结束日期，避免选了晚于结束日期的开始日期后看不到错误提示
