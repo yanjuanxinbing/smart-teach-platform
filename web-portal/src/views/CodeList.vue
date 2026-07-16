@@ -32,9 +32,20 @@
               <em>{{ countByLang[l.value] || 0 }}</em>
             </button>
           </div>
-          <el-input v-model="filters.q" placeholder="按标题、标签、作者搜索" clearable class="search">
-            <template #prefix><el-icon><Search /></el-icon></template>
-          </el-input>
+          <div class="toolbar__right">
+            <el-button
+              v-if="isTeacher"
+              type="primary"
+              :icon="Star"
+              class="pick-btn"
+              @click="goPickNotes"
+            >
+              评选优秀笔记
+            </el-button>
+            <el-input v-model="filters.q" placeholder="按标题、标签、作者搜索" clearable class="search">
+              <template #prefix><el-icon><Search /></el-icon></template>
+            </el-input>
+          </div>
         </header>
 
         <div v-if="loading" class="loading-tip">笔记加载中…</div>
@@ -86,10 +97,13 @@
 <script setup>
 import { ref, computed, reactive, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
-import { Search, DocumentCopy, View } from '@element-plus/icons-vue'
+import { Search, DocumentCopy, View, Star } from '@element-plus/icons-vue'
 import { listCode } from '@/api/codex'
+import { useUserStore } from '@/store/user'
 
 const router = useRouter()
+const userStore = useUserStore()
+const isTeacher = computed(() => userStore.roleCode === 'TEACHER')
 const loading = ref(true)
 const list = ref([])
 const total = ref(0)
@@ -117,6 +131,7 @@ const countByLang = computed(() => {
 
 const setLang = (v) => { filters.lang = v; page.current = 1; fetch() }
 const goDetail = (c) => router.push(`/codex/${c.id}`)
+const goPickNotes = () => router.push('/codex/student-notes')
 
 const fetch = async () => {
   loading.value = true
@@ -159,6 +174,9 @@ onMounted(fetch)
 .lang--active em { color: var(--accent); }
 .search { width: 260px; }
 .search :deep(.el-input__wrapper) { border-radius: 0; }
+
+.toolbar__right { display: inline-flex; align-items: center; gap: var(--s-4); flex-wrap: wrap; }
+.pick-btn :deep(.el-button) { border-radius: 0; font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.1em; }
 
 .loading-tip { color: var(--mute); font-size: 13px; letter-spacing: 0.06em; text-align: center; padding: 64px 0; }
 .empty { padding: 88px 0; text-align: center; color: var(--mute); display: flex; flex-direction: column; align-items: center; gap: 14px; }
