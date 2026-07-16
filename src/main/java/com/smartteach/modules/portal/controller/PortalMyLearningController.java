@@ -6,6 +6,11 @@ import com.smartteach.common.exception.BusinessException;
 import com.smartteach.common.result.Result;
 import com.smartteach.common.result.ResultCode;
 import com.smartteach.common.utils.UserContext;
+import com.smartteach.modules.course.assignment.dto.AssignmentSubmissionSaveDTO;
+import com.smartteach.modules.course.assignment.entity.Assignment;
+import com.smartteach.modules.course.assignment.entity.AssignmentSubmission;
+import com.smartteach.modules.course.assignment.service.AssignmentService;
+import com.smartteach.modules.course.assignment.service.AssignmentSubmissionService;
 import com.smartteach.modules.portal.service.PortalMyLearningService;
 import com.smartteach.modules.portal.vo.PortalExperimentDetailVO;
 import com.smartteach.modules.portal.vo.PortalMyAssignmentVO;
@@ -39,6 +44,8 @@ import javax.validation.constraints.NotNull;
 public class PortalMyLearningController {
 
     private final PortalMyLearningService myLearningService;
+    private final AssignmentService assignmentService;
+    private final AssignmentSubmissionService assignmentSubmissionService;
 
     @ApiOperation("我的课程（已选课程分页）")
     @GetMapping("/courses")
@@ -107,6 +114,76 @@ public class PortalMyLearningController {
     public Result<PortalExperimentDetailVO> experimentDetail(@PathVariable("id") Long id) {
         Long studentId = requireStudent();
         return Result.success(myLearningService.getExperimentDetail(studentId, id));
+    }
+
+    // === 作业 详情/草稿/提交/批改（任务2 学生门户作业后端）===
+
+    @ApiOperation("作业详情（学生视角：含 description/totalScore/status 等）")
+    @GetMapping("/assignments/{id}")
+    @PreAuthorize("hasAuthority('assignment:my:query')")
+    public Result<Assignment> myAssignmentDetail(@PathVariable("id") Long id) {
+        Long studentId = requireStudent();
+        Assignment a = assignmentService.detail(id);
+        if (a == null) {
+            throw new BusinessException(ResultCode.DATA_NOT_EXIST);
+        }
+        myLearningService.assertAssignmentVisibleToStudent(id, studentId);
+        return Result.success(a);
+    }
+
+    @ApiOperation("我对该作业的最近一次提交（含草稿/已提交/已批改）")
+    @GetMapping("/assignments/{id}/submission")
+    @PreAuthorize("hasAuthority('assignment:my:query')")
+    public Result<AssignmentSubmission> latestSubmission(@PathVariable("id") Long id) {
+        Long studentId = requireStudent();
+        myLearningService.assertAssignmentVisibleToStudent(id, studentId);
+        AssignmentSubmission sub = assignmentSubmissionService.latest(id, studentId);
+        return Result.success(sub);
+    }
+
+    @ApiOperation("我对该作业的批改结果（仅返回 status=2 已批改的）")
+    @GetMapping("/assignments/{id}/grade")
+    @PreAuthorize("hasAuthority('assignment:my:query')")
+    public Result<AssignmentSubmission> myGrade(@PathVariable("id") Long id) {
+        Long studentId = requireStudent();
+        myLearningService.assertAssignmentVisibleToStudent(id, studentId);
+        AssignmentSubmission sub = assignmentSubmissionService.latest(id, studentId);
+        if (sub == null || sub.getStatus() == null || sub.getStatus() != 2) {
+            // 尚未批改：返回 null，UI 自行展示"尚未批改"
+            return Result.success(null);
+        }
+        return Result.success(sub);
+    }
+
+    @ApiOperation("保存草稿（status=0；同作业同学生仅保留一条草稿）")
+    @PostMapping("/assignments/{id}/draft")
+    @PreAuthorize("hasAuthority('assignment:save')")
+    public Result<Long> saveDraft(@PathVariable("id") Long id,
+                                  @RequestBody AssignmentSubmissionSaveDTO body) {
+        Long studentId = requireStudent();
+        myLearningService.assertAssignmentVisibleToStudent(id, studentId);
+        // 强制以路径 id 为准，避免前端传错
+        if (body == null) {
+            throw new BusinessException("请求体不能为空");
+        }
+        body.setAssignmentId(id);
+        Long submissionId = assignmentSubmissionService.saveDraft(body);
+        return Result.success(submissionId);
+    }
+
+    @ApiOperation("正式提交（status 0→1）")
+    @PostMapping("/assignments/{id}/submit")
+    @PreAuthorize("hasAuthority('assignment:submit')")
+    public Result<Void> submitAssignment(@PathVariable("id") Long id,
+                                         @RequestBody AssignmentSubmissionSaveDTO body) {
+        Long studentId = requireStudent();
+        myLearningService.assertAssignmentVisibleToStudent(id, studentId);
+        if (body == null) {
+            throw new BusinessException("请求体不能为空");
+        }
+        body.setAssignmentId(id);
+        assignmentSubmissionService.submit(body);
+        return Result.success();
     }
 
     // --- 工具 ---

@@ -39,4 +39,12 @@ public class PortalMyAssignmentVO {
     private BigDecimal score;
     private LocalDateTime submittedAt;
     private LocalDateTime gradedAt;
+
+    // === 新增(任务2 学生门户作业后端) ===
+    /** 作业描述(富文本/纯文本) */
+    private String description;
+    /** 总分(默认 100) */
+    private BigDecimal totalScore;
+    /** 作业本身状态:open (status=1 已发布) | closed (status=2 已截止) */
+    private String assignmentStatus;
 }

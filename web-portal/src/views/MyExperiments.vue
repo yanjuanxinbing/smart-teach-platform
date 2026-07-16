@@ -41,7 +41,22 @@
         @keyup.enter="goDetail(e)"
       >
         <header class="exp__head">
-          <el-tag :type="statusType(e.status)" effect="dark" size="small">{{ statusLabel(e.status) }}</el-tag>
+          <div class="exp__tags">
+            <!-- 教师已批改完成:额外一个"已完成"标签,与按日期推算的 status 共存 -->
+            <el-tag
+              v-if="e.assignmentStatus === '3'"
+              type="primary"
+              effect="plain"
+              size="small"
+            >已完成</el-tag>
+            <!-- 已批改完成时隐藏按日期推算的 status 标签,避免"已结束"与"已完成"混淆 -->
+            <el-tag
+              v-else
+              :type="statusType(e.status)"
+              effect="dark"
+              size="small"
+            >{{ statusLabel(e.status) }}</el-tag>
+          </div>
           <span class="exp__no">实验 #{{ e.experimentId || e.id }}</span>
         </header>
         <h3 class="exp__title">{{ e.experimentName || e.title || '未命名实验' }}</h3>
@@ -84,19 +99,26 @@ import { myExperiments } from '@/api/experiment'
 
 const router = useRouter()
 
+// 状态机 — 任务3 重构后,前端只负责把后端 ExperimentStatus.compute() 计算出的字符串翻译成标签/颜色
+//   not_started    未开始  蓝色
+//   in_progress    进行中  黄色
+//   pending_score  待评分  红色
+//   done           已结束  绿色 (按日期推算;assignment.status=3 时被"已完成"标签覆盖)
 const STATUS_MAP = {
-  not_started: { label: '未开始', type: 'info' },
-  in_progress: { label: '进行中', type: 'warning' },
-  done:        { label: '已结束', type: 'success' }
+  not_started:   { label: '未开始', type: 'info' },
+  in_progress:   { label: '进行中', type: 'warning' },
+  pending_score: { label: '待评分', type: 'danger' },
+  done:          { label: '已结束', type: 'success' }
 }
 const statusLabel = (s) => STATUS_MAP[s]?.label || '未知'
 const statusType  = (s) => STATUS_MAP[s]?.type  || 'info'
 
 const statusOptions = [
-  { value: '',            label: '全部' },
-  { value: 'not_started', label: '未开始' },
-  { value: 'in_progress', label: '进行中' },
-  { value: 'done',        label: '已结束' }
+  { value: '',              label: '全部' },
+  { value: 'not_started',   label: '未开始' },
+  { value: 'in_progress',   label: '进行中' },
+  { value: 'pending_score', label: '待评分' },
+  { value: 'done',          label: '已结束' }
 ]
 
 const fmtDate = (iso) => {
@@ -182,6 +204,7 @@ onMounted(fetch)
 .exp:hover { transform: translateY(-3px); border-color: var(--accent); box-shadow: var(--shadow-blue); }
 
 .exp__head { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.exp__tags { display: flex; gap: 6px; flex-wrap: wrap; }
 .exp__no { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); }
 .exp__title { margin: 0; font-family: var(--font-display); font-size: 20px; font-weight: 600; color: var(--ink); letter-spacing: -0.012em; }
 .exp__course { margin: 0; font-size: 13px; color: var(--ink-soft); display: flex; align-items: center; gap: 6px; }

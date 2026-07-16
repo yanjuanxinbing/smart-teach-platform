@@ -28,6 +28,13 @@
             <el-tag :type="regTagType(plan)" effect="dark" size="small" class="head__tag">
               {{ regTagLabel(plan) }}
             </el-tag>
+            <!-- 已完成 + 有成绩：头部 score 标签 -->
+            <el-tag
+              v-if="plan.scoreAvailable && plan.registrationStatus === 3"
+              type="success"
+              effect="plain"
+              size="small"
+            >成绩 {{ fmtScore(plan.score) }}</el-tag>
             <!-- 已通过 / 进行中：跳到我的实训看进度 -->
             <router-link
               v-if="plan.registered && (plan.registrationStatus === 1 || plan.registrationStatus === 3)"
@@ -96,6 +103,42 @@
             </div>
           </dl>
         </article>
+
+        <!-- 学生成绩卡：仅在已报名且教师已批改时显示 -->
+        <article v-if="plan.registered && plan.registrationStatus === 3 && plan.scoreAvailable" class="card card--meta card--score">
+          <h2 class="card__title">
+            我的成绩
+            <span v-if="plan.gradedAt" class="card__sub">完成时间 {{ fmtDateTime(plan.gradedAt) }}</span>
+          </h2>
+          <div class="score-grid">
+            <div class="score-grid__main">
+              <span class="score-grid__label">最终成绩</span>
+              <span class="score-grid__value">{{ fmtScore(plan.score) }}</span>
+            </div>
+            <div class="score-grid__parts">
+              <div class="score-grid__row">
+                <span class="score-grid__part-label">平时成绩</span>
+                <span class="score-grid__part-value">{{ fmtScore(plan.regularScore) }}</span>
+                <span class="score-grid__weight">权重 {{ plan.regularWeight ?? 0 }}%</span>
+              </div>
+              <div class="score-grid__row">
+                <span class="score-grid__part-label">考核成绩</span>
+                <span class="score-grid__part-value">{{ fmtScore(plan.examScore) }}</span>
+                <span class="score-grid__weight">权重 {{ plan.examWeight ?? 0 }}%</span>
+              </div>
+            </div>
+          </div>
+          <div v-if="plan.comment" class="score-comment">
+            <span class="score-comment__label">教师评语</span>
+            <p class="score-comment__body">{{ plan.comment }}</p>
+          </div>
+        </article>
+
+        <!-- 已报名但未录入成绩的占位提示 -->
+        <article v-else-if="plan.registered && !plan.scoreAvailable" class="card card--meta card--score-empty">
+          <h2 class="card__title">我的成绩</h2>
+          <p class="card__empty">暂无成绩（待教师录入）</p>
+        </article>
       </div>
     </section>
   </div>
@@ -131,6 +174,20 @@ const fmtDate = (iso) => {
   if (Number.isNaN(d.getTime())) return iso
   const pad = (n) => String(n).padStart(2, '0')
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
+}
+const fmtDateTime = (iso) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+// 数字 score 渲染:null/0 → '—',保留 2 位小数
+const fmtScore = (v) => {
+  if (v === null || v === undefined) return '—'
+  const n = Number(v)
+  if (Number.isNaN(n)) return '—'
+  return n.toFixed(2)
 }
 
 const loading = ref(true)
@@ -232,5 +289,24 @@ onMounted(() => {
 .kv__row dt { color: var(--mute); min-width: 96px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
 .kv__row dd { margin: 0; color: var(--ink); }
 
-@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } .kv { grid-template-columns: 1fr; } }
+/* === 成绩卡 === */
+.card--score { border-left: 3px solid var(--accent); }
+.card--score .card__title { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; }
+.card__sub { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.08em; color: var(--mute); font-weight: 400; }
+.score-grid { display: grid; grid-template-columns: minmax(220px, 1fr) minmax(0, 1.4fr); gap: clamp(20px, 3vw, 36px); align-items: stretch; }
+.score-grid__main { display: flex; flex-direction: column; justify-content: center; gap: 8px; padding: 20px; background: linear-gradient(135deg, rgba(54, 86, 226, 0.06) 0%, rgba(54, 86, 226, 0.02) 100%); border: 1px solid var(--line-soft); }
+.score-grid__label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--mute); }
+.score-grid__value { font-family: var(--font-display); font-size: 44px; font-weight: 600; color: var(--accent); letter-spacing: -0.02em; line-height: 1.1; }
+.score-grid__parts { display: flex; flex-direction: column; gap: 12px; justify-content: center; }
+.score-grid__row { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: baseline; padding: 12px 0; border-bottom: 1px dashed var(--line-soft); }
+.score-grid__row:last-child { border-bottom: none; }
+.score-grid__part-label { font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); }
+.score-grid__part-value { font-family: var(--font-display); font-size: 22px; font-weight: 600; color: var(--ink); text-align: right; }
+.score-grid__weight { font-family: var(--font-mono); font-size: 11px; color: var(--mute); }
+.score-comment { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--line-soft); }
+.score-comment__label { display: block; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--mute); margin-bottom: 8px; }
+.score-comment__body { margin: 0; font-size: 14px; line-height: 1.85; color: var(--ink-soft); white-space: pre-wrap; }
+.card--score-empty .card__empty { margin: 8px 0 0; font-size: 13px; color: var(--mute); font-family: var(--font-mono); letter-spacing: 0.06em; }
+
+@media (max-width: 800px) { .grid { grid-template-columns: 1fr; } .kv { grid-template-columns: 1fr; } .score-grid { grid-template-columns: 1fr; } }
 </style>

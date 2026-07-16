@@ -47,4 +47,25 @@ public class ExperimentPlanSaveDTO {
         }
         return endDate.isAfter(startDate);
     }
+
+    /**
+     * 实验明细的上课日期必须落在计划起止日期范围内。
+     * 任一 item.classDate ∈ [startDate, endDate] 之外即视为非法；空值视为待补全，不在此处拦截。
+     * 字段级别无法表达 items[] 与 startDate/endDate 的关系，必须用 @AssertTrue 兜底。
+     */
+    @AssertTrue(message = "实验明细的上课日期必须落在计划起止日期范围内")
+    public boolean isItemDatesWithinPlanRange() {
+        if (startDate == null || endDate == null || items == null) {
+            return true;
+        }
+        for (ExperimentPlanItemDTO it : items) {
+            if (it == null || it.getClassDate() == null) {
+                continue;
+            }
+            if (it.getClassDate().isBefore(startDate) || it.getClassDate().isAfter(endDate)) {
+                return false;
+            }
+        }
+        return true;
+    }
 }
