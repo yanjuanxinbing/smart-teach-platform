@@ -76,6 +76,14 @@ aiassistant:
   history:
     keep-per-user: 200                  # 每用户最多保留会话数（超出按 update_time 删旧）
 
+# 作业 AI 分析（aiassignment 模块，面向 web-admin 后台）
+aiassignment:
+  # 上下文最大字符数；超出截断（防 1B 模型首字延迟爆炸）
+  max-prompt-chars: 2000
+  # 两份 system prompt 也可在 yaml 覆盖，缺省走 AiAssignmentProperties 的 DEFAULT_* 常量
+  # class-system-prompt: "..."
+  # student-system-prompt: "..."
+
 # knife4j 接口文档
 knife4j:
   enable: true
