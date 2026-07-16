@@ -24,3 +24,17 @@ export const getPortalResource = (id) =>
 
 export const downloadPortalResource = (id) =>
   request.get(`/portal/resource/${id}/file`, { silentError: true, responseType: 'blob' })
+
+/**
+ * 文件上传 —— 与 web-admin 复用同一后端 (/biz/resource/upload 上传到 /api/files/...)
+ *   返回 { originalName, fileUrl, fileSize, fileSuffix }
+ *   用于「我的作业」提交附件上传 (AssignmentSubmit.vue)
+ */
+export const uploadFile = (file) => {
+  const formData = new FormData()
+  formData.append('file', file)
+  return request.post('/biz/resource/upload', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+    silentError: true
+  })
+}

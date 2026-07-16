@@ -21,11 +21,11 @@
         </div>
         <template v-else>
           <div class="head__top">
-            <el-tag :type="statusType(detail.status)" effect="dark" size="small" class="head__tag">
-              {{ statusLabel(detail.status) }}
-            </el-tag>
-            <el-tag v-if="detail.assignmentStatus === 3" type="primary" effect="dark" size="small">
+            <el-tag v-if="detail.assignmentStatus === 3" type="primary" effect="dark" size="small" class="head__tag">
               已完成
+            </el-tag>
+            <el-tag v-else :type="statusType(detail.status)" effect="dark" size="small" class="head__tag">
+              {{ statusLabel(detail.status) }}
             </el-tag>
           </div>
           <h1 class="head__title">{{ detail.expName || '未命名实验' }}</h1>
@@ -78,9 +78,17 @@
               <dt>计划起止</dt>
               <dd>{{ fmtDate(detail.planStartDate) }} ~ {{ fmtDate(detail.planEndDate) }}</dd>
             </div>
-            <div class="kv__row" v-if="detail.assignmentStatus === 3">
+            <!-- 成绩 —— 任务3:始终显示,未录入时显示"待教师录入" -->
+            <div class="kv__row">
               <dt>成绩</dt>
-              <dd class="kv__score">{{ detail.score ?? '—' }}</dd>
+              <dd class="kv__score">
+                <template v-if="detail.assignmentStatus === 3 && detail.score !== null && detail.score !== undefined">
+                  {{ detail.score }}
+                </template>
+                <template v-else>
+                  <span class="kv__pending">待教师录入</span>
+                </template>
+              </dd>
             </div>
             <div class="kv__row" v-if="detail.comment">
               <dt>教师评语</dt>
@@ -104,10 +112,16 @@ const route = useRoute()
 const router = useRouter()
 const userStore = useUserStore()
 
+// 状态机 — 任务3 重构后,前端只负责把后端 ExperimentStatus.compute() 计算出的字符串翻译成标签/颜色
+//   not_started    未开始
+//   in_progress    进行中
+//   pending_score  待评分
+//   done           已结束 (按日期推算;assignment.status=3 时被"已完成"标签覆盖)
 const STATUS_MAP = {
-  not_started: { label: '未开始', type: 'info' },
-  in_progress: { label: '进行中', type: 'warning' },
-  done:        { label: '已结束', type: 'success' }
+  not_started:   { label: '未开始', type: 'info' },
+  in_progress:   { label: '进行中', type: 'warning' },
+  pending_score: { label: '待评分', type: 'danger' },
+  done:          { label: '已结束', type: 'success' }
 }
 const statusLabel = (s) => STATUS_MAP[s]?.label || '未知'
 const statusType  = (s) => STATUS_MAP[s]?.type  || 'info'
@@ -185,6 +199,7 @@ onMounted(() => {
 .kv__row dt { color: var(--mute); min-width: 96px; font-family: var(--font-mono); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
 .kv__row dd { margin: 0; color: var(--ink); }
 .kv__score { color: var(--accent); font-weight: 600; font-size: 15px; }
+.kv__pending { color: var(--mute); font-family: var(--font-mono); font-size: 12px; letter-spacing: 0.06em; }
 
 @media (max-width: 800px) { .grid { grid-template-columns: 1fr; } .kv { grid-template-columns: 1fr; } }
 </style>

@@ -9,7 +9,9 @@ import com.smartteach.common.exception.BusinessException;
 import com.smartteach.common.result.ResultCode;
 import com.smartteach.modules.experiment.entity.ExperimentAssignment;
 import com.smartteach.modules.experiment.entity.ExperimentPlan;
+import com.smartteach.modules.experiment.entity.ExperimentPlanItem;
 import com.smartteach.modules.experiment.mapper.ExperimentAssignmentMapper;
+import com.smartteach.modules.experiment.mapper.ExperimentPlanItemMapper;
 import com.smartteach.modules.experiment.mapper.ExperimentPlanMapper;
 import com.smartteach.modules.experiment.service.ExperimentAssignmentService;
 import com.smartteach.modules.system.entity.SysClass;
@@ -19,7 +21,10 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 
 @Service
 @RequiredArgsConstructor
@@ -28,6 +33,7 @@ public class ExperimentAssignmentServiceImpl
         implements ExperimentAssignmentService {
 
     private final ExperimentPlanMapper planMapper;
+    private final ExperimentPlanItemMapper itemMapper;
     private final SysClassService sysClassService;
 
     @Override
@@ -141,6 +147,19 @@ public class ExperimentAssignmentServiceImpl
         // 校验成绩 0-100
         if (score != null && (score.compareTo(BigDecimal.ZERO) < 0 || score.compareTo(new BigDecimal("100")) > 0)) {
             throw new BusinessException("成绩必须在 0-100 之间");
+        }
+        // 日期门禁:最早 item.classDate 必须 <= today,否则视为"实验还没开课,现在还不能打分"
+        // 解决"未开始 + 已打分"的状态冲突
+        List<ExperimentPlanItem> items = itemMapper.selectList(
+                new LambdaQueryWrapper<ExperimentPlanItem>().eq(ExperimentPlanItem::getPlanId, a.getPlanId()));
+        LocalDate today = LocalDate.now();
+        LocalDate minItemDate = items.stream()
+                .map(ExperimentPlanItem::getClassDate)
+                .filter(Objects::nonNull)
+                .min(Comparator.naturalOrder())
+                .orElse(null);
+        if (minItemDate != null && minItemDate.isAfter(today)) {
+            throw new BusinessException("最早的实验尚未开课（" + minItemDate + "），现在还不能打分");
         }
         ExperimentAssignment update = new ExperimentAssignment();
         update.setId(id);

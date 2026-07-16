@@ -110,7 +110,14 @@
           <el-table-column width="170">
             <template #header><span class="required-mark">*</span> 上课日期</template>
             <template #default="{ row }">
-              <el-date-picker v-model="row.classDate" type="date" value-format="YYYY-MM-DD" style="width:100%" :class="{ 'is-required-error': !row.classDate }" />
+              <el-date-picker
+                v-model="row.classDate"
+                type="date"
+                value-format="YYYY-MM-DD"
+                style="width:100%"
+                :class="{ 'is-required-error': !row.classDate || isItemDateOutOfRange(row.classDate) }"
+                :disabled-date="isItemDateDisabled"
+              />
             </template>
           </el-table-column>
           <el-table-column label="节次" width="100"><template #default="{ row }"><el-input v-model="row.classPeriod" /></template></el-table-column>
@@ -212,6 +219,34 @@ const disabledEndDate = (time) => {
   return time.getTime() <= new Date(form.startDate).getTime()
 }
 
+/**
+ * 实验明细上课日期必须落在计划起止日期范围内(任务3)
+ * picker 级别禁用 plan.startDate 之前与 plan.endDate 之后的日期,
+ * 两端都按自然日判断 (endDate 取当天 23:59:59 之前都视为合法)
+ */
+const isItemDateDisabled = (time) => {
+  const t = time && typeof time.getTime === 'function' ? time.getTime() : NaN
+  if (Number.isNaN(t)) return false
+  if (form.startDate) {
+    const s = new Date(form.startDate).getTime()
+    if (t < s) return true
+  }
+  if (form.endDate) {
+    // 当天结束之前 (23:59:59.999) 都允许
+    const e = new Date(form.endDate + 'T23:59:59.999').getTime()
+    if (t > e) return true
+  }
+  return false
+}
+const isItemDateOutOfRange = (iso) => {
+  if (!iso) return false
+  const t = new Date(iso).getTime()
+  if (Number.isNaN(t)) return false
+  if (form.startDate && t < new Date(form.startDate).getTime()) return true
+  if (form.endDate && t > new Date(form.endDate + 'T23:59:59.999').getTime()) return true
+  return false
+}
+
 // 开始日期变化时重新校验结束日期，避免选了晚于结束日期的开始日期后看不到错误提示
 watch(() => form.startDate, () => {
   if (form.endDate && formRef.value) formRef.value.validateField('endDate')
@@ -296,6 +331,16 @@ const submitForm = async () => {
     itemsError.value = `第 ${badIdx + 1} 条实验的名称/上课日期不能为空`
     ElMessage.error(itemsError.value)
     return
+  }
+  // 任务3:item.classDate 必须落在 [startDate, endDate] 范围内 —— 前端兜底
+  if (form.startDate && form.endDate) {
+    const outIdx = form.items.findIndex(it => isItemDateOutOfRange(it.classDate))
+    if (outIdx >= 0) {
+      const msg = `第 ${outIdx + 1} 条实验的上课日期必须在 [${form.startDate}, ${form.endDate}] 范围内`
+      itemsError.value = msg
+      ElMessage.error(msg)
+      return
+    }
   }
   itemsError.value = ''
   submitting.value = true

@@ -23,7 +23,12 @@ import request from '@/utils/request'
  *      planId, planTitle, projectName, semester, className, teacherName,
  *      location, startDate, endDate, status, capacity, registeredCount,
  *      objective, content, assessment,
- *      registered(Boolean), registrationId(Long?), registrationStatus(0/1/2/3?)
+ *      registered(Boolean), registrationId(Long?), registrationStatus(0/1/2/3?),
+ *      // === 学生成绩(来自 training_registration,仅当 registrationStatus=3 时有值)===
+ *      score(BigDecimal?), regularScore, examScore,
+ *      regularWeight(Int 0-100), examWeight(Int 0-100),
+ *      comment(String), gradedAt(LocalDateTime?),
+ *      scoreAvailable(Boolean: 任一分数字段或评语非空即 true)
  *
  *  「我的实训」端点(/api/portal/my/trainings)继续走 my.js,
  *   待审核数据通过 status=0 → vo.status='pending_review' 返回。

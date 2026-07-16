@@ -62,4 +62,10 @@ public interface PortalMyLearningService {
      * 实验详情 —— 单条 item 全字段 + 所属 plan 上下文 + 当前学生 assignment 状态
      */
     PortalExperimentDetailVO getExperimentDetail(Long studentId, Long itemId);
+
+    /**
+     * 校验学生是否有权访问指定作业（基于"目标班级 ⊇ 学生班级"）。
+     * 学生班级与作业目标班级任一相交即视为可见；否则抛 BusinessException(403)。
+     */
+    void assertAssignmentVisibleToStudent(Long assignmentId, Long studentId);
 }

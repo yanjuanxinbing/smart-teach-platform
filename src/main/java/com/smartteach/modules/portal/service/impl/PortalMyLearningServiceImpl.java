@@ -3,6 +3,7 @@ package com.smartteach.modules.portal.service.impl;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.core.metadata.IPage;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
+import com.smartteach.common.enums.ExperimentStatus;
 import com.smartteach.common.exception.BusinessException;
 import com.smartteach.common.result.ResultCode;
 import com.smartteach.modules.course.assignment.entity.Assignment;
@@ -26,6 +27,10 @@ import com.smartteach.modules.portal.vo.PortalMyCourseVO;
 import com.smartteach.modules.portal.vo.PortalMyExperimentVO;
 import com.smartteach.modules.portal.vo.PortalMyTrainingVO;
 import com.smartteach.modules.portal.vo.PortalTrainingVO;
+import com.smartteach.modules.system.entity.SysAssignmentClass;
+import com.smartteach.modules.system.entity.SysUserClass;
+import com.smartteach.modules.system.mapper.SysAssignmentClassMapper;
+import com.smartteach.modules.system.mapper.SysUserClassMapper;
 import com.smartteach.modules.training.dto.TrainingRegistrationSaveDTO;
 import com.smartteach.modules.training.entity.TrainingPlan;
 import com.smartteach.modules.training.entity.TrainingRegistration;
@@ -48,6 +53,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -78,6 +84,8 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
     private final SysUserMapper sysUserMapper;
     private final ExperimentAssignmentMapper experimentAssignmentMapper;
     private final ExperimentPlanMapper experimentPlanMapper;
+    private final SysUserClassMapper sysUserClassMapper;
+    private final SysAssignmentClassMapper sysAssignmentClassMapper;
     private final ExperimentPlanItemMapper experimentPlanItemMapper;
 
     @Override
@@ -147,7 +155,38 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
     public IPage<PortalMyAssignmentVO> myAssignments(Long studentId, long pageNum, long pageSize, String status) {
         requireStudent(studentId);
 
-        // 1) 该学生所有提交，按 assignment_id + 提交时间聚合取最新一条
+        // 1) 学生所属班级
+        List<SysUserClass> userClasses = sysUserClassMapper.selectList(
+                new LambdaQueryWrapper<SysUserClass>().eq(SysUserClass::getUserId, studentId));
+        if (userClasses.isEmpty()) {
+            // 学生未挂任何班级 → 看不到任何作业
+            return new Page<>(pageNum, pageSize, 0);
+        }
+        List<Long> classIds = userClasses.stream()
+                .map(SysUserClass::getClassId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toList());
+
+        // 2) 班级关联的作业 ID
+        List<SysAssignmentClass> acList = sysAssignmentClassMapper.selectList(
+                new LambdaQueryWrapper<SysAssignmentClass>().in(SysAssignmentClass::getClassId, classIds));
+        Set<Long> visibleAssignmentIds = acList.stream()
+                .map(SysAssignmentClass::getAssignmentId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+
+        if (visibleAssignmentIds.isEmpty()) {
+            return new Page<>(pageNum, pageSize, 0);
+        }
+
+        // 3) 拉取已发布/已截止的作业(按截止时间倒序)
+        List<Assignment> assignments = assignmentMapper.selectList(
+                new LambdaQueryWrapper<Assignment>()
+                        .in(Assignment::getId, visibleAssignmentIds)
+                        .in(Assignment::getStatus, 1, 2)
+                        .orderByDesc(Assignment::getDeadline));
+
+        // 4) 该学生所有提交，按 assignment_id 取最新一条
         LambdaQueryWrapper<AssignmentSubmission> submissionWrap = new LambdaQueryWrapper<>();
         submissionWrap.eq(AssignmentSubmission::getStudentId, studentId);
         List<AssignmentSubmission> submissions = submissionMapper.selectList(submissionWrap);
@@ -160,33 +199,15 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
             }
         }
 
-        // 2) 反查作业详情
-        Set<Long> assignmentIds = latestByAssignment.keySet();
-        List<Assignment> assignments;
-        if (assignmentIds.isEmpty()) {
-            assignments = Collections.emptyList();
-        } else {
-            LambdaQueryWrapper<Assignment> aWrap = new LambdaQueryWrapper<>();
-            aWrap.in(Assignment::getId, assignmentIds)
-                    .in(Assignment::getStatus, 1, 2)  // 已发布 + 已截止
-                    .orderByDesc(Assignment::getDeadline);
-            // 状态过滤的同时也要拉"未提交"集合 —— 这里一并按需补一个不带 submission 的查询
-            assignments = assignmentMapper.selectList(aWrap);
-        }
-
-        // 3) 组装并按状态过滤
+        // 5) 组装并按 status 过滤
         List<PortalMyAssignmentVO> all = new ArrayList<>(assignments.size());
         for (Assignment a : assignments) {
             AssignmentSubmission latest = latestByAssignment.get(a.getId());
             PortalMyAssignmentVO vo = toAssignmentVO(a, latest);
             if (matchesStatus(vo.getStatus(), status)) all.add(vo);
         }
-        // 同时,当前学生所有"已发布/已截止"但未提交的作业也应展示为 pending —— 暂以"有提交记录"为全集,
-        // 因为历史上未提交作业的查询会膨胀,生产场景建议后台另起一个定时任务把"未提交作业"显式建档.
-        // 此处保留按"已发布"查询的注释实现,不影响主流程.
-        // TODO: 后续若需要"看到所有未提交作业",再以"目标班级 -> 作业关联"反向补齐.
 
-        // 4) 内存分页
+        // 6) 内存分页
         long total = all.size();
         long from = Math.max(0L, (pageNum - 1) * pageSize);
         long to = Math.min(total, from + pageSize);
@@ -340,6 +361,20 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
             vo.setRegistered(true);
             vo.setRegistrationId(reg.getId());
             vo.setRegistrationStatus(reg.getStatus());
+            // === 学生成绩（来自 training_registration）===
+            // 仅当教师已登记成绩/评语时才填充；前端用 scoreAvailable 渲染"暂无成绩"提示
+            vo.setScore(reg.getScore());
+            vo.setRegularScore(reg.getRegularScore());
+            vo.setExamScore(reg.getExamScore());
+            vo.setRegularWeight(reg.getRegularWeight());
+            vo.setExamWeight(reg.getExamWeight());
+            vo.setComment(reg.getComment());
+            vo.setGradedAt(reg.getUpdateTime());
+            boolean hasScore = reg.getScore() != null
+                    || reg.getRegularScore() != null
+                    || reg.getExamScore() != null;
+            boolean hasComment = reg.getComment() != null && !reg.getComment().isBlank();
+            vo.setScoreAvailable(hasScore || hasComment);
         } else {
             vo.setRegistered(false);
         }
@@ -398,8 +433,17 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
                     vo.setStartDate(plan.getStartDate());
                     vo.setEndDate(plan.getEndDate());
                 }
-                // 用 item.classDate 优先；plan 的 start/end 已冗余展示
-                vo.setStatus(computeItemStatus(item.getClassDate(), today));
+                // 实验状态机:基于 plan.startDate/endDate + assignment.status + score 综合判定
+                // (item.classDate 不再作为单一信号,避免"未开始"和"已打分"冲突)
+                vo.setStatus(ExperimentStatus.compute(
+                        plan != null ? plan.getStartDate() : null,
+                        plan != null ? plan.getEndDate() : null,
+                        reg.getStatus(),
+                        reg.getScore(),
+                        today
+                ).getCode());
+                // 把 assignment.status 也透出(供前端列表展示"已完成"等)
+                vo.setAssignmentStatus(reg.getStatus() == null ? null : reg.getStatus().toString());
                 all.add(vo);
             }
         }
@@ -483,22 +527,18 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
         vo.setAssignmentStatus(reg.getStatus());
         vo.setScore(reg.getScore());
         vo.setComment(reg.getComment());
-        vo.setStatus(computeItemStatus(item.getClassDate(), LocalDate.now()));
+        // 实验状态机:基于 plan.startDate/endDate + assignment.status + score 综合判定
+        vo.setStatus(ExperimentStatus.compute(
+                plan != null ? plan.getStartDate() : null,
+                plan != null ? plan.getEndDate() : null,
+                reg.getStatus(),
+                reg.getScore(),
+                LocalDate.now()
+        ).getCode());
         return vo;
     }
 
-    /**
-     * item 状态由 classDate 与 today 推算:
-     *   classDate > today → not_started
-     *   classDate == today → in_progress
-     *   classDate < today → done
-     */
-    private String computeItemStatus(LocalDate classDate, LocalDate today) {
-        if (classDate == null) return "not_started";
-        if (classDate.isAfter(today)) return "not_started";
-        if (classDate.isBefore(today)) return "done";
-        return "in_progress";
-    }
+    // (computeItemStatus 已删除 —— 由 ExperimentStatus.compute 替代)
 
     // ====================================================================
     //  反 IDOR 工具
@@ -506,6 +546,34 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
     private void requireStudent(Long studentId) {
         if (studentId == null) {
             throw new BusinessException(ResultCode.UNAUTHORIZED);
+        }
+    }
+
+    @Override
+    public void assertAssignmentVisibleToStudent(Long assignmentId, Long studentId) {
+        requireStudent(studentId);
+        if (assignmentId == null) {
+            throw new BusinessException(ResultCode.PARAM_ERROR);
+        }
+        // 1) 学生班级
+        List<SysUserClass> userClasses = sysUserClassMapper.selectList(
+                new LambdaQueryWrapper<SysUserClass>().eq(SysUserClass::getUserId, studentId));
+        if (userClasses.isEmpty()) {
+            throw new BusinessException(ResultCode.FORBIDDEN);
+        }
+        Set<Long> classIds = userClasses.stream()
+                .map(SysUserClass::getClassId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        // 2) 作业目标班级
+        List<SysAssignmentClass> acList = sysAssignmentClassMapper.selectList(
+                new LambdaQueryWrapper<SysAssignmentClass>().eq(SysAssignmentClass::getAssignmentId, assignmentId));
+        boolean visible = acList.stream()
+                .map(SysAssignmentClass::getClassId)
+                .filter(Objects::nonNull)
+                .anyMatch(classIds::contains);
+        if (!visible) {
+            throw new BusinessException(ResultCode.FORBIDDEN);
         }
     }
 
@@ -533,6 +601,10 @@ public class PortalMyLearningServiceImpl implements PortalMyLearningService {
         vo.setAssignmentId(a.getId());
         vo.setCourseId(a.getCourseId());
         vo.setTitle(a.getTitle());
+        vo.setDescription(a.getDescription());
+        vo.setTotalScore(a.getTotalScore());
+        // assignment.status: 0=草稿 1=已发布 2=已截止 —— 学生列表只查 1/2,这里按需映射
+        vo.setAssignmentStatus(a.getStatus() != null && a.getStatus() == 1 ? "open" : "closed");
         vo.setDeadline(a.getDeadline());
 
         if (latest == null) {

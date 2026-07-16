@@ -77,6 +77,8 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
                 throw new BusinessException("第 " + (i + 1) + " 条实验的名称/上课日期不能为空");
             }
         }
+        // 防御:item.classDate 必须落在 [startDate, endDate] 范围内 —— 与 DTO @AssertTrue 重复兜底
+        validateItemDatesInPlanRange(dto);
         ExperimentPlan plan = new ExperimentPlan();
         BeanUtils.copyProperties(dto, plan);
         if (plan.getStatus() == null) plan.setStatus(0);
@@ -105,11 +107,33 @@ public class ExperimentPlanServiceImpl extends ServiceImpl<ExperimentPlanMapper,
                 throw new BusinessException("第 " + (i + 1) + " 条实验的名称/上课日期不能为空");
             }
         }
+        // 防御:item.classDate 必须落在 [startDate, endDate] 范围内
+        validateItemDatesInPlanRange(dto);
         ExperimentPlan entity = new ExperimentPlan();
         BeanUtils.copyProperties(dto, entity);
         this.updateById(entity);
         itemMapper.delete(new LambdaUpdateWrapper<ExperimentPlanItem>().eq(ExperimentPlanItem::getPlanId, dto.getId()));
         saveItems(dto.getId(), dto.getItems());
+    }
+
+    /**
+     * 兜底校验:实验明细的 classDate 必须落在 [startDate, endDate] 内。
+     * 与 ExperimentPlanSaveDTO#isItemDatesWithinPlanRange 重复,但放在 service
+     * 是为了挡住直接 hit /experiment/plan 接口、绕过 @Valid 的非法请求。
+     */
+    private void validateItemDatesInPlanRange(ExperimentPlanSaveDTO dto) {
+        if (dto.getStartDate() == null || dto.getEndDate() == null || dto.getItems() == null) {
+            return;
+        }
+        for (int i = 0; i < dto.getItems().size(); i++) {
+            ExperimentPlanItemDTO it = dto.getItems().get(i);
+            if (it == null || it.getClassDate() == null) continue;
+            if (it.getClassDate().isBefore(dto.getStartDate())
+                    || it.getClassDate().isAfter(dto.getEndDate())) {
+                throw new BusinessException("第 " + (i + 1) + " 条实验的上课日期必须在 ["
+                        + dto.getStartDate() + ", " + dto.getEndDate() + "] 范围内");
+            }
+        }
     }
 
     private void saveItems(Long planId, List<ExperimentPlanItemDTO> items) {

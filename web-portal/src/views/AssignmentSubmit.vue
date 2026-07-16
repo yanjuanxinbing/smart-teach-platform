@@ -27,7 +27,7 @@
       <el-form v-else ref="formRef" :model="form" class="form" label-position="top">
         <div class="form__block">
           <h2 class="form__title">作业描述</h2>
-          <p class="form__desc">{{ assignment?.description || '（后端 PortalMyAssignmentVO 暂未返回 description 字段，当前为占位说明）' }}</p>
+          <p class="form__desc">{{ assignment?.description || '老师未填写作业描述' }}</p>
         </div>
 
         <el-form-item label="提交内容" prop="submitText">
@@ -79,6 +79,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Back, Upload, Warning } from '@element-plus/icons-vue'
 import { myAssignmentDetail, myLatestSubmission, saveAssignmentDraft, submitAssignment } from '@/api/my'
 import { myAssignments } from '@/api/my'
+import { uploadFile } from '@/api/resource'
 import { useUserStore } from '@/store/user'
 import RichEditor from '@/components/RichEditor.vue'
 
@@ -91,7 +92,10 @@ const loadError = ref(false)
 const assignment = ref(null)
 const latest = ref(null)
 const form = reactive({ submitText: '' })
+// fileList 保留给 UI 展示；远端已上传的 fileUrl/originalName/fileSize/fileSuffix 由后端 latest 拉回
 const fileList = ref([])
+// 上传中状态(避免重复点击导致 race)
+const uploadingFile = ref(false)
 const savingDraft = ref(false)
 const submitting = ref(false)
 const formRef = ref()
@@ -138,6 +142,17 @@ const load = async () => {
         if (sub && (sub.submitText || sub.fileUrl)) {
           latest.value = sub
           form.submitText = sub.submitText || ''
+          // 如果上次提交有附件,把已上传文件回显到 fileList(只展示,不再二次上传)
+          if (sub.fileUrl) {
+            fileList.value = [{
+              name: sub.originalName || sub.fileUrl.split('/').pop(),
+              url: sub.fileUrl,
+              size: sub.fileSize,
+              status: 'success',
+              uid: -1,
+              remote: true // 标记为已上传,buildJsonPayload 不再上传
+            }]
+          }
         }
       } catch (e) { /* 静默：可能是首次提交 */ }
     }
@@ -148,35 +163,56 @@ const load = async () => {
   }
 }
 
-const buildPayload = () => {
-  // 后端若使用 multipart 接收，File 对象直接放；纯文本场景可走 JSON。
-  // form.submitText 当前是富文本 HTML（来自 RichEditor 的 v-model）。
-  // 后端接口期望字段：
-  //   POST /api/portal/my/assignments/{id}/submit
-  //     Body (multipart 或 JSON): { text: string(HTML), file?: Blob, draft?: boolean }
-  //   对应落库字段: assignment_submission.submit_text (MEDIUMTEXT)
-  if (fileList.value.length) {
-    const fd = new FormData()
-    fd.append('text', form.submitText || '')
-    fd.append('file', fileList.value[0].raw)
-    return fd
+/**
+ * 构造"上传后"的 submission JSON payload (与后端 AssignmentSubmissionSaveDTO 一一对应)
+ *
+ * 文件上传采用「先上传,后提交」模式 —— 与 web-admin / 现有 AssignmentSubmissionSaveDTO 契约一致:
+ *   1) 若 fileList 里有本地未上传的文件,先调 /biz/resource/upload 拿回 {fileUrl,...}
+ *   2) 把 { submitText, fileUrl, originalName, fileSuffix, fileSize } 整体提交
+ * 避免 multipart 接收逻辑不一致带来的兼容问题。
+ */
+const buildJsonPayload = async () => {
+  const payload = {
+    submitText: form.submitText || ''
   }
-  return { text: form.submitText || '' }
+  if (!fileList.value.length) {
+    return payload
+  }
+  const f = fileList.value[0]
+  if (f.remote) {
+    // 上一轮草稿已上传过,直接复用
+    payload.fileUrl = f.url
+    payload.originalName = f.name
+    payload.fileSuffix = (f.name && f.name.includes('.')) ? f.name.split('.').pop() : ''
+    payload.fileSize = f.size || null
+    return payload
+  }
+  if (!f.raw) {
+    return payload
+  }
+  // 走真正的上传
+  uploadingFile.value = true
+  try {
+    const resp = await uploadFile(f.raw)
+    // resp 形如 { originalName, fileUrl, fileSize, fileSuffix }
+    payload.fileUrl = resp.fileUrl
+    payload.originalName = resp.originalName || f.name
+    payload.fileSuffix = resp.fileSuffix || ''
+    payload.fileSize = resp.fileSize || f.size || null
+  } finally {
+    uploadingFile.value = false
+  }
+  return payload
 }
 
 const onSaveDraft = async () => {
   savingDraft.value = true
   try {
-    const payload = buildPayload()
-    if (payload instanceof FormData) {
-      // 多文件接口可能要求不同字段名，stub 阶段先传 text+file
-      payload.append('draft', '1')
-    } else {
-      payload.draft = true
-    }
+    const payload = await buildJsonPayload()
     await saveAssignmentDraft(String(route.params.id), payload)
-    ElMessage.success('草稿已保存（后端就绪后才会真正落库）')
+    ElMessage.success('草稿已保存')
   } catch (e) {
+    console.error('save draft failed', e)
     ElMessage.error('保存草稿失败，请稍后再试')
   } finally {
     savingDraft.value = false
@@ -190,19 +226,31 @@ const onSubmit = async () => {
     ElMessage.warning('请填写提交内容或上传附件')
     return
   }
-  try {
-    await ElMessageBox.confirm('提交后无法再次修改，确定要提交作业吗？', '提交确认', {
-      confirmButtonText: '确定提交',
-      cancelButtonText: '再看看',
-      type: 'warning'
-    })
-  } catch (e) { return }
+  if (isOverdue.value) {
+    try {
+      await ElMessageBox.confirm('当前已超过截止时间，提交将被服务端拒绝。是否仍要尝试？', '已逾期', {
+        confirmButtonText: '继续尝试',
+        cancelButtonText: '取消',
+        type: 'warning'
+      })
+    } catch (e) { return }
+  } else {
+    try {
+      await ElMessageBox.confirm('提交后无法再次修改，确定要提交作业吗？', '提交确认', {
+        confirmButtonText: '确定提交',
+        cancelButtonText: '再看看',
+        type: 'warning'
+      })
+    } catch (e) { return }
+  }
   submitting.value = true
   try {
-    await submitAssignment(String(route.params.id), buildPayload())
-    ElMessage.success('作业已提交（后端就绪后才会真正落库）')
+    const payload = await buildJsonPayload()
+    await submitAssignment(String(route.params.id), payload)
+    ElMessage.success('作业已提交')
     router.replace('/my/assignments')
   } catch (e) {
+    console.error('submit failed', e)
     ElMessage.error('提交失败，请稍后再试')
   } finally {
     submitting.value = false

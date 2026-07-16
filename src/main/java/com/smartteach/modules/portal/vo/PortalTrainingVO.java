@@ -2,7 +2,9 @@ package com.smartteach.modules.portal.vo;
 
 import lombok.Data;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 /**
  * 门户-实训计划视图 —— 既用于「可报名列表」也用于「计划详情」
@@ -63,4 +65,25 @@ public class PortalTrainingVO {
 
     /** 报名状态 0待审核 1已通过 2已驳回 3已完成（已报名才有） */
     private Integer registrationStatus;
+
+    // === 学生成绩（来自 training_registration，仅当 reg.status==3 已完成时有值） ===
+    /** 最终成绩（按权重合成） */
+    private BigDecimal score;
+    /** 平时成绩 */
+    private BigDecimal regularScore;
+    /** 考核成绩 */
+    private BigDecimal examScore;
+    /** 平时成绩权重（百分比 0-100） */
+    private Integer regularWeight;
+    /** 考核成绩权重（百分比 0-100） */
+    private Integer examWeight;
+    /** 教师评语 */
+    private String comment;
+    /** 完成时间（冗余展示 reg.updateTime） */
+    private LocalDateTime gradedAt;
+    /**
+     * 是否有成绩/评语（任一分数字段或评语非空）
+     * 前端用此开关渲染"成绩卡"vs"暂无成绩"提示
+     */
+    private Boolean scoreAvailable;
 }
