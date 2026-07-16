@@ -1367,25 +1367,25 @@ SELECT '初始化完成' AS message;
 --   用于同事确认：1)菜单注册成功 2)admin/teacher/student 三类角色都拿到了正确权限
 --   在生产环境可注释掉;开发环境留作冒烟测试用
 -- =====================================================================
-SELECT '--- 管理员 experiment:* 权限 ---' AS info;
-SELECT m.id AS menu_id, m.menu_name, m.permission
-FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id = m.id
-WHERE rm.role_id = 1 AND m.permission LIKE 'experiment:%'
-ORDER BY m.id;
+-- SELECT '--- 管理员 experiment:* 权限 ---' AS info;
+-- SELECT m.id AS menu_id, m.menu_name, m.permission
+-- FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id = m.id
+-- WHERE rm.role_id = 1 AND m.permission LIKE 'experiment:%'
+-- ORDER BY m.id;
 
-SELECT '--- 教师 experiment:* 权限 ---' AS info;
-SELECT m.id AS menu_id, m.menu_name, m.permission
-FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id = m.id
-WHERE rm.role_id = 3 AND m.permission LIKE 'experiment:%'
-ORDER BY m.id;
+-- SELECT '--- 教师 experiment:* 权限 ---' AS info;
+-- SELECT m.id AS menu_id, m.menu_name, m.permission
+-- FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id = m.id
+-- WHERE rm.role_id = 3 AND m.permission LIKE 'experiment:%'
+-- ORDER BY m.id;
 
-SELECT '--- 学生 experiment:* 权限 ---' AS info;
-SELECT m.id AS menu_id, m.menu_name, m.permission
-FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id = m.id
-WHERE rm.role_id = 4 AND m.permission LIKE 'experiment:%'
-ORDER BY m.id;
+-- SELECT '--- 学生 experiment:* 权限 ---' AS info;
+-- SELECT m.id AS menu_id, m.menu_name, m.permission
+-- FROM sys_role_menu rm JOIN sys_menu m ON rm.menu_id = m.id
+-- WHERE rm.role_id = 4 AND m.permission LIKE 'experiment:%'
+-- ORDER BY m.id;
 
-SELECT '--- 实验分配种子数据 ---' AS info;
-SELECT a.id, a.plan_title, a.student_name, a.class_name,
-       CASE a.status WHEN 1 THEN '已分配' WHEN 3 THEN '已完成' ELSE a.status END AS status
-FROM experiment_assignment a WHERE a.deleted = 0 ORDER BY a.id;
+-- SELECT '--- 实验分配种子数据 ---' AS info;
+-- SELECT a.id, a.plan_title, a.student_name, a.class_name,
+--        CASE a.status WHEN 1 THEN '已分配' WHEN 3 THEN '已完成' ELSE a.status END AS status
+-- FROM experiment_assignment a WHERE a.deleted = 0 ORDER BY a.id;

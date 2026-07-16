@@ -47,7 +47,7 @@
             <div class="bell">
               <header class="bell__head">
                 <span class="bell__title">消息通知</span>
-                <el-link type="primary" :underline="false" @click="go('/message/notice'); bellOpen = false">查看全部</el-link>
+                <el-link type="primary" :underline="'never'" @click="go('/message/notice'); bellOpen = false">查看全部</el-link>
               </header>
               <ul v-if="latest.length" class="bell__list">
                 <li v-for="m in latest" :key="m.id" class="bell__item" @click="go('/message/notice'); bellOpen = false">

@@ -51,6 +51,8 @@ const routes = [
           { path: 'courses',     name: 'MyCourses',     component: () => import('@/views/MyCourses.vue'),     meta: { title: '我的课程' } },
           { path: 'assignments', name: 'MyAssignments', component: () => import('@/views/MyAssignments.vue'), meta: { title: '我的作业' } },
           { path: 'trainings',   name: 'MyTrainings',   component: () => import('@/views/MyTrainings.vue'),   meta: { title: '我的实训' } },
+          { path: 'experiments', name: 'MyExperiments', component: () => import('@/views/MyExperiments.vue'), meta: { title: '我的实验' } },
+          { path: 'experiments/:id', name: 'ExperimentDetail', component: () => import('@/views/ExperimentDetail.vue'), meta: { title: '实验详情' } },
           { path: 'resources',   name: 'MyResources',   component: () => import('@/views/MyResources.vue'),   meta: { title: '我的资源' } },
           // 作业三联 —— 详情/提交/批改(学生视角)
           { path: 'assignment/:id/submit',     name: 'AssignmentSubmit',     component: () => import('@/views/AssignmentSubmit.vue'),     meta: { title: '提交作业' } },
