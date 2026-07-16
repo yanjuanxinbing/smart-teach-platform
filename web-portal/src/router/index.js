@@ -26,7 +26,10 @@ const routes = [
 
       // 实训详情 —— 顶部一级路由；不嵌进 /my/* 布局,沿用 PortalLayout 头部;
       // 但仍受 router.beforeEach 中 '/training/' 前缀拦截,仅 STUDENT 可入。
-      { path: 'training/:id', name: 'TrainingDetail', component: () => import('@/views/TrainingDetail.vue'), meta: { title: '实训详情' } },
+      // 注：/training 列表页（TrainingList）放在 /training/:id 之前,确保静态路径优先匹配,
+      // 避免 :id 把空路径吞掉 (vue-router 4 实际会按精确段匹配,这里只是按惯例排序)。
+      { path: 'training',      name: 'TrainingList',   component: () => import('@/views/TrainingList.vue'),   meta: { title: '可报名实训' } },
+      { path: 'training/:id',  name: 'TrainingDetail', component: () => import('@/views/TrainingDetail.vue'), meta: { title: '实训详情' } },
 
       // 个人中心（嵌套布局，登录态由 store/user.js 内部判断）
       {
@@ -112,7 +115,9 @@ router.beforeEach((to, from, next) => {
   }
 
   // (3) 受保护路径：/profile/* 与 /my/* 与 /training/* 都需要登录
-  if (to.path.startsWith('/profile') || to.path.startsWith('/my') || to.path.startsWith('/training/')) {
+  // 注:同时覆盖 /training(列表) 与 /training/:id(详情) —— 用 startsWith('/training') 即可,
+  // 避免漏掉无尾斜杠的 /training 导致游客进入列表页。
+  if (to.path.startsWith('/profile') || to.path.startsWith('/my') || to.path.startsWith('/training')) {
     const token = localStorage.getItem('portal_token')
     if (!token) {
       return next({ path: '/login', query: { redirect: to.fullPath } })
@@ -120,7 +125,7 @@ router.beforeEach((to, from, next) => {
   }
 
   // (3.5) /my/* 与 /training/* 仅 STUDENT 角色可入：教师/管理员进来直接回首页
-  if (to.path.startsWith('/my') || to.path.startsWith('/training/')) {
+  if (to.path.startsWith('/my') || to.path.startsWith('/training')) {
     const userStore = useUserStore()
     if (userStore.roleCode !== 'STUDENT') {
       return next({ path: '/', query: { denied: 'student-only' } })
